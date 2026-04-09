@@ -1,0 +1,83 @@
+/* ── Admin Users ─────────────────────────────────────────────── */
+.ausers { padding: 0; }
+
+.ausers-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.6rem; flex-wrap: wrap; }
+.ausers-header h1 { font-size: 1.3rem; font-weight: 800; font-family: 'Playfair Display', serif; color: var(--ag-text-1); margin: 0 0 4px; }
+.ausers-header p  { font-size: 0.8rem; color: var(--ag-text-3); margin: 0; }
+
+.ausers-header-stats { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
+.ausers-hstat { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: 700; padding: 6px 14px; border-radius: 50px; border: 1px solid; flex: 1 1 150px; min-width: 0; }
+.ausers-hstat.active    { color: var(--ag-success); border-color: rgba(74,222,128,0.25); background: rgba(74,222,128,0.06); }
+.ausers-hstat.suspended { color: var(--ag-error);   border-color: rgba(248,113,113,0.25); background: rgba(248,113,113,0.06); }
+.ausers-hstat.guest     { color: var(--ag-info);    border-color: rgba(96,165,250,0.25);  background: rgba(96,165,250,0.08); }
+.ausers-hstat-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.ausers-filters { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.4rem; flex-wrap: wrap; }
+.ausers-search-wrap { position: relative; flex: 1; min-width: 220px; }
+.ausers-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ag-text-4); pointer-events: none; }
+.ausers-search { padding-left: 38px !important; }
+.ausers-tabs { display: flex; gap: 4px; background: var(--ag-bg-card); border: 1px solid var(--ag-border); border-radius: var(--ag-r-sm); padding: 4px; }
+
+.ausers-table-wrap { overflow-x: auto; }
+
+.ausers-identity { display: flex; align-items: center; gap: 10px; }
+.ausers-avatar   { width: 36px; height: 36px; background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.2); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 800; color: var(--ag-gold-1); flex-shrink: 0; }
+.ausers-name     { font-size: 0.87rem; font-weight: 700; color: var(--ag-text-1); margin: 0 0 2px; }
+.ausers-email    { font-size: 0.73rem; color: var(--ag-text-3); margin: 0; }
+.ausers-phone    { font-size: 0.82rem; color: var(--ag-text-2); }
+.ausers-date     { font-size: 0.78rem; color: var(--ag-text-3); white-space: nowrap; }
+
+.ausers-votes-badge { background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.2); color: var(--ag-gold-1); font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 50px; }
+
+.ausers-status { display: inline-flex; align-items: center; gap: 5px; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 50px; border: 1px solid; }
+.ausers-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ausers-status.active    { color: var(--ag-success); background: rgba(74,222,128,0.08);  border-color: rgba(74,222,128,0.2);  }
+.ausers-status.suspended { color: var(--ag-error);   background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.2); }
+.ausers-status.guest     { color: var(--ag-info);    background: rgba(96,165,250,0.08);  border-color: rgba(96,165,250,0.22); }
+
+.ausers-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.ausers-action-btn { font-size: 0.78rem !important; padding: 0.38rem 0.9rem !important; }
+.ausers-del-btn    { padding: 0.38rem 0.6rem !important; }
+.ausers-readonly   { display: inline-flex; align-items: center; font-size: 0.74rem; font-weight: 700; color: var(--ag-info); background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.22); border-radius: 999px; padding: 0.4rem 0.75rem; white-space: nowrap; }
+
+.ausers-pagination { display:flex; align-items:center; justify-content:flex-end; gap:0.8rem; margin-top:1rem; flex-wrap:wrap; }
+.ausers-page { font-size:0.85rem; color: var(--ag-text-2); }
+
+@media (max-width: 760px) {
+  .ausers-header > .ag-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ausers-search-wrap {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .ausers-tabs {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .ausers-tabs .acand-tab {
+    flex: 1 1 120px;
+  }
+
+  .ag-table-responsive .ausers-actions,
+  .ag-table-responsive .ausers-readonly {
+    justify-content: flex-start;
+  }
+
+  .ausers-pagination {
+    justify-content: stretch;
+  }
+
+  .ausers-pagination .ag-btn {
+    flex: 1 1 140px;
+  }
+
+  .ausers-page {
+    width: 100%;
+    text-align: center;
+  }
+}

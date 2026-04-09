@@ -1,0 +1,128 @@
+.notification {
+  position: fixed;
+  top: 100px;
+  right: 2rem;
+  z-index: 9999;
+  width: min(calc(100vw - 4rem), 500px);
+  min-width: 0;
+  max-width: 500px;
+  padding: 1.2rem 1.5rem;
+  background: rgba(26, 26, 26, 0.98);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  border: 2px solid;
+  overflow: hidden;
+}
+
+.notification-success {
+  border-color: #4caf50;
+}
+
+.notification-error {
+  border-color: #f44336;
+}
+
+.notification-warning {
+  border-color: #ff9800;
+}
+
+.notification-info {
+  border-color: var(--primary-gold);
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.notification-icon {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.notification-message {
+  color: var(--white);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.notification-close {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: var(--white);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.notification-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.notification-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background: var(--primary-gold);
+  border-radius: 0 0 15px 15px;
+}
+
+.notification-success .notification-progress {
+  background: #4caf50;
+}
+
+.notification-error .notification-progress {
+  background: #f44336;
+}
+
+.notification-warning .notification-progress {
+  background: #ff9800;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .notification {
+    top: 80px;
+    right: 1rem;
+    left: 1rem;
+    width: auto;
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .notification {
+    padding: 1rem;
+  }
+  
+  .notification-icon {
+    font-size: 1.5rem;
+  }
+  
+  .notification-message {
+    font-size: 0.9rem;
+  }
+  
+  .notification-close {
+    width: 24px;
+    height: 24px;
+    font-size: 0.9rem;
+  }
+}

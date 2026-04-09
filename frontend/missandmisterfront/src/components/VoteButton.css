@@ -1,0 +1,47 @@
+/* ── VoteButton ──────────────────────────────────────────────── */
+
+.vote-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--gradient-gold);
+  color: var(--primary-black);
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(212,175,55,0.3);
+  transition: box-shadow 0.2s, opacity 0.2s;
+}
+
+.vote-button:hover:not(:disabled) { box-shadow: 0 6px 28px rgba(212,175,55,0.45); }
+.vote-button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.vote-button.size-sm { padding: 0.5rem 1.2rem; font-size: 0.8rem; }
+.vote-button.size-md { padding: 0.75rem 1.8rem; font-size: 0.88rem; }
+.vote-button.size-lg { padding: 0.9rem 2.2rem; font-size: 0.95rem; }
+
+.vb-spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(0,0,0,0.2);
+  border-top-color: var(--primary-black);
+  border-radius: 50%;
+}
+
+.vb-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.5s;
+}
+
+.vote-button:hover .vb-shine { left: 160%; }

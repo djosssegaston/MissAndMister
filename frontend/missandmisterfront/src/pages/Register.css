@@ -1,0 +1,59 @@
+/* ── Register overrides ──────────────────────────────────────── */
+
+.reg-container {
+  max-width: 980px;
+}
+
+.reg-form-card {
+  max-width: 420px;
+  width: 100%;
+}
+
+.reg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+  width: 100%;
+}
+
+/* Indicateur force mot de passe */
+.pwd-strength {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.pwd-bars {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.pwd-bar {
+  height: 4px;
+  flex: 1;
+  border-radius: 2px;
+  transition: background 0.3s;
+}
+
+/* Termes */
+.reg-terms {
+  font-size: 0.76rem;
+  color: rgba(255,255,255,0.35);
+  line-height: 1.6;
+  margin-bottom: 1.2rem;
+  text-align: center;
+}
+
+.reg-terms-link {
+  color: var(--primary-gold);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.reg-terms-link:hover { text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .reg-grid { grid-template-columns: 1fr; }
+}

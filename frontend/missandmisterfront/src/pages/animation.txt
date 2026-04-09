@@ -1,0 +1,12 @@
+ <div className="hero-video-wrapper">
+          <video
+            className="hero-video"
+            autoPlay
+            loop
+            muted
+            playsInline
+          >
+            <source src={videoAnime} type="video/mp4" />
+          </video>
+          <div className="hero-overlay"></div>
+        </div>

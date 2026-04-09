@@ -1,0 +1,123 @@
+/* ── Admin Votes ─────────────────────────────────────────────── */
+.avotes { padding: 0; }
+
+.avotes-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.6rem; flex-wrap: wrap; }
+.avotes-header h1 { font-size: 1.3rem; font-weight: 800; font-family: 'Playfair Display', serif; color: var(--ag-text-1); margin: 0 0 4px; }
+.avotes-header p  { font-size: 0.8rem; color: var(--ag-text-3); margin: 0; }
+.avotes-header-actions { display:flex; gap:0.6rem; align-items:center; }
+
+.avotes-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.4rem; background: var(--ag-bg-card); border: 1px solid var(--ag-border); border-radius: var(--ag-r-md); padding: 1.1rem 1.2rem; }
+.avotes-stat  { text-align: center; min-width: 0; }
+.avotes-stat:last-child { border-right: none; }
+.avotes-stat-val { display: block; font-size: 1.4rem; font-weight: 900; font-family: 'Playfair Display', serif; line-height: 1; margin-bottom: 4px; }
+.avotes-stat-lbl { font-size: 0.68rem; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ag-text-3); }
+
+.avotes-filters { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.4rem; flex-wrap: wrap; }
+.avotes-search-wrap { position: relative; flex: 1; min-width: 220px; }
+.avotes-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ag-text-4); pointer-events: none; }
+.avotes-search { padding-left: 38px !important; }
+.avotes-select { width: auto; min-width: 130px; }
+
+.avotes-table-wrap { overflow-x: auto; }
+
+.avotes-bulk { display:flex; align-items:center; justify-content: space-between; gap:1rem; margin-bottom:0.8rem; color: var(--ag-text-3); }
+.avotes-bulk-actions { display:flex; gap:0.6rem; flex-wrap: wrap; }
+
+.avotes-id     { font-size: 0.75rem; font-weight: 800; color: var(--ag-gold-dim); font-family: monospace; }
+.avotes-cand-name { font-size: 0.85rem; font-weight: 700; color: var(--ag-text-1); margin: 0 0 3px; }
+.avotes-voter  { font-size: 0.8rem; color: var(--ag-text-3); font-family: monospace; }
+.avotes-qty    { font-size: 0.9rem; font-weight: 800; color: var(--ag-text-1); }
+.avotes-amount { font-size: 0.88rem; font-weight: 800; color: var(--ag-gold-1); }
+.avotes-date   { font-size: 0.75rem; color: var(--ag-text-3); white-space: nowrap; }
+.avotes-ip     { font-size: 0.72rem; color: var(--ag-text-4); font-family: monospace; }
+
+.avotes-op {
+  display: inline-block; font-size: 0.72rem; font-weight: 800;
+  border: 1px solid; border-radius: 4px; padding: 2px 8px;
+}
+
+.avotes-status { display: inline-flex; align-items: center; gap: 5px; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 50px; border: 1px solid; }
+.avotes-status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+.status-valid     { color: var(--ag-success); background: rgba(74,222,128,0.08);  border-color: rgba(74,222,128,0.2);  }
+.status-suspect   { color: var(--ag-warning); background: rgba(251,191,36,0.08);  border-color: rgba(251,191,36,0.2);  }
+.status-cancelled { color: var(--ag-error);   background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.2); }
+
+.avotes-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.avotes-actions .ag-btn {
+  padding: 0.38rem 0.65rem;
+  min-width: 36px;
+}
+
+@media (max-width: 1200px) {
+  .avotes-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .avotes-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .avotes-search-wrap {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .avotes-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .avotes-bulk {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  .avotes-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 1rem;
+  }
+
+  .avotes-bulk-actions {
+    width: 100%;
+  }
+
+  .avotes-bulk-actions .ag-btn {
+    flex: 1 1 150px;
+  }
+
+  .ag-table-responsive .avotes-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .avotes-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .avotes-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .avotes-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .avotes-header-actions .ag-btn {
+    flex: 1 1 100%;
+  }
+}

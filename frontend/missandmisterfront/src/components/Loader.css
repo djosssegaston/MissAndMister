@@ -1,0 +1,168 @@
+/* ===== LOADER ===== */
+.loader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.loader-container.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: 9999;
+}
+
+.loader-container.small {
+  gap: 0.5rem;
+}
+
+.loader-container.small .loader-spinner svg {
+  width: 24px;
+  height: 24px;
+}
+
+.loader-container.large {
+  gap: 1.5rem;
+}
+
+.loader-container.large .loader-spinner svg {
+  width: 56px;
+  height: 56px;
+}
+
+.loader-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loader-spinner.primary {
+  color: #1E3A8A;
+}
+
+.loader-spinner.secondary {
+  color: #F59E0B;
+}
+
+.loader-circle {
+  animation: loaderSpin 1s linear infinite;
+}
+
+@keyframes loaderSpin {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.loader-text {
+  color: #6B7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin: 0;
+  text-align: center;
+}
+
+/* ===== TABLE LOADER ===== */
+.table-loader {
+  padding: 1rem 0;
+}
+
+.table-row-loader {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.table-row-loader:last-child {
+  border-bottom: none;
+}
+
+.table-cell-loader {
+  flex: 1;
+}
+
+.table-cell-loader:first-child {
+  flex: 0 0 60px;
+}
+
+.table-cell-loader:last-child {
+  flex: 0 0 120px;
+}
+
+/* ===== CARD LOADER ===== */
+.card-loader-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.card-loader {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #E5E7EB;
+  overflow: hidden;
+  padding: 0;
+}
+
+.card-image-loader {
+  height: 200px;
+  padding: 1rem;
+}
+
+.card-content-loader {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ===== SKELETON ===== */
+.skeleton {
+  background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%);
+  background-size: 200% 100%;
+  animation: skeletonLoading 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-title {
+  height: 1.25rem;
+  width: 70%;
+}
+
+.skeleton-text {
+  height: 0.875rem;
+  width: 100%;
+}
+
+.skeleton-short {
+  width: 50%;
+}
+
+@keyframes skeletonLoading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .card-loader-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-row-loader {
+    gap: 0.5rem;
+  }
+}

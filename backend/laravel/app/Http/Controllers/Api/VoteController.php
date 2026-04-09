@@ -1,0 +1,162 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\VoteRequest;
+use App\Services\VoteService;
+use App\Services\VotingWindowService;
+use App\Repositories\VoteRepository;
+use App\Models\Setting;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+class VoteController extends Controller
+{
+    public function __construct(
+        private VoteService $voteService,
+        private VoteRepository $votes,
+        private VotingWindowService $votingWindow,
+    )
+    {
+    }
+
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(): JsonResponse
+    {
+        abort_unless(request()->user()?->tokenCan('admin'), 403);
+        $filters = request()->only(['status', 'candidate_id', 'from', 'to']);
+        $perPage = max(5, min((int) request()->get('per_page', 20), 100));
+        $list = $this->votes->paginateFiltered($filters, $perPage);
+        return response()->json($list);
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(VoteRequest $request): JsonResponse
+    {
+        $settings = Setting::whereIn('key', [
+            'maintenance_mode',
+            'voting_open',
+            'vote_start_at',
+            'vote_end_at',
+            ...$this->votingWindow->runtimeKeys(),
+        ])->pluck('value', 'key')->toArray();
+
+        $votingStatus = $this->votingWindow->computeState($settings);
+        if ($votingStatus['blocked']) {
+            $statusCode = $votingStatus['reason'] === 'maintenance' ? 503 : 403;
+            return response()->json([
+                'message' => $votingStatus['message'],
+                'reason' => $votingStatus['reason'],
+            ], $statusCode);
+        }
+
+        $user = $request->user();
+        $quantity = $request->integer('quantity', 1);
+        [$payment, $vote] = $this->voteService->initiateVote(
+            $user->id ?? null,
+            $request->integer('candidate_id'),
+            $request->float('amount'),
+            $request->input('currency', 'XOF'),
+            $request->ip(),
+            ['user_agent' => $request->userAgent(), 'quantity' => $quantity],
+            $quantity,
+        );
+
+        return response()->json([
+            'message' => 'Payment initiated, vote pending confirmation',
+            'payment' => $payment,
+            'vote' => $vote,
+        ], 201);
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(int $id): JsonResponse
+    {
+        abort_unless(request()->user()?->tokenCan('admin'), 403);
+        $vote = $this->votes->paginateFiltered(['id' => $id], 1)->first();
+        if (!$vote) {
+            return response()->json(['message' => 'Vote not found'], 404);
+        }
+        return response()->json($vote);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        abort_unless(request()->user()?->tokenCan('admin'), 403);
+        $vote = \App\Models\Vote::find($id);
+        if (!$vote) {
+            return response()->json(['message' => 'Vote not found'], 404);
+        }
+        $data = $request->validate([
+            'status' => ['required', 'in:pending,confirmed,failed,cancelled,suspect'],
+        ]);
+        $vote->update($data);
+        return response()->json($vote->load(['user:id,name,email', 'candidate:id,first_name,last_name,category_id', 'candidate.category:id,name']));
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        abort_unless(request()->user()?->tokenCan('admin'), 403);
+        $vote = \App\Models\Vote::find($id);
+        if (!$vote) {
+            return response()->json(['message' => 'Vote not found'], 404);
+        }
+        $vote->delete();
+        return response()->json(['message' => 'Vote deleted']);
+    }
+
+    public function export(): StreamedResponse
+    {
+        abort_unless(request()->user()?->tokenCan('admin'), 403);
+        $filters = request()->only(['status', 'candidate_id', 'from', 'to']);
+        $query = \App\Models\Vote::with(['user', 'candidate.category', 'payment'])
+            ->when(isset($filters['status']) && $filters['status'], fn($q) => $q->where('status', $filters['status']))
+            ->when(isset($filters['candidate_id']) && $filters['candidate_id'], fn($q) => $q->where('candidate_id', $filters['candidate_id']))
+            ->when(isset($filters['from']) && $filters['from'], fn($q) => $q->whereDate('created_at', '>=', $filters['from']))
+            ->when(isset($filters['to']) && $filters['to'], fn($q) => $q->whereDate('created_at', '<=', $filters['to']))
+            ->orderByDesc('created_at');
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="votes_export.csv"',
+        ];
+
+        return response()->stream(function () use ($query) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['ID', 'User', 'Email', 'Candidate', 'Category', 'Status', 'Votes', 'Amount', 'Currency', 'Payment Ref', 'IP', 'Created At']);
+            $query->chunk(500, function ($rows) use ($out) {
+                foreach ($rows as $v) {
+                    fputcsv($out, [
+                        $v->id,
+                        $v->user?->name,
+                        $v->user?->email,
+                        trim(($v->candidate?->first_name ?? '') . ' ' . ($v->candidate?->last_name ?? '')),
+                        $v->candidate?->category?->name,
+                        $v->status,
+                        $v->quantity,
+                        $v->payment?->amount,
+                        $v->payment?->currency,
+                        $v->payment?->reference,
+                        $v->ip_address,
+                        optional($v->created_at)->toDateTimeString(),
+                    ]);
+                }
+            });
+            fclose($out);
+        }, 200, $headers);
+    }
+}

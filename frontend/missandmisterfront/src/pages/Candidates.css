@@ -1,0 +1,309 @@
+/* ── Candidates Page ──────────────────────────────────────────── */
+
+.candidates-page {
+  overflow-x: hidden;
+  background: var(--primary-black);
+  min-height: 100vh;
+}
+
+.page-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: var(--primary-gold);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 6px 16px;
+  border-radius: 50px;
+  margin-bottom: 1.5rem;
+}
+
+/* HERO */
+.candidates-hero {
+  position: relative;
+  padding: 8rem 0 5rem;
+  overflow: hidden;
+}
+
+.cand-hero-bg { position: absolute; inset: 0; pointer-events: none; }
+
+.cand-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.15;
+}
+
+.cand-orb.orb-1 { width: 450px; height: 450px; background: var(--primary-gold); top: -120px; right: -80px; }
+.cand-orb.orb-2 { width: 300px; height: 300px; background: var(--secondary-gold); bottom: -80px; left: -60px; }
+
+.cand-hero-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.cand-hero-content h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  color: var(--white);
+  margin-bottom: 1rem;
+}
+
+.cand-hero-content p {
+  color: rgba(255,255,255,0.6);
+  font-size: 0.95rem;
+  margin-bottom: 2rem;
+}
+
+.cand-hero-counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(212,175,55,0.2);
+  border-radius: 50px;
+  padding: 0.6rem 2rem;
+}
+
+.count-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.6);
+}
+
+.count-num {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--primary-gold);
+  font-family: var(--font-primary);
+}
+
+.count-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(212,175,55,0.25);
+}
+
+/* CONTRÔLES */
+.candidates-controls {
+  padding: 2rem 0 0;
+  position: sticky;
+  top: 70px;
+  z-index: 50;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(212,175,55,0.1);
+}
+
+.controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 1rem;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.filter-tab {
+  padding: 0.45rem 1.2rem;
+  border-radius: 6px;
+  border: 1px solid rgba(212,175,55,0.2);
+  background: transparent;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.3px;
+}
+
+.filter-tab:hover {
+  border-color: rgba(212,175,55,0.5);
+  color: var(--primary-gold);
+  background: rgba(212,175,55,0.06);
+}
+
+.filter-tab.active {
+  background: var(--gradient-gold);
+  border-color: transparent;
+  color: var(--primary-black);
+  font-weight: 700;
+}
+
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-ico {
+  position: absolute;
+  left: 12px;
+  color: rgba(255,255,255,0.35);
+  pointer-events: none;
+}
+
+.search-input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(212,175,55,0.2);
+  border-radius: 8px;
+  color: var(--white);
+  font-size: 0.85rem;
+  padding: 0.5rem 0.9rem 0.5rem 2.4rem;
+  width: 220px;
+  transition: border-color 0.2s, background 0.2s;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: rgba(212,175,55,0.5);
+  background: rgba(212,175,55,0.05);
+}
+
+.search-input::placeholder { color: rgba(255,255,255,0.3); }
+
+.sort-select {
+  width: auto;
+  min-width: 185px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.55rem 3rem 0.55rem 0.9rem;
+  background-position: 0 0, calc(100% - 0.95rem) 50%;
+  background-size: 100% 100%, 12px;
+}
+
+.sort-select:focus { border-color: rgba(212,175,55,0.5); }
+
+.results-count {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.35);
+  margin: 0.5rem 0 0;
+  padding-bottom: 0.8rem;
+}
+
+/* GRILLE */
+.candidates-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.8rem;
+}
+
+/* LOADING & ERROR */
+.loading-container, .error-container {
+  text-align: center;
+  padding: 5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loading-container p, .error-container p {
+  color: rgba(255,255,255,0.6);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.error-container svg {
+  color: #ef4444;
+}
+
+.error-container h3 {
+  color: rgba(255,255,255,0.8);
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.error-container button {
+  background: var(--primary-gold);
+  color: #000;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+
+.no-results {
+  text-align: center;
+  padding: 4rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.no-results svg { color: rgba(212,175,55,0.35); }
+.no-results h3 { color: rgba(255,255,255,0.6); font-size: 1.1rem; margin: 0; }
+.no-results p  { font-size: 0.9rem; margin: 0; }
+
+/* CTA */
+.candidates-cta { padding: 4rem 0; }
+
+.cand-cta-box {
+  background: linear-gradient(135deg, rgba(212,175,55,0.08), rgba(212,175,55,0.02));
+  border: 1px solid rgba(212,175,55,0.25);
+  border-radius: 20px;
+  padding: 3.5rem 2rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cand-cta-box h2 {
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  color: var(--white);
+  margin: 0;
+}
+
+.cand-cta-box p {
+  font-size: 0.92rem;
+  color: rgba(255,255,255,0.55);
+  max-width: 440px;
+  margin: 0;
+  line-height: 1.8;
+}
+
+.candidates-vote-blocked {
+  background: rgba(255,255,255,0.1) !important;
+  color: rgba(255,255,255,0.5) !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+  .candidates-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .candidates-hero { padding: 6rem 0 3rem; }
+  .controls-bar { flex-direction: column; align-items: stretch; }
+  .controls-right { flex-direction: column; }
+  .search-input { width: 100%; }
+  .sort-select { width: 100%; }
+  .candidates-grid { grid-template-columns: 1fr; }
+}
