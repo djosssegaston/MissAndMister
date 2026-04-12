@@ -8,8 +8,8 @@ services:
     autoDeployTrigger: commit
     healthCheckPath: /up
     rootDir: backend/laravel
-    dockerfilePath: ./backend/laravel/Dockerfile
-    dockerContext: ./backend/laravel
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     envVars:
       - key: APP_NAME
         value: MissAndMister
