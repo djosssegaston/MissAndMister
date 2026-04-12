@@ -271,10 +271,14 @@ const CandidateDetails = () => {
             <h1 className="cdet-name">{candidate.first_name} {candidate.last_name}</h1>
             <p className="cdet-faculty">{candidate.university}</p>
 
+            {/*
+              Affichage temporairement masqué : âge, ville et biographie.
+              Les champs restent disponibles dans les formulaires d'ajout et d'édition.
+            */}
             <div className="cdet-info-grid">
               {[
-                candidate.age && { label:'Âge', value:`${candidate.age} ans` },
-                candidate.city && { label:'Ville', value: candidate.city },
+                // candidate.age && { label:'Âge', value:`${candidate.age} ans` },
+                // candidate.city && { label:'Ville', value: candidate.city },
                 { label:'Catégorie', value: candidate.category?.name || 'Unknown' },
                 { label:'Numéro', value:`N°${(candidate.public_number ?? candidate.id).toString().padStart(2, '0')}` },
               ].filter(Boolean).map((info, i) => (
@@ -285,7 +289,7 @@ const CandidateDetails = () => {
               ))}
             </div>
 
-            <p className="cdet-bio">{candidate.bio || candidate.description || 'Aucune biographie disponible.'}</p>
+            {/* <p className="cdet-bio">{candidate.bio || candidate.description || 'Aucune biographie disponible.'}</p> */}
 
             {candidate.interests && candidate.interests.length > 0 && (
               <div className="cdet-interests">
