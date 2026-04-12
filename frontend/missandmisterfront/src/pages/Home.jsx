@@ -65,25 +65,6 @@ const CountUp = ({ target, suffix = '' }) => {
   return <span ref={ref}><span ref={countRef}>0{suffix}</span></span>;
 };
 
-const STEPS = [
-  {
-    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="8.5" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/><line x1="20" y1="8" x2="20" y2="14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><line x1="23" y1="11" x2="17" y2="11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
-    step: '01', title: 'Pour les Candidats', desc: "Connectez-vous gratuitement avec votre email et votre mots de passe.",
-  },
-  {
-    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
-    step: '02', title: 'Choisissez un candidat', desc: 'Parcourez les profils des candidats Miss et Mister et choisissez votre favori.',
-  },
-  {
-    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="10" rx="2" stroke="currentColor" strokeWidth="1.8"/><path d="M9 11V7a3 3 0 016 0v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>,
-    step: '03', title: 'Votez via Mobile Money', desc: 'Entrez le nombre de votes souhaité et payez en toute sécurité via MTN MoMo, Moov ou Flooz.',
-  },
-  {
-    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>,
-    step: '04', title: 'Suivez les résultats', desc: "Consultez le classement en temps réel et soutenez votre candidat jusqu'au gala final.",
-  },
-];
-
 const FILTERS = [
   { key: 'all', label: 'Tous' },
   { key: 'miss', label: 'Miss' },
@@ -94,6 +75,131 @@ const SORTS = [
   { key: 'votes', label: 'Votes (décroissant)' },
   { key: 'name', label: 'Nom A→Z' },
 ];
+
+const HERO_TITLE_LINES = [
+  { text: 'MISS & MISTER', className: 'hero-title-line-primary' },
+  { text: 'University Bénin', className: 'hero-title-line-secondary' },
+];
+
+const HOME_OVERVIEW = [
+  {
+    title: 'Concours national',
+    description: 'Une plateforme éducative, culturelle et citoyenne ouverte aux universités publiques et privées du Bénin.',
+    badge: 'Projet officiel',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round"/>
+        <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    title: 'Excellence et leadership',
+    description: 'Le projet valorise l’excellence académique, l’éloquence, la discipline et l’esprit d’initiative des étudiants.',
+    badge: 'Valeurs fortes',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    title: 'Participation encadrée',
+    description: 'Les candidatures sont gratuites, vérifiées administrativement, puis accompagnées jusqu’à la grande finale.',
+    badge: '16 à 25 ans',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
+        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.9"/>
+        <path d="M16 5h6M19 2v6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    title: 'Transparence et sécurité',
+    description: 'Jury pluriel, vote sécurisé, validation claire et protection active contre les tentatives de fraude.',
+    badge: 'Vote sécurisé',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round"/>
+        <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+];
+
+const PROGRAM_STEPS = [
+  {
+    step: '01',
+    title: 'Lancement officiel',
+    desc: 'Annonce du concours et mobilisation nationale autour des universités béninoises.',
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-8 8 8-8 8-8-8z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M12 3v18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  },
+  {
+    step: '02',
+    title: 'Inscriptions gratuites',
+    desc: 'Les candidats éligibles déposent leurs dossiers selon les modalités définies par le comité.',
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="currentColor" strokeWidth="1.8"/><path d="M8 12h8M12 8v8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  },
+  {
+    step: '03',
+    title: 'Validation administrative',
+    desc: 'Chaque dossier est vérifié avant l’annonce des candidats retenus.',
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 11l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 22a10 10 0 100-20 10 10 0 000 20z" stroke="currentColor" strokeWidth="1.8"/></svg>,
+  },
+  {
+    step: '04',
+    title: 'Présélection et formation',
+    desc: 'Leadership, communication, civisme, image et préparation des projets sociaux.',
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M7 7v12m10-12v12M9 11h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><path d="M9 15h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  },
+  {
+    step: '05',
+    title: 'Votes et communication',
+    desc: 'Les candidats qualifiés lancent leur campagne digitale et mobilisent le public en ligne.',
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><path d="M12 4v16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8"/></svg>,
+  },
+  {
+    step: '06',
+    title: 'Grande finale nationale',
+    desc: 'Épreuves finales, résultats du jury et couronnement des lauréats.',
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>,
+  },
+];
+
+const AnimatedHeroTitle = () => {
+  const [phase, setPhase] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setPhase((value) => !value), 4200);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <motion.h1 className={`hero-title ${phase ? 'hero-title-phase-alt' : ''}`} aria-label="MISS & MISTER University Bénin">
+      {HERO_TITLE_LINES.map((line, lineIndex) => (
+        <motion.span
+          key={line.text}
+          className={`hero-title-line ${line.className}`}
+          animate={{ y: phase ? (lineIndex === 0 ? -3 : 3) : 0, x: phase ? (lineIndex === 0 ? 2 : -2) : 0 }}
+          transition={{ duration: 0.9, ease: 'easeInOut' }}
+        >
+          {Array.from(line.text).map((char, charIndex) => (
+            <motion.span
+              key={`${lineIndex}-${charIndex}-${char}`}
+              className={`hero-title-char ${char === ' ' ? 'is-space' : ''}`}
+              initial={{ opacity: 0, y: 18, filter: 'blur(8px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              transition={{ duration: 0.45, delay: lineIndex * 0.16 + charIndex * 0.035, ease: 'easeOut' }}
+            >
+              {char === ' ' ? '\u00A0' : char}
+            </motion.span>
+          ))}
+        </motion.span>
+      ))}
+    </motion.h1>
+  );
+};
 
 const Home = () => {
   const [candidates, setCandidates] = useState([]);
@@ -275,27 +381,20 @@ const Home = () => {
 
       <div className="container hero-content">
         <motion.div className="hero-text" {...fadeUp(0)}>
-          {/* <span className="hero-eyebrow">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            </svg>
-            Édition 2026 · Concours officiel
-          </span> */}
+          
 
-          <h1>
-            Miss &amp; Mister<br />
-            <span className="text-gold">University Bénin</span>
-          </h1>
+          <AnimatedHeroTitle />
 
           <p className="hero-subtitle">
-            Votez pour les meilleurs talents de la jeunesse universitaire béninoise.
-            Chaque vote compte, chaque voix fait la différence.
+            Concours universitaire national dédié à l’excellence académique,
+            au leadership, à la culture, à l’éloquence et à l’engagement social
+            de la jeunesse universitaire béninoise.
           </p>
 
           <div className="hero-actions">
             {votingBlocked ? (
               <button className="btn-hero-primary btn-hero-disabled" type="button" disabled>
-                Vote bloquer
+                Vote bloqué
               </button>
             ) : (
               <Link to="/candidates">
@@ -322,15 +421,15 @@ const Home = () => {
           <div className="hero-badges">
             <div className="hero-badge">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
-              Vote sécurisé
+              Concours national
             </div>
             <div className="hero-badge">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/><path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-              Résultats en direct
+              Inscription gratuite
             </div>
             <div className="hero-badge">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M2 10h20" stroke="currentColor" strokeWidth="2"/></svg>
-              Mobile Money
+              Vote sécurisé
             </div>
             {/* {publicSettings?.vote_end_at && (
               <div className="hero-badge">
@@ -348,7 +447,7 @@ const Home = () => {
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
                   stroke="#D4AF37" strokeWidth="1.5" fill="rgba(212,175,55,0.12)"/>
               </svg>
-              <span>Miss &amp; Mister University Bénin</span>
+              <span>MISS &amp; MISTER UNIVERSITY BENIN 2026</span>
             </div>
             <div className="hcm-avatar-row">
               {candidates.slice(0, 3).map((c, i) => (
@@ -376,7 +475,7 @@ const Home = () => {
             </div>
             <div className="hcm-progress-wrap">
               <div className="hcm-progress-label">
-                <span>Temps restant pour le vote</span>
+                <span>Temps restant pour le vote en %</span>
                 <span className="text-gold">{countdownProgress}%</span>
               </div>
               <div className="hcm-progress-bar">
@@ -466,6 +565,49 @@ const Home = () => {
               </div>
               <p className="stat-label">{stat.label}</p>
             </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    {/* ══════════════════════════════════════════ CONCOURS EN BREF */}
+    <section className="home-overview section">
+      <div className="container">
+        <motion.div
+          className="section-header text-center"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <span className="section-eyebrow">Extrait du projet</span>
+          <h2>Le concours <span className="text-gold">en quelques repères</span></h2>
+          <div className="section-divider centered" />
+          <p className="section-lead">
+            MISS &amp; MISTER UNIVERSITY BENIN met en lumière les étudiants les plus
+            méritants, au-delà de l’apparence physique, en valorisant leurs
+            compétences intellectuelles, leur éloquence et leur capacité à porter
+            des projets utiles à la société.
+          </p>
+        </motion.div>
+
+        <div className="home-overview-grid">
+          {HOME_OVERVIEW.map((card, i) => (
+            <motion.article
+              key={card.title}
+              className="home-overview-card"
+              initial={{ opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08 }}
+              whileHover={{ y: -6 }}
+            >
+              <div className="home-overview-top">
+                <span className="home-overview-badge">{card.badge}</span>
+                <div className="home-overview-icon" aria-hidden="true">{card.icon}</div>
+              </div>
+              <h3>{card.title}</h3>
+              <p>{card.description}</p>
+            </motion.article>
           ))}
         </div>
       </div>
@@ -629,7 +771,7 @@ const Home = () => {
                 <span>votes</span>
               </div>
               {votingBlocked ? (
-                <span className="tc-vote-btn tc-vote-btn-disabled">Vote bloquer</span>
+                <span className="tc-vote-btn tc-vote-btn-disabled">Vote bloqué</span>
               ) : (
                 <Link to={`/candidates/${c.id}`} className="tc-vote-btn">Voter</Link>
               )}
@@ -656,12 +798,12 @@ const Home = () => {
         <motion.div className="section-header text-center"
           initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
           <span className="section-eyebrow">Simple et rapide</span>
-          <h2>Comment <span className="text-gold">voter ?</span></h2>
+          <h2>Le <span className="text-gold">parcours</span> du concours</h2>
           <div className="section-divider centered" />
         </motion.div>
 
         <div className="steps-grid">
-          {STEPS.map((s, i) => (
+          {PROGRAM_STEPS.map((s, i) => (
             <motion.div key={i} className="step-card"
               initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }} transition={{ delay: i * 0.1 }}

@@ -84,7 +84,7 @@ const Navbar = ({ votingBlocked = false }) => {
           {/* Bouton Voter — toujours visible */}
           {votingBlocked ? (
             <button className="btn-nav-vote btn-nav-vote-blocked" type="button" disabled>
-              Vote bloquer
+              Vote bloqué
             </button>
           ) : (
             <Link to="/candidates">
@@ -179,7 +179,7 @@ const Navbar = ({ votingBlocked = false }) => {
               {/* Bouton voter mobile */}
               {votingBlocked ? (
                 <button className="mobile-vote-btn mobile-vote-btn-blocked" type="button" disabled>
-                  Vote bloquer
+                  Vote bloqué
                 </button>
               ) : (
                 <Link to="/candidates" className="mobile-vote-btn">

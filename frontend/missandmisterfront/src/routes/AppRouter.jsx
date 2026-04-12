@@ -56,7 +56,7 @@ const computeVotingState = (settings) => {
       maintenanceMode: settings?.voting_block_reason === 'maintenance',
       votingBlocked: settings.voting_blocked,
       votingBlockReason: settings?.voting_block_reason || 'open',
-      votingBlockMessage: settings?.voting_block_message || (settings.voting_blocked ? 'Vote bloquer' : 'Vote ouvert'),
+      votingBlockMessage: settings?.voting_block_message || (settings.voting_blocked ? 'Vote bloqué' : 'Vote ouvert'),
     };
   }
 
@@ -79,7 +79,7 @@ const computeVotingState = (settings) => {
       maintenanceMode: false,
       votingBlocked: true,
       votingBlockReason: 'toggle_off',
-      votingBlockMessage: 'Vote bloquer',
+      votingBlockMessage: 'Vote bloqué',
     };
   }
 
@@ -97,7 +97,7 @@ const computeVotingState = (settings) => {
       maintenanceMode: false,
       votingBlocked: true,
       votingBlockReason: 'ended',
-      votingBlockMessage: 'Vote bloquer',
+      votingBlockMessage: 'Vote bloqué',
     };
   }
 

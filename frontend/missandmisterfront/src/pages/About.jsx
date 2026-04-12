@@ -5,12 +5,19 @@ import './About.css';
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
   visible: (i = 0) => ({
-    opacity: 1, y: 0,
+    opacity: 1,
+    y: 0,
     transition: { duration: 0.6, delay: i * 0.12, ease: 'easeOut' },
   }),
 };
 
-const values = [
+const heroStats = [
+  { value: '16-25 ans', label: 'Public cible' },
+  { value: 'Gratuite', label: 'Inscription' },
+  { value: '7 étapes', label: 'Déroulement' },
+];
+
+const pillars = [
   {
     icon: (
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
@@ -18,26 +25,27 @@ const values = [
       </svg>
     ),
     title: 'Excellence',
-    description: "Promouvoir l'excellence académique et personnelle de chaque étudiant participant au concours.",
+    description: 'Mettre en lumière l’excellence académique et la qualité du parcours étudiant.',
   },
   {
     icon: (
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/>
+        <path d="M16 5h6M19 2v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
       </svg>
     ),
-    title: 'Élégance',
-    description: 'Célébrer la beauté, le charme naturel et le raffinement de notre jeunesse universitaire.',
+    title: 'Leadership',
+    description: 'Identifier des étudiants capables d’inspirer, de parler et de porter des projets utiles.',
   },
   {
     icon: (
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8"/>
-        <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M12 2l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1 3-7z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
       </svg>
     ),
-    title: 'Talent',
-    description: 'Mettre en lumière les compétences multiples et les talents extraordinaires de notre jeunesse.',
+    title: 'Culture béninoise',
+    description: 'Valoriser la danse traditionnelle, la culture générale et l’identité béninoise.',
   },
   {
     icon: (
@@ -46,28 +54,60 @@ const values = [
         <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
-    title: 'Intégrité',
-    description: 'Garantir un processus de vote transparent, sécurisé et équitable pour tous.',
+    title: 'Transparence',
+    description: 'Sécuriser le vote, clarifier la notation et protéger le concours contre la fraude.',
   },
 ];
 
-const timeline = [
-  { year: '2020', event: 'Première édition du concours Miss & Mister University Bénin.' },
-  { year: '2022', event: 'Expansion à 10+ universités représentées à travers le Bénin.' },
-  { year: '2024', event: 'Plus de 5 000 votes enregistrés lors de la quatrième édition.' },
-  { year: '2026', event: 'Digitalisation complète avec une plateforme de vote sécurisée.' },
+const programSteps = [
+  { step: '01', event: 'Lancement officiel et communication nationale' },
+  { step: '02', event: 'Inscriptions gratuites et sensibilisation dans les universités' },
+  { step: '03', event: 'Validation administrative des candidatures' },
+  { step: '04', event: 'Présélection, formation et épreuves officielles' },
+  { step: '05', event: 'Communication des candidats et votes en ligne' },
+  { step: '06', event: 'Grande finale nationale et couronnement' },
 ];
 
-const team = [
-  { name: 'Université du Bénin', role: 'Commanditaire officiel', initials: 'UB' },
-  { name: 'AndroCréa', role: 'Prestataire technique', initials: 'AC' },
-  { name: 'Comité Organisateur', role: 'Direction du concours', initials: 'CO' },
+const evaluationCards = [
+  {
+    title: 'Formation des candidats',
+    description: 'Leadership, communication, culture générale, civisme, image, discipline et conception de projets sociaux.',
+  },
+  {
+    title: 'Épreuves officielles',
+    description: 'Chorégraphie, danse traditionnelle, parade solo, dissertation orale, projet social et question du jury.',
+  },
+  {
+    title: 'Jury pluridisciplinaire',
+    description: 'Des personnalités issues de l’enseignement supérieur, des médias, de la culture, de l’entrepreneuriat et de la société civile.',
+  },
+  {
+    title: 'Vote sécurisé',
+    description: 'Le vote public en ligne reste encadré par un système clair, sécurisé et pensé pour limiter toute fraude.',
+  },
+];
+
+const impactCards = [
+  {
+    title: 'Pour les étudiants',
+    description: 'Confiance en soi, esprit d’initiative, prise de parole et capacité à représenter leur université.',
+  },
+  {
+    title: 'Pour les universités',
+    description: 'Visibilité nationale, valorisation des talents et mise en avant de la qualité de la formation.',
+  },
+  {
+    title: 'Pour les partenaires',
+    description: 'Visibilité, crédibilité institutionnelle et association à un projet citoyen à fort impact.',
+  },
+  {
+    title: 'Pour la jeunesse',
+    description: 'Un rendez-vous annuel durable qui encourage l’excellence et l’engagement social.',
+  },
 ];
 
 const About = () => (
   <div className="about-page">
-
-    {/* ── HERO ── */}
     <section className="about-hero">
       <div className="about-hero-bg" aria-hidden="true">
         <div className="about-orb orb-1" />
@@ -77,24 +117,28 @@ const About = () => (
         <motion.div className="about-hero-content" variants={fadeUp} initial="hidden" animate="visible">
           <span className="page-eyebrow">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
-            Miss &amp; Mister University Bénin
+            MISS &amp; MISTER UNIVERSITY BENIN 2026
           </span>
-          <h1>À Propos du <span className="text-gold">Concours</span></h1>
-          <center><p className="about-hero-subtitle">
-            Une célébration de l'excellence, de l'élégance et du talent de la jeunesse universitaire béninoise depuis 2020.
-          </p></center>
-        
-          <div className="about-hero-center ">
-            {[
-              { value: '7+', label: 'Éditions' },
-              { value: '20+', label: 'Universités' },
-              { value: '10K+', label: 'Votants' },
-            ].map((s, i) => (
-              <motion.div key={i} className="hero-stat-item" custom={i + 1} variants={fadeUp} initial="hidden" animate="visible">
-                <strong>{s.value}</strong>
-                <span>{s.label}</span>
+          <h1>À propos du <span className="text-gold">concours</span></h1>
+          <p className="about-hero-subtitle">
+            Un concours universitaire national dédié à l’excellence académique, au leadership,
+            à la culture, à l’éloquence et à l’engagement social de la jeunesse béninoise.
+          </p>
+
+          <div className="about-hero-center">
+            {heroStats.map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                className="hero-stat-item"
+                custom={i + 1}
+                variants={fadeUp}
+                initial="hidden"
+                animate="visible"
+              >
+                <strong>{stat.value}</strong>
+                <span>{stat.label}</span>
               </motion.div>
             ))}
           </div>
@@ -102,28 +146,28 @@ const About = () => (
       </div>
     </section>
 
-    {/* ── MISSION ── */}
     <section className="about-mission section">
       <div className="container">
         <div className="mission-grid">
           <motion.div className="mission-text" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
-            <span className="section-eyebrow">Notre Mission</span>
-            <h2>Valoriser la jeunesse <span className="text-gold">universitaire béninoise</span></h2>
+            <span className="section-eyebrow">Présentation générale</span>
+            <h2>Une plateforme pour révéler les talents <span className="text-gold">universitaires</span></h2>
             <div className="section-divider" />
             <p>
-              Le concours <strong>Miss &amp; Mister University Bénin</strong> a pour mission de
-              célébrer et promouvoir l'excellence académique, l'élégance et le talent de la
-              jeunesse universitaire béninoise via une plateforme moderne et sécurisée.
+              Dans un contexte où l’éducation, l’excellence académique et l’engagement de la
+              jeunesse constituent des leviers essentiels du développement durable, ce concours
+              crée un cadre d’expression, de valorisation et de motivation pour les étudiants.
             </p>
             <p>
-              Nous encourageons le développement personnel, l'engagement communautaire et
-              la représentation positive de nos universités sur la scène nationale et internationale.
+              MISS &amp; MISTER UNIVERSITY BENIN rassemble les universités publiques et privées
+              autour d’une vision commune : identifier, former et valoriser des étudiants modèles
+              capables de devenir de véritables ambassadeurs universitaires.
             </p>
             <Link to="/candidates">
               <motion.button className="btn-gold" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" style={{ marginRight: '8px' }}>
-                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
                 </svg>
                 Voir les candidats
               </motion.button>
@@ -136,12 +180,20 @@ const About = () => (
               <div className="stack-card sc-2" />
               <div className="stack-card sc-1">
                 <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                    stroke="#D4AF37" strokeWidth="1.5" fill="rgba(212,175,55,0.12)"/>
+                  <path
+                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                    stroke="#D4AF37"
+                    strokeWidth="1.5"
+                    fill="rgba(212,175,55,0.12)"
+                  />
                 </svg>
-                <h3>Miss &amp; Mister<br />University Bénin</h3>
-                <p>Édition 2026</p>
-                <span className="card-badge">Officiel</span>
+                <h3>MISS &amp; MISTER<br />University Bénin</h3>
+                <p>Concours national 2026</p>
+                <div className="mission-tags">
+                  {['Excellence', 'Leadership', 'Culture', 'Transparence'].map((tag) => (
+                    <span key={tag} className="mission-tag">{tag}</span>
+                  ))}
+                </div>
               </div>
             </div>
           </motion.div>
@@ -149,18 +201,17 @@ const About = () => (
       </div>
     </section>
 
-    {/* ── VALEURS ── */}
     <section className="about-values section">
       <div className="container">
         <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
-          <span className="section-eyebrow">Ce qui nous guide</span>
-          <h2>Nos <span className="text-gold">Valeurs</span></h2>
+          <span className="section-eyebrow">Nos fondations</span>
+          <h2>Les <span className="text-gold">valeurs</span> qui structurent le concours</h2>
           <div className="section-divider centered" />
         </motion.div>
         <div className="values-grid">
-          {values.map((v, i) => (
+          {pillars.map((pillar, i) => (
             <motion.div
-              key={i}
+              key={pillar.title}
               className="value-card"
               custom={i}
               variants={fadeUp}
@@ -169,28 +220,27 @@ const About = () => (
               viewport={{ once: true }}
               whileHover={{ y: -8 }}
             >
-              <div className="value-icon">{v.icon}</div>
-              <h3>{v.title}</h3>
-              <p>{v.description}</p>
+              <div className="value-icon">{pillar.icon}</div>
+              <h3>{pillar.title}</h3>
+              <p>{pillar.description}</p>
             </motion.div>
           ))}
         </div>
       </div>
     </section>
 
-    {/* ── TIMELINE ── */}
     <section className="about-history section">
       <div className="container">
         <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
-          <span className="section-eyebrow">Notre parcours</span>
-          <h2>Notre <span className="text-gold">Histoire</span></h2>
+          <span className="section-eyebrow">Parcours du concours</span>
+          <h2>Les grandes <span className="text-gold">phases</span></h2>
           <div className="section-divider centered" />
         </motion.div>
         <div className="timeline">
           <div className="timeline-line" />
-          {timeline.map((item, i) => (
+          {programSteps.map((item, i) => (
             <motion.div
-              key={i}
+              key={item.step}
               className={`timeline-item ${i % 2 === 0 ? 'tl-left' : 'tl-right'}`}
               custom={i}
               variants={fadeUp}
@@ -200,7 +250,7 @@ const About = () => (
             >
               <div className="timeline-dot" />
               <div className="timeline-content">
-                <span className="timeline-year">{item.year}</span>
+                <span className="timeline-year">{item.step}</span>
                 <p>{item.event}</p>
               </div>
             </motion.div>
@@ -209,49 +259,94 @@ const About = () => (
       </div>
     </section>
 
-    {/* ── ÉQUIPE ── */}
-    <section className="about-team section">
+    <section className="about-training section">
       <div className="container">
         <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
-          <span className="section-eyebrow">Les acteurs</span>
-          <h2>Qui <span className="text-gold">sommes-nous ?</span></h2>
+          <span className="section-eyebrow">Formation et épreuves</span>
+          <h2>Un processus <span className="text-gold">complet</span> et encadré</h2>
           <div className="section-divider centered" />
         </motion.div>
-        <div className="team-grid">
-          {team.map((member, i) => (
-            <motion.div key={i} className="team-card" custom={i} variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }} whileHover={{ y: -6 }}>
-              <div className="team-avatar">{member.initials}</div>
-              <h3>{member.name}</h3>
-              <p>{member.role}</p>
+        <div className="values-grid">
+          {evaluationCards.map((card, i) => (
+            <motion.div
+              key={card.title}
+              className="value-card"
+              custom={i}
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+            >
+              <div className="value-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3>{card.title}</h3>
+              <p>{card.description}</p>
             </motion.div>
           ))}
         </div>
       </div>
     </section>
 
-    {/* ── CTA ── */}
+    <section className="about-impact section">
+      <div className="container">
+        <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+          <span className="section-eyebrow">Impact et durabilité</span>
+          <h2>Pourquoi le concours <span className="text-gold">compte</span></h2>
+          <div className="section-divider centered" />
+        </motion.div>
+        <div className="values-grid">
+          {impactCards.map((card, i) => (
+            <motion.div
+              key={card.title}
+              className="value-card"
+              custom={i}
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              whileHover={{ y: -8 }}
+            >
+              <div className="value-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3>{card.title}</h3>
+              <p>{card.description}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+
     <section className="about-cta section">
       <div className="container">
         <motion.div className="cta-box" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
           <span className="section-eyebrow">Prêt à participer ?</span>
-          <h2>Rejoignez <span className="text-gold">l'Aventure</span></h2>
-          <p>Soutenez vos candidats préférés et faites partie de l'histoire du concours 2026.</p>
+          <h2>Rejoignez <span className="text-gold">l’aventure</span></h2>
+          <p>
+            Soutenez vos candidats préférés et faites partie de l’histoire du concours.
+            Les informations sensibles comme le budget et le calendrier détaillé restent
+            gérées par le comité d’organisation.
+          </p>
           <div className="cta-actions">
-            <Link to="/register">
+            <Link to="/candidates">
               <motion.button className="btn-gold" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-                Créer un compte
+                Découvrir les candidats
               </motion.button>
             </Link>
-            <Link to="/candidates">
+            <Link to="/register">
               <motion.button className="btn-outline" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-                Voir les candidats
+                Créer un compte
               </motion.button>
             </Link>
           </div>
         </motion.div>
       </div>
     </section>
-
   </div>
 );
 

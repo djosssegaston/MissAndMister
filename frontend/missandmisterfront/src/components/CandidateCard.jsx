@@ -101,7 +101,7 @@ const CandidateCard = ({ candidate, votingBlocked = false }) => {
       <div className="cc-footer">
         {votingBlocked ? (
           <button type="button" className="cc-btn-vote cc-btn-vote-blocked" disabled>
-            Vote bloquer
+            Vote bloqué
           </button>
         ) : (
           <Link to={`/candidates/${id}`} className="cc-btn-vote">

@@ -211,7 +211,7 @@ const Candidates = () => {
             <p>Créez votre compte gratuitement et soutenez votre candidat favori via Mobile Money.</p>
             {votingBlocked ? (
               <button className="btn-gold candidates-vote-blocked" type="button" disabled>
-                Vote bloquer
+                Vote bloqué
               </button>
             ) : (
               <Link to="/register">

@@ -27,7 +27,7 @@ const CandidateDetails = () => {
   const {
     publicSettings = null,
     votingBlocked = false,
-    votingBlockMessage = 'Vote bloquer',
+    votingBlockMessage = 'Vote bloqué',
   } = useOutletContext() || {};
 
   const pricePerVote = Number(publicSettings?.price_per_vote) > 0
@@ -348,7 +348,7 @@ const CandidateDetails = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                 >
-                  {votingBlocked ? 'Vote bloquer' : (votingLoading ? 'Paiement sécurisé...' : 'Payer')}
+                  {votingBlocked ? 'Vote bloqué' : (votingLoading ? 'Paiement sécurisé...' : 'Payer')}
                 </motion.button>
           </motion.div>
         </motion.div>

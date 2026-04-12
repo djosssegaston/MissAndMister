@@ -30,10 +30,11 @@
 .footer-logo-icon {
   width: 36px;
   height: 36px;
-  padding: 3px;
-  background: rgba(212,175,55,0.1);
-  border: 1px solid rgba(212,175,55,0.2);
-  border-radius: 8px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -43,10 +44,11 @@
 .footer-logo-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-  border: 1px solid rgba(212,175,55,0.35);
-  box-shadow: 0 5px 16px rgba(212,175,55,0.16);
+  object-fit: contain;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  display: block;
 }
 
 .footer-logo-main { font-size: 0.88rem; font-weight: 800; color: var(--white); font-family: var(--font-primary); margin: 0; line-height: 1.2; }

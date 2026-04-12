@@ -243,6 +243,28 @@
   border-radius: 50px;
 }
 
+.mission-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.mission-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.34rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(212,175,55,0.2);
+  background: rgba(212,175,55,0.08);
+  color: var(--primary-gold);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
 /* VALEURS */
 .about-values { background: rgba(255,255,255,0.02); }
 
