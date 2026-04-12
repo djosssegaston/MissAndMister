@@ -19,10 +19,22 @@ const normalizeApiBaseUrl = (value) => {
 
 // Configuration de l'API
 const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL || 'http://localhost:8000/api');
+const API_ROOT_URL = API_BASE_URL.replace(/\/api$/i, '');
+const HEALTHCHECK_URL = `${API_ROOT_URL}/up`;
 export const SESSION_EXPIRED_EVENT = 'app:session-expired';
 
 // Timeout global pour les appels API (en ms)
-const API_TIMEOUT = 10000; // 10s pour éviter les coupures sur réseaux lents
+const API_TIMEOUT = (() => {
+  const configuredTimeout = Number(import.meta.env.VITE_API_TIMEOUT_MS || '');
+  if (Number.isFinite(configuredTimeout) && configuredTimeout > 0) {
+    return configuredTimeout;
+  }
+
+  return /onrender\.com\/api$/i.test(API_BASE_URL) ? 25000 : 10000;
+})();
+const MAX_API_RETRIES = 2;
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 502, 503, 504]);
+const RETRYABLE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const SESSION_EXPIRED_MESSAGE = 'Votre session a expiré. Veuillez vous reconnecter pour continuer.';
 
 const getTimezone = () => {
@@ -42,7 +54,8 @@ const getUserAgent = () => {
 };
 
 // Génère un identifiant corrélable pour tracer les requêtes côté back/logs
-const buildRequestId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+const buildRequestId = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Construit proprement une query string à partir d'un objet de filtres
 const buildQueryString = (params = {}) => {
@@ -70,6 +83,22 @@ const getFirstValidationMessage = (errors = null) => {
 const cleanHeaders = (headers = {}) => Object.fromEntries(
   Object.entries(headers).filter(([, value]) => value !== undefined && value !== null)
 );
+
+const getHttpErrorFallbackMessage = (status) => {
+  if (status === 408) {
+    return 'Le serveur met trop de temps à répondre. Réessayez dans quelques secondes.';
+  }
+
+  if (status === 429) {
+    return 'Trop de requêtes sont en cours. Réessayez dans quelques instants.';
+  }
+
+  if (RETRYABLE_STATUS_CODES.has(status)) {
+    return 'Le backend est en train de démarrer ou temporairement indisponible. Réessayez dans quelques secondes.';
+  }
+
+  return `Erreur ${status}`;
+};
 
 const readStoredJson = (key) => {
   if (typeof localStorage === 'undefined') return null;
@@ -168,8 +197,18 @@ const fetchWithTimeout = async (url, options = {}, timeout = API_TIMEOUT) => {
   } catch (error) {
     if (id) clearTimeout(id);
     if (error.name === 'AbortError') {
-      throw new Error('La requête a expiré. Vérifiez que le backend est démarré et accessible.');
+      const timeoutError = new Error('Le serveur met trop de temps à répondre. S\'il vient de se reveiller sur Render, reessayez dans quelques secondes.');
+      timeoutError.code = 'REQUEST_TIMEOUT';
+      timeoutError.isRetryable = true;
+      timeoutError.isNetworkError = true;
+      throw timeoutError;
     }
+
+    if (error instanceof TypeError || /Failed to fetch|Load failed|NetworkError/i.test(error.message || '')) {
+      error.isRetryable = true;
+      error.isNetworkError = true;
+    }
+
     throw error;
   }
 };
@@ -209,14 +248,78 @@ const buildApiError = (response, data) => {
     ? rawMessage
     : validationMessage;
 
-  const error = new Error(preferredMessage || rawMessage || `Erreur ${response.status}`);
+  const error = new Error(preferredMessage || rawMessage || getHttpErrorFallbackMessage(response.status));
   error.status = response.status;
   error.errors = data?.errors || null;
   error.detail = data?.detail || null;
   error.payload = data || null;
   error.validationMessage = validationMessage;
   error.isSessionExpired = response.status === 401;
+  error.isRetryable = RETRYABLE_STATUS_CODES.has(response.status);
   return error;
+};
+
+const shouldRetryRequest = (method = 'GET', error, attempt, maxRetries = MAX_API_RETRIES) => {
+  if (attempt >= maxRetries) {
+    return false;
+  }
+
+  const normalizedMethod = String(method || 'GET').toUpperCase();
+  if (!RETRYABLE_METHODS.has(normalizedMethod)) {
+    return false;
+  }
+
+  if (error?.status && RETRYABLE_STATUS_CODES.has(error.status)) {
+    return true;
+  }
+
+  return Boolean(error?.isRetryable || error?.isNetworkError);
+};
+
+const wakeBackend = async () => {
+  try {
+    await fetchWithTimeout(HEALTHCHECK_URL, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-store',
+      },
+    }, Math.min(API_TIMEOUT, 15000));
+  } catch {
+    // Le reveil du service est opportuniste: on laisse la requete principale gerer l'erreur finale.
+  }
+};
+
+const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxRetries = MAX_API_RETRIES } = {}) => {
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const response = await fetchWithTimeout(url, config, timeout);
+      const data = await parseResponseBody(response);
+
+      if (!response.ok) {
+        const error = buildApiError(response, data);
+        if (shouldRetryRequest(config.method, error, attempt, maxRetries)) {
+          await wakeBackend();
+          await sleep(800 * (attempt + 1));
+          continue;
+        }
+
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      if (shouldRetryRequest(config.method, error, attempt, maxRetries)) {
+        await wakeBackend();
+        await sleep(800 * (attempt + 1));
+        continue;
+      }
+
+      throw error;
+    }
+  }
 };
 
 // Fonction helper pour les requêtes publiques (sans auth)
@@ -230,6 +333,7 @@ const fetchPublicAPI = async (endpoint, options = {}) => {
 
   const config = {
     ...requestOptions,
+    method: requestOptions.method || 'GET',
     headers: {
       ...cleanHeaders(defaultHeaders),
       'X-Request-Id': buildRequestId(),
@@ -238,14 +342,7 @@ const fetchPublicAPI = async (endpoint, options = {}) => {
   };
 
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, config, timeout);
-    const data = await parseResponseBody(response);
-
-    if (!response.ok) {
-      throw buildApiError(response, data);
-    }
-
-    return data;
+    return await performApiRequest(endpoint, config, { timeout });
   } catch (error) {
     console.error('API Error:', error);
     throw error;
@@ -268,6 +365,7 @@ const fetchAPI = async (endpoint, options = {}) => {
 
   const config = {
     ...requestOptions,
+    method: requestOptions.method || 'GET',
     headers: {
       ...cleanHeaders(defaultHeaders),
       'X-Request-Id': buildRequestId(),
@@ -276,24 +374,17 @@ const fetchAPI = async (endpoint, options = {}) => {
   };
 
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, config, timeout);
-    const data = await parseResponseBody(response);
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        const scope = getSessionScope(endpoint);
-        const error = buildApiError(response, { ...data, message: SESSION_EXPIRED_MESSAGE });
-        clearStoredSession(scope);
-        if (!skipSessionExpiredHandling) {
-          dispatchSessionExpired({ scope, message: error.message });
-        }
-        throw error;
+    return await performApiRequest(endpoint, config, { timeout });
+  } catch (error) {
+    if (error.status === 401) {
+      const scope = getSessionScope(endpoint);
+      error.message = SESSION_EXPIRED_MESSAGE;
+      clearStoredSession(scope);
+      if (!skipSessionExpiredHandling) {
+        dispatchSessionExpired({ scope, message: error.message });
       }
-      throw buildApiError(response, data);
     }
 
-    return data;
-  } catch (error) {
     console.error('API Error:', error);
     throw error;
   }

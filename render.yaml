@@ -40,9 +40,11 @@ services:
       - key: DB_PASSWORD
         sync: false
       - key: SESSION_DRIVER
-        value: database
+        value: file
       - key: CACHE_STORE
-        value: database
+        value: file
+      - key: PHP_CLI_SERVER_WORKERS
+        value: "4"
       - key: QUEUE_CONNECTION
         value: sync
       - key: FILESYSTEM_DISK
@@ -103,6 +105,8 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://missandmister-api-djosssegaston.onrender.com/api
+      - key: VITE_API_TIMEOUT_MS
+        value: "25000"
       - key: VITE_MAX_VIDEO_UPLOAD_MB
         value: "100"
     routes:

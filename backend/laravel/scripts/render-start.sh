@@ -8,8 +8,10 @@ mkdir -p \
   storage/framework/views \
   storage/logs
 
-php artisan migrate --force
-php artisan db:seed --force
+export PHP_CLI_SERVER_WORKERS="${PHP_CLI_SERVER_WORKERS:-4}"
+
+php artisan migrate --force --isolated
+php artisan app:bootstrap-production --ansi
 
 cd public
 
