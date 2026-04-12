@@ -99,7 +99,7 @@ services:
     autoDeployTrigger: commit
     rootDir: frontend/missandmisterfront
     buildCommand: npm ci && npm run build
-    staticPublishPath: ./frontend/missandmisterfront/dist
+    staticPublishPath: ./dist
     envVars:
       - key: VITE_API_URL
         value: https://missandmister-api-djosssegaston.onrender.com/api
