@@ -49,6 +49,10 @@ class VoteService
 
     public function confirmVote(Vote $vote): Vote
     {
+        if ($vote->status === 'confirmed') {
+            return $vote;
+        }
+
         return DB::transaction(function () use ($vote) {
             $vote->update(['status' => 'confirmed']);
 

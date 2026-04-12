@@ -30,8 +30,10 @@
   height: 100%;
   object-fit: cover;
   object-position: center 28%;
-  transform: scale(1.02);
+  transform: none;
   filter: saturate(1.06) brightness(0.92);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .hero-bg {
@@ -974,6 +976,12 @@
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .top-cand-grid { grid-template-columns: 1fr; max-width: 400px; margin-left: auto; margin-right: auto; }
   .mm-box { grid-template-columns: 1fr; gap: 2rem; padding: 2rem; }
+}
+
+@media (min-width: 1400px) {
+  .hero-media img {
+    object-position: center 24%;
+  }
 }
 
 @media (max-width: 600px) {

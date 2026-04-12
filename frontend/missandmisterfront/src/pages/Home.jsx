@@ -242,7 +242,13 @@ const Home = () => {
     .slice(0, 6);
 
   if (loading) {
-    return <Loader fullScreen={true} text="Chargement de la page d'accueil..." />;
+    return (
+      <Loader
+        fullScreen={true}
+        text="MISS & MISTER UNIVERSITY BENIN 2026"
+        subtext="Veuillez vous patientez ........"
+      />
+    );
   }
 
   return (

@@ -71,6 +71,7 @@ class VoteController extends Controller
         return response()->json([
             'message' => 'Payment initiated, vote pending confirmation',
             'payment' => $payment,
+            'payment_url' => $payment->meta['payment_url'] ?? null,
             'vote' => $vote,
         ], 201);
     }

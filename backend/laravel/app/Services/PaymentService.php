@@ -51,17 +51,25 @@ class PaymentService
             return null;
         }
 
+        if ($payment->status === 'succeeded') {
+            return $payment;
+        }
+
         return DB::transaction(function () use ($payment, $payload) {
             $this->payments->updateStatus($payment, 'succeeded', $payload);
-            $this->transactions->create([
-                'payment_id' => $payment->id,
-                'type' => 'credit',
-                'status' => 'succeeded',
-                'amount' => $payment->amount,
-                'currency' => $payment->currency,
-                'provider_reference' => $payload['transaction_id'] ?? null,
-                'payload' => $payload,
-            ]);
+            $transactionReference = $payload['transactionId'] ?? $payload['transaction_id'] ?? null;
+
+            if (!$transactionReference || !$payment->transactions()->where('provider_reference', $transactionReference)->exists()) {
+                $this->transactions->create([
+                    'payment_id' => $payment->id,
+                    'type' => 'credit',
+                    'status' => 'succeeded',
+                    'amount' => $payment->amount,
+                    'currency' => $payment->currency,
+                    'provider_reference' => $transactionReference,
+                    'payload' => $payload,
+                ]);
+            }
 
             ActivityLog::create([
                 'causer_id' => $payment->user_id,

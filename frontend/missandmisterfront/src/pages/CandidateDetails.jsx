@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link, useParams, useOutletContext } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { candidatesAPI, votesAPI } from '../services/api';
 import { useToast } from '../components/Toast';
 import Loader from '../components/Loader';
@@ -21,7 +21,6 @@ const CandidateDetails = () => {
   const [videoFailed, setVideoFailed] = useState(false);
   const hasLoadedRef = useRef(false);
 
-  const [step, setStep] = useState('form'); // 'form' | 'success'
   const [nbVotes, setNbVotes] = useState(1);
   const [votingLoading, setVotingLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -104,27 +103,22 @@ const CandidateDetails = () => {
 
     try {
       const response = await votesAPI.vote(candidate.id, { amount: total, quantity: nbVotes });
+      const paymentUrl = response?.payment_url
+        || response?.payment?.meta?.payment_url
+        || response?.payment?.payment_url;
 
-      // Si le backend renvoie une URL de paiement (kkiapay), on redirige
-      if (response?.payment_url) {
-        window.location.href = response.payment_url;
-        return;
+      if (!paymentUrl) {
+        throw new Error('Impossible d’ouvrir le paiement sécurisé pour le moment.');
       }
 
-      setStep('success');
-      showToast(`${nbVotes} vote(s) prêts pour ${candidate.first_name} ${candidate.last_name}`, 'success');
+      window.location.href = paymentUrl;
+      return;
     } catch (err) {
       setErrors({ general: err.message || 'Erreur lors du paiement' });
       showToast('Erreur lors du paiement', 'error');
     } finally {
       setVotingLoading(false);
     }
-  };
-
-  const handleReset = () => {
-    setStep('form');
-    setNbVotes(1);
-    setErrors({});
   };
 
   if (loading) {
@@ -320,10 +314,8 @@ const CandidateDetails = () => {
             </div>
           </div>
 
-          <AnimatePresence mode="wait">
-            {step === 'form' && (
-              <motion.div key="form" className="cdet-vote-body"
-                initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }} transition={{ duration:0.25 }}>
+          <motion.div className="cdet-vote-body"
+            initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} transition={{ duration:0.25 }}>
 
                 <div className="cdet-cta-message">
                   Vous êtes sur le point de voter pour <strong>{candidate.first_name} {candidate.last_name}</strong>.
@@ -352,37 +344,9 @@ const CandidateDetails = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                 >
-                  {votingBlocked ? 'Vote bloquer' : (votingLoading ? 'Paiement en cours...' : 'Payer avec Kkiapay')}
+                  {votingBlocked ? 'Vote bloquer' : (votingLoading ? 'Paiement sécurisé...' : 'Payer')}
                 </motion.button>
-              </motion.div>
-            )}
-
-            {step === 'success' && (
-              <motion.div key="success" className="cdet-vote-body cdet-success"
-                initial={{ opacity:0, scale:0.92 }} animate={{ opacity:1, scale:1 }} transition={{ duration:0.35 }}>
-
-                <motion.div className="cdet-success-icon"
-                  initial={{ scale:0 }} animate={{ scale:1 }}
-                  transition={{ type:'spring', stiffness:300, damping:20, delay:0.1 }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                    <path d="M20 6L9 17l-5-5" stroke="#D4AF37" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </motion.div>
-
-                <h3>Vote prêt à être validé !</h3>
-                <p>
-                  Vous avez sélectionné <strong>{nbVotes} vote{nbVotes > 1 ? 's' : ''}</strong> pour
-                  {' '}<strong>{candidate.first_name} {candidate.last_name}</strong>.
-                </p>
-                <p className="cdet-success-sub">Le paiement sécurisé Kkiapay a été initié.</p>
-
-                <div className="cdet-success-actions">
-                  <button className="cdet-btn-vote" onClick={handleReset}>Voter à nouveau</button>
-                  <Link to="/candidates" className="cdet-btn-back">Voir tous les candidats</Link>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          </motion.div>
         </motion.div>
 
       </div>

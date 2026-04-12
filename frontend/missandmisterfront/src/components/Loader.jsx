@@ -6,6 +6,7 @@ const Loader = ({
   size = 'medium',
   color = 'primary',
   text = 'Chargement...',
+  subtext = 'Préparation d\'une expérience fluide et élégante',
   showText = true,
   fullScreen = false
 }) => {
@@ -43,7 +44,7 @@ const Loader = ({
           transition={{ delay: 0.15, duration: 0.3 }}
         >
           <p className="loader-text">{text}</p>
-          <span className="loader-subtext">Préparation d&apos;une expérience fluide et élégante</span>
+          <span className="loader-subtext">{subtext}</span>
         </motion.div>
       )}
     </div>
