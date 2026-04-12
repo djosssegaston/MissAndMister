@@ -18,6 +18,7 @@ const CandidateDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [photoFailed, setPhotoFailed] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
   const hasLoadedRef = useRef(false);
 
   const [step, setStep] = useState('form'); // 'form' | 'success'
@@ -43,10 +44,12 @@ const CandidateDetails = () => {
       if (isInitialLoad) {
         setLoading(true);
         setPhotoFailed(false);
+        setVideoFailed(false);
       }
 
       const data = await candidatesAPI.getById(id);
       setPhotoFailed(false);
+      setVideoFailed(false);
       setCandidate(data);
       setError(null);
       hasLoadedRef.current = true;
@@ -240,9 +243,15 @@ const CandidateDetails = () => {
               <span>Vidéo de présentation</span>
             </div>
 
-            {videoUrl ? (
+            {videoUrl && !videoFailed ? (
               <div className="cdet-video-wrap">
-                <video className="cdet-video" controls preload="metadata" src={videoUrl}>
+                <video
+                  className="cdet-video"
+                  controls
+                  preload="metadata"
+                  src={videoUrl}
+                  onError={() => setVideoFailed(true)}
+                >
                   Votre navigateur ne supporte pas la lecture vidéo.
                 </video>
               </div>
@@ -253,8 +262,12 @@ const CandidateDetails = () => {
                     <polygon points="5 3 19 12 5 21 5 3" stroke="rgba(212,175,55,0.25)" strokeWidth="1.5" strokeLinejoin="round"/>
                   </svg>
                 </div>
-                <p>Vidéo bientôt disponible</p>
-                <span>Le candidat n'a pas encore uploadé sa vidéo</span>
+                <p>{videoFailed ? 'Vidéo indisponible' : 'Vidéo bientôt disponible'}</p>
+                <span>
+                  {videoFailed
+                    ? 'Le média n’a pas pu être chargé. Réessayez dans un instant.'
+                    : "Le candidat n'a pas encore uploadé sa vidéo"}
+                </span>
               </div>
             )}
           </motion.div>

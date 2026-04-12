@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import logoSrc from '../assets/logo.jpeg';
 import './Loader.css';
 
 const Loader = ({
@@ -8,50 +9,42 @@ const Loader = ({
   showText = true,
   fullScreen = false
 }) => {
-  const spinnerVariants = {
-    animate: {
-      rotate: 360,
-      transition: {
-        duration: 1,
-        repeat: Infinity,
-        ease: 'linear'
-      }
-    }
-  };
-
-  const containerClasses = `loader-container ${fullScreen ? 'fullscreen' : ''} ${size}`;
+  const containerClasses = [
+    'loader-container',
+    fullScreen ? 'fullscreen' : '',
+    `size-${size}`,
+    `theme-${color}`,
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className={containerClasses}>
-      <motion.div
-        className={`loader-spinner ${color}`}
-        variants={spinnerVariants}
-        animate="animate"
-      >
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle
-            cx="20"
-            cy="20"
-            r="16"
-            stroke="currentColor"
-            strokeWidth="3"
-            fill="none"
-            strokeLinecap="round"
-            strokeDasharray="25 75"
-            className="loader-circle"
-          />
-        </svg>
-      </motion.div>
+    <div className={containerClasses} role="status" aria-live="polite" aria-busy="true">
+      <div className="loader-orbit" aria-hidden="true">
+        <span className="loader-ring loader-ring-outer" />
+        <span className="loader-ring loader-ring-inner" />
+
+        <motion.div
+          className="loader-core"
+          initial={{ scale: 0.96, opacity: 0.92 }}
+          animate={{ scale: [0.96, 1.02, 0.96], opacity: [0.92, 1, 0.92] }}
+          transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <span className="loader-core-glow" />
+          <span className="loader-logo-frame">
+            <img src={logoSrc} alt="" className="loader-logo" loading="eager" decoding="async" />
+          </span>
+        </motion.div>
+      </div>
 
       {showText && (
-        <motion.p
-          className="loader-text"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
+        <motion.div
+          className="loader-copy"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.3 }}
         >
-          {text}
-        </motion.p>
+          <p className="loader-text">{text}</p>
+          <span className="loader-subtext">Préparation d&apos;une expérience fluide et élégante</span>
+        </motion.div>
       )}
     </div>
   );

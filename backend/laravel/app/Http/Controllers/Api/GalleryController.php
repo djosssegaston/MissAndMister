@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\GalleryItem;
 use App\Services\Media\CloudinaryMediaService;
+use App\Support\MediaUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -274,9 +275,16 @@ class GalleryController extends Controller
             }
         }
 
-        if (!str_starts_with($path, 'http://') && !str_starts_with($path, 'https://')) {
-            Storage::disk('public')->delete($path);
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return;
         }
+
+        $normalizedPath = MediaUrl::toStorageRelativePath($path);
+        if (!$normalizedPath) {
+            return;
+        }
+
+        Storage::disk('public')->delete($normalizedPath);
     }
 
     private function buildCloudinaryPublicId(?string $filename = null): string

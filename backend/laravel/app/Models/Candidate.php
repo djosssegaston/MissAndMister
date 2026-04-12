@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\MediaUrl;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -69,7 +70,7 @@ class Candidate extends Model
         $variants = $this->photo_variants ?? [];
         $path = $variants['large'] ?? ($this->attributes['photo_path'] ?? null);
 
-        return $this->buildPublicUrl($path);
+        return MediaUrl::fromPath($path);
     }
 
     public function getPhotoUrlsAttribute(): array
@@ -78,16 +79,16 @@ class Candidate extends Model
 
         foreach ((array) ($this->photo_variants ?? []) as $variant => $path) {
             if ($path) {
-                $urls[$variant] = $this->buildPublicUrl($path);
+                $urls[$variant] = MediaUrl::fromPath($path);
             }
         }
 
         if (!isset($urls['large']) && !empty($this->attributes['photo_path'] ?? null)) {
-            $urls['large'] = $this->buildPublicUrl($this->attributes['photo_path']);
+            $urls['large'] = MediaUrl::fromPath($this->attributes['photo_path']);
         }
 
         if (!empty($this->attributes['photo_original_path'] ?? null)) {
-            $urls['original'] = $this->buildPublicUrl($this->attributes['photo_original_path']);
+            $urls['original'] = MediaUrl::fromPath($this->attributes['photo_original_path']);
         }
 
         return $urls;
@@ -95,20 +96,6 @@ class Candidate extends Model
 
     public function getVideoUrlAttribute(): ?string
     {
-        return $this->buildPublicUrl($this->video_path);
-    }
-
-    private function buildPublicUrl(?string $path): ?string
-    {
-        if (!$path) {
-            return null;
-        }
-        if (str_starts_with($path, 'http')) {
-            return $path;
-        }
-        if (str_starts_with($path, '/storage')) {
-            return url($path);
-        }
-        return asset('storage/' . ltrim($path, '/'));
+        return MediaUrl::fromPath($this->video_path);
     }
 }

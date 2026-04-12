@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\MediaUrl;
 use Illuminate\Database\Eloquent\Model;
 
 class GalleryItem extends Model
@@ -31,23 +32,6 @@ class GalleryItem extends Model
 
     public function getImageUrlAttribute(): ?string
     {
-        return $this->buildPublicUrl($this->image_path);
-    }
-
-    private function buildPublicUrl(?string $path): ?string
-    {
-        if (!$path) {
-            return null;
-        }
-
-        if (str_starts_with($path, 'http')) {
-            return $path;
-        }
-
-        if (str_starts_with($path, '/storage')) {
-            return url($path);
-        }
-
-        return asset('storage/' . ltrim($path, '/'));
+        return MediaUrl::fromPath($this->image_path);
     }
 }

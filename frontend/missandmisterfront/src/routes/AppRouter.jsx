@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-router-dom';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import Home from '../pages/Home';
@@ -212,6 +212,30 @@ const MaintenanceScreen = ({ publicSettings, onCountdownComplete }) => {
   );
 };
 
+const ScrollToTop = () => {
+  const location = useLocation();
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
+    const root = document.documentElement;
+    const previousBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+    window.scrollTo(0, 0);
+    root.style.scrollBehavior = previousBehavior;
+
+    return undefined;
+  }, [location.pathname, location.search, location.hash]);
+
+  return null;
+};
+
 const PublicLayout = () => {
   const [publicSettings, setPublicSettings] = useState(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -351,6 +375,7 @@ const RequirePasswordChange = ({ children }) => {
 
 const AppRouter = () => (
   <Router>
+    <ScrollToTop />
     <SessionExpiredModal />
     <Routes>
 

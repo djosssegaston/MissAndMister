@@ -1,73 +1,214 @@
 /* ===== LOADER ===== */
 .loader-container {
+  --loader-size: 116px;
+  --loader-accent: #D4AF37;
+  --loader-accent-soft: rgba(212, 175, 55, 0.26);
+  --loader-accent-strong: rgba(212, 175, 55, 0.98);
+  --loader-bg: rgba(8, 8, 8, 0.84);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1rem;
+  position: relative;
+}
+
+.loader-container.theme-secondary {
+  --loader-accent: #F4D03F;
+  --loader-accent-soft: rgba(244, 208, 63, 0.22);
+  --loader-accent-strong: rgba(244, 208, 63, 0.98);
 }
 
 .loader-container.fullscreen {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
+  inset: 0;
   z-index: 9999;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(212,175,55,0.16), transparent 36%),
+    radial-gradient(circle at 16% 18%, rgba(255,255,255,0.05), transparent 28%),
+    linear-gradient(180deg, rgba(3,3,3,0.94), rgba(10,10,10,0.92));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
-.loader-container.small {
-  gap: 0.5rem;
+.loader-container.size-small {
+  --loader-size: 72px;
+  gap: 0.65rem;
 }
 
-.loader-container.small .loader-spinner svg {
-  width: 24px;
-  height: 24px;
+.loader-container.size-large {
+  --loader-size: 148px;
+  gap: 1.25rem;
 }
 
-.loader-container.large {
-  gap: 1.5rem;
+.loader-orbit {
+  position: relative;
+  width: var(--loader-size);
+  height: var(--loader-size);
 }
 
-.loader-container.large .loader-spinner svg {
-  width: 56px;
-  height: 56px;
+.loader-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
 }
 
-.loader-spinner {
+.loader-ring::before,
+.loader-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.loader-ring-outer::before {
+  background: conic-gradient(
+    from 0deg,
+    rgba(212, 175, 55, 0) 0deg,
+    rgba(212, 175, 55, 0) 18deg,
+    var(--loader-accent-strong) 18deg,
+    rgba(212, 175, 55, 0.1) 38deg,
+    rgba(212, 175, 55, 0) 70deg,
+    rgba(212, 175, 55, 0.92) 70deg,
+    rgba(212, 175, 55, 0.08) 92deg,
+    rgba(212, 175, 55, 0) 140deg,
+    rgba(212, 175, 55, 0) 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 5px));
+  animation: loaderSpin 1.5s linear infinite;
+  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.24));
+}
+
+.loader-ring-outer::after {
+  inset: 11px;
+  background: radial-gradient(circle, transparent 57%, rgba(212,175,55,0.07) 59%, transparent 68%);
+  animation: loaderPulse 2.6s ease-in-out infinite;
+}
+
+.loader-ring-inner {
+  inset: 14%;
+}
+
+.loader-ring-inner::before {
+  background: conic-gradient(
+    from 180deg,
+    rgba(212, 175, 55, 0) 0deg,
+    rgba(212, 175, 55, 0.82) 24deg,
+    rgba(212, 175, 55, 0.06) 54deg,
+    rgba(212, 175, 55, 0) 90deg,
+    rgba(212, 175, 55, 0.88) 126deg,
+    rgba(212, 175, 55, 0) 180deg,
+    rgba(212, 175, 55, 0) 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  animation: loaderSpinReverse 2.25s linear infinite;
+  opacity: 0.9;
+  filter: blur(0.1px);
+}
+
+.loader-core {
+  position: absolute;
+  inset: 17%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255,255,255,0.18), transparent 34%),
+    radial-gradient(circle at 50% 50%, rgba(0,0,0,0.82), rgba(10,10,10,0.98));
+  border: 1px solid rgba(212,175,55,0.35);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.03),
+    0 10px 28px rgba(0,0,0,0.45),
+    0 0 42px rgba(212,175,55,0.14);
+  overflow: hidden;
+}
+
+.loader-core-glow {
+  position: absolute;
+  inset: 11%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212,175,55,0.18), transparent 72%);
+  filter: blur(6px);
+}
+
+.loader-logo-frame {
+  position: relative;
+  z-index: 1;
+  width: 68%;
+  height: 68%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
+    linear-gradient(145deg, rgba(212,175,55,0.18), rgba(0,0,0,0.18));
+  box-shadow:
+    inset 0 0 0 1px rgba(212,175,55,0.2),
+    0 0 22px rgba(212,175,55,0.18);
+}
+
+.loader-logo {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+  display: block;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.35));
+}
+
+.loader-copy {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-}
-
-.loader-spinner.primary {
-  color: #1E3A8A;
-}
-
-.loader-spinner.secondary {
-  color: #F59E0B;
-}
-
-.loader-circle {
-  animation: loaderSpin 1s linear infinite;
-}
-
-@keyframes loaderSpin {
-  0% {
-    stroke-dashoffset: 100;
-  }
-  100% {
-    stroke-dashoffset: 0;
-  }
+  gap: 0.18rem;
+  text-align: center;
 }
 
 .loader-text {
-  color: #6B7280;
-  font-size: 0.875rem;
-  font-weight: 500;
   margin: 0;
-  text-align: center;
+  color: #f7f1df;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.loader-subtext {
+  color: rgba(255,255,255,0.58);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+@keyframes loaderSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loaderSpinReverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes loaderPulse {
+  0%, 100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
 }
 
 /* ===== TABLE LOADER ===== */
@@ -164,5 +305,19 @@
 
   .table-row-loader {
     gap: 0.5rem;
+  }
+
+  .loader-container.size-large {
+    --loader-size: 132px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-ring-outer::before,
+  .loader-ring-inner::before,
+  .loader-ring-outer::after,
+  .loader-core,
+  .skeleton {
+    animation: none !important;
   }
 }

@@ -11,6 +11,7 @@ use App\Repositories\CandidateRepository;
 use App\Services\CandidateAccountService;
 use App\Services\CandidateImages\CandidateImagePipeline;
 use App\Services\Media\CloudinaryMediaService;
+use App\Support\MediaUrl;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -64,9 +65,9 @@ class CandidateController extends Controller
             'success' => true,
             'message' => 'Candidat créé',
             'candidate' => $candidate,
-            'photo_url' => $this->publicUrl($candidate->photo_path),
+            'photo_url' => MediaUrl::fromPath($candidate->photo_path),
             'photo_urls' => $candidate->photo_urls,
-            'video_url' => $this->publicUrl($candidate->video_path),
+            'video_url' => MediaUrl::fromPath($candidate->video_path),
         ], 201);
     }
 
@@ -103,9 +104,9 @@ class CandidateController extends Controller
             'success' => true,
             'message' => 'Candidat mis à jour',
             'candidate' => $updated,
-            'photo_url' => $this->publicUrl($updated->photo_path),
+            'photo_url' => MediaUrl::fromPath($updated->photo_path),
             'photo_urls' => $updated->photo_urls,
-            'video_url' => $this->publicUrl($updated->video_path),
+            'video_url' => MediaUrl::fromPath($updated->video_path),
         ]);
     }
 
@@ -211,7 +212,7 @@ class CandidateController extends Controller
                     'message' => 'Photo recue. Traitement automatique en cours.',
                     'candidate' => $candidate,
                     'photo_path' => $candidate->photo_path,
-                    'photo_url' => $this->publicUrl($candidate->photo_path),
+                    'photo_url' => MediaUrl::fromPath($candidate->photo_path),
                     'photo_urls' => $candidate->photo_urls,
                 ], 202);
             } catch (\Throwable $exception) {
@@ -306,7 +307,7 @@ class CandidateController extends Controller
             'message' => 'Vidéo mise à jour',
             'candidate' => $candidate->fresh(),
             'video_path' => $candidate->video_path,
-            'video_url' => $this->publicUrl($candidate->video_path),
+            'video_url' => MediaUrl::fromPath($candidate->video_path),
         ]);
     }
 
@@ -421,23 +422,6 @@ class CandidateController extends Controller
         ]);
     }
 
-    private function publicUrl(?string $path): ?string
-    {
-        if (!$path) {
-            return null;
-        }
-
-        if (str_starts_with($path, 'http')) {
-            return $path;
-        }
-
-        if (str_starts_with($path, '/storage')) {
-            return url($path);
-        }
-
-        return asset('storage/' . ltrim($path, '/'));
-    }
-
     private function processPhotoSynchronously(Candidate $candidate, string $path): JsonResponse
     {
         try {
@@ -476,7 +460,7 @@ class CandidateController extends Controller
             'message' => 'Photo mise a jour avec succes.',
             'candidate' => $candidate,
             'photo_path' => $candidate->photo_path,
-            'photo_url' => $this->publicUrl($candidate->photo_path),
+            'photo_url' => MediaUrl::fromPath($candidate->photo_path),
             'photo_urls' => $candidate->photo_urls,
         ]);
     }
@@ -519,7 +503,7 @@ class CandidateController extends Controller
             'message' => 'Photo mise a jour avec succes.',
             'candidate' => $candidate,
             'photo_path' => $candidate->photo_path,
-            'photo_url' => $this->publicUrl($candidate->photo_path),
+            'photo_url' => MediaUrl::fromPath($candidate->photo_path),
             'photo_urls' => $candidate->photo_urls,
         ]);
     }
@@ -566,9 +550,10 @@ class CandidateController extends Controller
             return;
         }
 
-        $normalizedPath = str_starts_with($path, '/storage/')
-            ? ltrim(substr($path, strlen('/storage/')), '/')
-            : ltrim($path, '/');
+        $normalizedPath = MediaUrl::toStorageRelativePath($path);
+        if (!$normalizedPath) {
+            return;
+        }
 
         Storage::disk('public')->delete($normalizedPath);
     }

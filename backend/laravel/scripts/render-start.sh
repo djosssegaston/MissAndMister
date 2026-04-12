@@ -8,6 +8,8 @@ mkdir -p \
   storage/framework/views \
   storage/logs
 
+php artisan storage:link --force
+
 export PHP_CLI_SERVER_WORKERS="${PHP_CLI_SERVER_WORKERS:-4}"
 
 php artisan migrate --force --isolated

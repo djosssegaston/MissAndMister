@@ -26,6 +26,10 @@ export const resolveMediaUrl = (value = '') => {
   const trimmed = value.trim();
   if (!trimmed) return null;
 
+  if (/^(data:|blob:)/i.test(trimmed)) {
+    return trimmed;
+  }
+
   if (/^https?:\/\//i.test(trimmed)) {
     try {
       const url = new URL(trimmed);
@@ -40,12 +44,26 @@ export const resolveMediaUrl = (value = '') => {
     }
   }
 
+  const normalized = trimmed.replace(/^\/+/, '');
+
+  if (normalized.startsWith('public/storage/')) {
+    return joinOriginAndPath(`/${normalized.replace(/^public\//, '')}`);
+  }
+
+  if (normalized.startsWith('storage/app/public/')) {
+    return joinOriginAndPath(`/${normalized.replace(/^storage\/app\/public\//, 'storage/')}`);
+  }
+
   if (trimmed.startsWith('/storage/')) {
     return joinOriginAndPath(trimmed);
   }
 
   if (trimmed.startsWith('storage/')) {
     return joinOriginAndPath(`/${trimmed}`);
+  }
+
+  if (normalized.startsWith('storage/')) {
+    return joinOriginAndPath(`/${normalized}`);
   }
 
   return joinOriginAndPath(`/storage/${trimmed.replace(/^\/+/, '')}`);
