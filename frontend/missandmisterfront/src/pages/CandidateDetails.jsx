@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useParams, useOutletContext } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { candidatesAPI, votesAPI } from '../services/api';
 import { useToast } from '../components/Toast';
 import Loader from '../components/Loader';
 import { getCandidateImageSources } from '../utils/candidateImage';
+import { resolveMediaUrl } from '../utils/mediaUrl';
+import { useAutoRefresh } from '../utils/liveUpdates';
 import './CandidateDetails.css';
 
 const DEFAULT_PRICE_PER_VOTE = 100;
@@ -16,6 +18,7 @@ const CandidateDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [photoFailed, setPhotoFailed] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const [step, setStep] = useState('form'); // 'form' | 'success'
   const [nbVotes, setNbVotes] = useState(1);
@@ -31,28 +34,46 @@ const CandidateDetails = () => {
     ? Number(publicSettings.price_per_vote)
     : DEFAULT_PRICE_PER_VOTE;
 
-  useEffect(() => {
-    const fetchCandidate = async () => {
-      try {
+  const fetchCandidate = async () => {
+    if (!id) return;
+
+    const isInitialLoad = !hasLoadedRef.current;
+
+    try {
+      if (isInitialLoad) {
         setLoading(true);
         setPhotoFailed(false);
-        const data = await candidatesAPI.getById(id);
-        setCandidate(data);
-      } catch (err) {
+      }
+
+      const data = await candidatesAPI.getById(id);
+      setPhotoFailed(false);
+      setCandidate(data);
+      setError(null);
+      hasLoadedRef.current = true;
+    } catch (err) {
+      if (isInitialLoad || err?.status === 404 || err?.status === 403) {
+        setCandidate(null);
         setError(err.message || 'Erreur lors du chargement du candidat');
-      } finally {
+      }
+    } finally {
+      if (isInitialLoad) {
+        hasLoadedRef.current = true;
         setLoading(false);
       }
-    };
-
-    if (id) {
-      fetchCandidate();
     }
-  }, [id]);
+  };
+
+  useAutoRefresh(fetchCandidate, { enabled: Boolean(id) });
+
+  const retryFetchCandidate = async () => {
+    hasLoadedRef.current = false;
+    await fetchCandidate();
+  };
 
   const total = (nbVotes || 0) * pricePerVote;
   const photo = getCandidateImageSources(candidate || {}, 'portrait');
   const photoBackdrop = photo.backdrop || photo.src;
+  const videoUrl = resolveMediaUrl(candidate?.video_url || candidate?.video_path);
 
   const incrementVotes = () => {
     setErrors(e => ({ ...e, nbVotes: '' }));
@@ -127,6 +148,9 @@ const CandidateDetails = () => {
             </svg>
             <h3>Erreur de chargement</h3>
             <p>{error || 'Candidat non trouvé'}</p>
+            <button className="btn-gold" type="button" onClick={retryFetchCandidate}>
+              Réessayer
+            </button>
             <Link to="/candidates">
               <button className="btn-gold">Retour aux candidats</button>
             </Link>
@@ -216,9 +240,9 @@ const CandidateDetails = () => {
               <span>Vidéo de présentation</span>
             </div>
 
-            {candidate.video_url || candidate.video_path ? (
+            {videoUrl ? (
               <div className="cdet-video-wrap">
-                <video className="cdet-video" controls preload="metadata" src={candidate.video_url}>
+                <video className="cdet-video" controls preload="metadata" src={videoUrl}>
                   Votre navigateur ne supporte pas la lecture vidéo.
                 </video>
               </div>

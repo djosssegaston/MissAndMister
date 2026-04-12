@@ -25,6 +25,7 @@ import AdminSettings from '../pages/admin/AdminSettings';
 import AdminLayout from '../components/AdminLayout';
 import SessionExpiredModal from '../components/SessionExpiredModal';
 import { settingsAPI } from '../services/api';
+import { useAutoRefresh } from '../utils/liveUpdates';
 
 const parseDateBoundary = (value, endOfDay = false) => {
   if (!value || typeof value !== 'string') return null;
@@ -226,27 +227,7 @@ const PublicLayout = () => {
     }
   }, []);
 
-  useEffect(() => {
-    fetchPublicSettings();
-
-    const interval = setInterval(fetchPublicSettings, 30000);
-    const onStorage = (e) => {
-      if (e.key === 'settings_updated_at') fetchPublicSettings();
-    };
-    const onCustom = () => fetchPublicSettings();
-    const onFocus = () => fetchPublicSettings();
-
-    window.addEventListener('storage', onStorage);
-    window.addEventListener('settings-updated', onCustom);
-    window.addEventListener('focus', onFocus);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener('settings-updated', onCustom);
-      window.removeEventListener('focus', onFocus);
-    };
-  }, [fetchPublicSettings]);
+  useAutoRefresh(fetchPublicSettings);
 
   const votingState = useMemo(() => computeVotingState(publicSettings || {}), [publicSettings]);
   const outletContext = useMemo(

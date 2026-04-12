@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authAPI, candidateAPI } from '../services/api';
+import { useAutoRefresh } from '../utils/liveUpdates';
 import './CandidateDashboard.css';
 
 const MiniChart = ({ data }) => {
@@ -40,12 +41,21 @@ const CandidateDashboard = () => {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
+  const [canLoad, setCanLoad] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const loadDashboard = async () => {
+    const isInitialLoad = !hasLoadedRef.current;
+
     try {
+      if (isInitialLoad) {
+        setData(null);
+      }
+
       setError(null);
       const response = await candidateAPI.getDashboard();
       setData(response);
+      hasLoadedRef.current = true;
     } catch (err) {
       if (err?.isSessionExpired) {
         return;
@@ -55,7 +65,13 @@ const CandidateDashboard = () => {
         navigate('/change-password');
         return;
       }
-      setError(message);
+      if (isInitialLoad) {
+        setError(message);
+      }
+    } finally {
+      if (isInitialLoad) {
+        hasLoadedRef.current = true;
+      }
     }
   };
 
@@ -78,13 +94,20 @@ const CandidateDashboard = () => {
         navigate('/change-password');
         return;
       }
+
+      setCanLoad(true);
     } catch {
       navigate('/login');
       return;
     }
-
-    loadDashboard();
   }, [navigate]);
+
+  useAutoRefresh(loadDashboard, { enabled: canLoad });
+
+  const retryLoadDashboard = async () => {
+    hasLoadedRef.current = false;
+    await loadDashboard();
+  };
 
   const handleLogout = async () => {
     try {
@@ -111,7 +134,7 @@ const CandidateDashboard = () => {
     return (
       <div className="cd-dash-loading">
         <p>{error}</p>
-        <button className="cdb-nav-logout" type="button" onClick={loadDashboard}>
+        <button className="cdb-nav-logout" type="button" onClick={retryLoadDashboard}>
           Réessayer
         </button>
       </div>

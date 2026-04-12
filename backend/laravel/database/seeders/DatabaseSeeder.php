@@ -15,18 +15,23 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-            'phone' => '0000000000',
-            'role' => 'user',
-            'status' => 'active',
-        ]);
-
         $this->call([
+            CategorySeeder::class,
             SettingSeeder::class,
+            AdminSeeder::class,
         ]);
+
+        if (app()->environment(['local', 'testing'])) {
+            User::query()->firstOrCreate(
+                ['email' => 'test@example.com'],
+                [
+                    'name' => 'Test User',
+                    'phone' => '0000000000',
+                    'password' => bcrypt('password'),
+                    'role' => 'user',
+                    'status' => 'active',
+                ]
+            );
+        }
     }
 }

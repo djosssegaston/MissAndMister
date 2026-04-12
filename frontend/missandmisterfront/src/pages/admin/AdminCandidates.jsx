@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import { getCandidateImageSources } from '../../utils/candidateImage';
 import Loader from '../../components/Loader';
+import { broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminCandidates.css';
 
@@ -25,6 +26,9 @@ const emptyForm = {
   photo: null,
   video: null,
   videoName: '',
+  existingVideoPath: null,
+  existingVideoUrl: null,
+  existingVideoLabel: '',
   active: true,
 };
 
@@ -71,6 +75,9 @@ const buildCandidateForm = (candidate) => {
     photo: null,
     video: null,
     videoName: raw.video_path ? 'Vidéo actuelle' : candidate?.videoName || '',
+    existingVideoPath: raw.video_path || candidate?.videoPath || null,
+    existingVideoUrl: raw.video_url || candidate?.videoUrl || null,
+    existingVideoLabel: raw.video_path ? 'Vidéo actuelle' : '',
     active: raw.is_active ?? candidate?.active ?? raw.status === 'active',
   };
 };
@@ -116,6 +123,7 @@ const AdminCandidates = () => {
   const [feedback,   setFeedback]   = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const [categories, setCategories] = useState([]);
+  const hasLoadedRef = useRef(false);
 
   const mapCandidate = (c, idx = 0, catList = categories) => {
     const catId = c.category?.id ?? c.category_id;
@@ -142,15 +150,19 @@ const AdminCandidates = () => {
       photoProcessingError: c.photo_processing_error || '',
       videoName: c.video_path ? 'Vidéo' : '',
       videoPath: c.video_path || null,
+      videoUrl: c.video_url || null,
       raw: c,
     };
   };
 
   const fetchAll = async () => {
+    const isInitialLoad = !hasLoadedRef.current;
+
     try {
-      setLoading(true);
-      setError(null);
-      setFeedback(null);
+      if (isInitialLoad) {
+        setLoading(true);
+      }
+
       const [cats, list] = await Promise.all([
         adminAPI.getCategories(),
         adminAPI.getCandidates(),
@@ -160,19 +172,30 @@ const AdminCandidates = () => {
       setCategories(catList);
       const rows = (list?.data || list || []).map((c, idx) => mapCandidate(c, idx, catList));
       setCandidates(rows);
+      setError(null);
+      hasLoadedRef.current = true;
     } catch (err) {
       if (err?.isSessionExpired) {
         return;
       }
-      setError(err.message || 'Erreur de chargement');
+
+      if (isInitialLoad) {
+        setError(err.message || 'Erreur de chargement');
+      }
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        hasLoadedRef.current = true;
+        setLoading(false);
+      }
     }
   };
 
-  useEffect(() => {
-    fetchAll();
-  }, []);
+  useAutoRefresh(fetchAll);
+
+  const retryFetchAll = async () => {
+    hasLoadedRef.current = false;
+    await fetchAll();
+  };
 
   const filtered = candidates.filter(c => {
     const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.university.toLowerCase().includes(search.toLowerCase());
@@ -288,6 +311,7 @@ const AdminCandidates = () => {
           await adminAPI.deleteCandidate(cand.id);
           setCandidates(p => p.filter(c => c.id !== cand.id));
           setFeedback({ type: 'success', message: `${cand.name} a été désactivé avec succès.` });
+          broadcastLiveUpdate('candidates');
         } catch (err) {
           if (err?.isSessionExpired) {
             return;
@@ -312,6 +336,7 @@ const AdminCandidates = () => {
             type: 'success',
             message: `${cand.name} est maintenant ${nextState ? 'actif' : 'inactif'}.`,
           });
+          broadcastLiveUpdate('candidates');
         } catch (err) {
           if (err?.isSessionExpired) {
             return;
@@ -410,6 +435,7 @@ const AdminCandidates = () => {
             ? 'Candidat mis à jour. La photo est en cours de traitement automatique.'
             : 'Candidat mis à jour avec succès.',
         });
+        broadcastLiveUpdate('candidates');
       } else {
         const res = await adminAPI.createCandidate(payload);
         workingCandidate = res.candidate || res;
@@ -470,6 +496,7 @@ const AdminCandidates = () => {
             ? 'Candidat créé. La photo est en cours de traitement automatique.'
             : 'Candidat créé avec succès.',
         });
+        broadcastLiveUpdate('candidates');
       }
 
       closePanel();
@@ -545,6 +572,47 @@ const AdminCandidates = () => {
     setForm(f => ({ ...f, video: file, videoName: file.name }));
   };
 
+  const handleDeleteCurrentVideo = () => {
+    if (!editing || !form.existingVideoPath) {
+      return;
+    }
+
+    setConfirm({
+      message: 'Supprimer définitivement la vidéo actuelle de ce candidat ?',
+      onConfirm: async () => {
+        try {
+          const response = await adminAPI.updateCandidate(editing, { video_path: null });
+          const workingCandidate = response?.candidate || response || {};
+          const updated = mapCandidate(workingCandidate, candidates.findIndex(c => c.id === editing));
+
+          setCandidates((previousCandidates) => previousCandidates.map((candidate) => (
+            candidate.id === editing ? updated : candidate
+          )));
+          setForm((previousForm) => ({
+            ...previousForm,
+            video: null,
+            videoName: '',
+            existingVideoPath: null,
+            existingVideoUrl: null,
+            existingVideoLabel: '',
+          }));
+          setFeedback({ type: 'success', message: 'La vidéo du candidat a été supprimée.' });
+          broadcastLiveUpdate('candidates');
+        } catch (err) {
+          if (err?.isSessionExpired) {
+            return;
+          }
+          setFeedback({
+            type: 'error',
+            message: getApiErrorMessage(err, 'Impossible de supprimer la vidéo du candidat.'),
+          });
+        } finally {
+          setConfirm(null);
+        }
+      },
+    });
+  };
+
   const stats = [
     { label:'Total',  value: candidates.length,                                    color:'#D4AF37' },
     { label:'Miss',   value: candidates.filter(c => c.category?.name?.toLowerCase() === 'miss').length,   color:'#f472b6' },
@@ -586,7 +654,7 @@ const AdminCandidates = () => {
       {error && (
         <div className="error-container" style={{ marginBottom: '1rem' }}>
           <p style={{ margin: 0 }}>{error}</p>
-          <button className="btn-gold" onClick={fetchAll}>Réessayer</button>
+          <button className="btn-gold" onClick={retryFetchAll}>Réessayer</button>
         </div>
       )}
 
@@ -743,20 +811,36 @@ const AdminCandidates = () => {
                           <polygon points="5 3 19 12 5 21 5 3" stroke="#D4AF37" strokeWidth="2" strokeLinejoin="round"/>
                         </svg>
                         <span>{form.videoName}</span>
-                        <button className="acand-video-remove" onClick={() => setForm(f => ({ ...f, video:null, videoName:'' }))} type="button">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                        </button>
+                        {form.video ? (
+                          <button
+                            className="acand-video-remove"
+                            onClick={() => setForm((previousForm) => ({
+                              ...previousForm,
+                              video: null,
+                              videoName: previousForm.existingVideoLabel || '',
+                            }))}
+                            type="button"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                          </button>
+                        ) : form.existingVideoPath ? (
+                          <button className="acand-video-remove" onClick={handleDeleteCurrentVideo} type="button" disabled={saving}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                          </button>
+                        ) : null}
                       </div>
-                    ) : (
-                      <label className="acand-video-drop">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                          <polygon points="5 3 19 12 5 21 5 3" stroke="rgba(212,175,55,0.3)" strokeWidth="1.5" strokeLinejoin="round"/>
-                        </svg>
-                        <span>Cliquer pour choisir une vidéo MP4, MOV, M4V ou WebM</span>
-                        <small>Max {MAX_VIDEO_SIZE_LABEL}. Les gros envois peuvent prendre plusieurs minutes.</small>
-                        <input type="file" accept="video/mp4,video/quicktime,video/x-m4v,video/webm,.mp4,.mov,.m4v,.webm" style={{ display:'none' }} onChange={handleVideo} />
-                      </label>
-                    )}
+                    ) : null}
+                    <label className="acand-video-drop">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <polygon points="5 3 19 12 5 21 5 3" stroke="rgba(212,175,55,0.3)" strokeWidth="1.5" strokeLinejoin="round"/>
+                      </svg>
+                      <span>Cliquer pour choisir une vidéo MP4, MOV, M4V ou WebM</span>
+                      <small>Max {MAX_VIDEO_SIZE_LABEL}. Les gros envois peuvent prendre plusieurs minutes.</small>
+                      <input type="file" accept="video/mp4,video/quicktime,video/x-m4v,video/webm,.mp4,.mov,.m4v,.webm" style={{ display:'none' }} onChange={handleVideo} />
+                    </label>
+                    {editing && form.existingVideoPath && !form.video ? (
+                      <small className="acand-video-hint">La vidéo actuelle peut être remplacée ou supprimée directement.</small>
+                    ) : null}
                   </div>
                   {formErrors.video && <span className="acand-field-error">{formErrors.video}</span>}
                 </div>

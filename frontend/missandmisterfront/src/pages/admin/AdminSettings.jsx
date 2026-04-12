@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { adminAPI } from '../../services/api';
+import { broadcastLiveUpdate } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminSettings.css';
 
@@ -105,6 +106,7 @@ const AdminSettings = () => {
         // Notify other tabs/pages to recharger les réglages automatiquement
         localStorage.setItem('settings_updated_at', Date.now().toString());
         window.dispatchEvent(new Event('settings-updated'));
+        broadcastLiveUpdate('settings');
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
       })

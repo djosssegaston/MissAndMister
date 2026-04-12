@@ -1,5 +1,24 @@
+const normalizeApiBaseUrl = (value) => {
+  const trimmed = String(value || '').trim();
+
+  if (!trimmed) {
+    return 'http://localhost:8000/api';
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed.replace(/\/+$/, '');
+  }
+
+  const normalizedHost = trimmed
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '')
+    .replace(/\/api$/, '');
+
+  return `https://${normalizedHost}/api`;
+};
+
 // Configuration de l'API
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL || 'http://localhost:8000/api');
 export const SESSION_EXPIRED_EVENT = 'app:session-expired';
 
 // Timeout global pour les appels API (en ms)

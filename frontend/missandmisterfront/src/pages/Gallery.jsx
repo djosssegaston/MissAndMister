@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOutletContext } from 'react-router-dom';
 import { galleryAPI } from '../services/api';
 import Loader from '../components/Loader';
+import { resolveMediaUrl } from '../utils/mediaUrl';
+import { useAutoRefresh } from '../utils/liveUpdates';
 import './Gallery.css';
 
 const DEFAULT_CATEGORIES = ['Cérémonie', 'Candidats', 'Coulisses', 'Gala'];
@@ -14,7 +16,7 @@ const normalizePhoto = (item) => ({
   title: item.title || 'Photo de galerie',
   caption: item.caption || '',
   span: item.layout_span === 'standard' ? '' : (item.layout_span || ''),
-  imageUrl: item.image_url || null,
+  imageUrl: resolveMediaUrl(item.image_url || item.image_path || null),
 });
 
 const PhotoCard = ({ photo, onClick }) => {
@@ -136,26 +138,41 @@ const Gallery = () => {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const hasLoadedRef = useRef(false);
   const { publicSettings = null } = useOutletContext() || {};
 
   const isGalleryPublic = publicSettings?.gallery_public !== false;
 
   const loadGallery = async () => {
+    const isInitialLoad = !hasLoadedRef.current;
+
     try {
-      setLoading(true);
-      setError(null);
+      if (isInitialLoad) {
+        setLoading(true);
+      }
+
       const response = await galleryAPI.getAll();
       setPhotos((response?.data || []).map(normalizePhoto));
+      setError(null);
+      hasLoadedRef.current = true;
     } catch (galleryError) {
-      setError(galleryError.message || 'Impossible de charger la galerie pour le moment.');
+      if (isInitialLoad) {
+        setError(galleryError.message || 'Impossible de charger la galerie pour le moment.');
+      }
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        hasLoadedRef.current = true;
+        setLoading(false);
+      }
     }
   };
 
-  useEffect(() => {
-    loadGallery();
-  }, []);
+  useAutoRefresh(loadGallery, { enabled: isGalleryPublic });
+
+  const retryLoadGallery = async () => {
+    hasLoadedRef.current = false;
+    await loadGallery();
+  };
 
   const categories = useMemo(() => {
     const discovered = Array.from(new Set(photos.map((photo) => photo.category).filter(Boolean)));
@@ -233,7 +250,7 @@ const Gallery = () => {
             <div className="gallery-state-card">
               <h3>Erreur de chargement</h3>
               <p>{error}</p>
-              <button type="button" className="btn btn-primary" onClick={loadGallery}>Réessayer</button>
+              <button type="button" className="btn btn-primary" onClick={retryLoadGallery}>Réessayer</button>
             </div>
           </div>
         </section>

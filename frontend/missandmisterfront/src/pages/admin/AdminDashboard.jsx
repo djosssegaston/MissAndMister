@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import logo from '../../assets/logo.jpeg';
 import Loader from '../../components/Loader';
+import { useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminDashboard.css';
 
@@ -55,40 +56,60 @@ const RECENT_VOTES = [
 
 const OP_COLOR = { MTN: '#FFD700', Moov: '#0066CC', Flooz: '#FF6B00' };
 const MEDALS = ['🥇', '🥈', '🥉'];
+const RECENT_STATUS_LABELS = {
+  confirmed: { label: 'V', color: '#22c55e', title: 'Validé' },
+  cancelled: { label: 'X', color: '#ef4444', title: 'Annulé' },
+  pending: { label: 'En attente', color: '#f59e0b', title: 'En attente' },
+  suspect: { label: 'Suspect', color: '#f59e0b', title: 'Suspect' },
+  failed: { label: 'Échoué', color: '#ef4444', title: 'Échoué' },
+};
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
-  const [topCandidates, setTopCandidates] = useState([]);
   const [recentVotes, setRecentVotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const hasLoadedRef = useRef(false);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
+  const fetchDashboardData = async () => {
+    const isInitialLoad = !hasLoadedRef.current;
+
+    try {
+      if (isInitialLoad) {
         setLoading(true);
-        setError(null);
-        const [statsData, candidatesData, votesData] = await Promise.all([
-          adminAPI.getStats(),
-          adminAPI.getCandidates({ limit: 5, sort: 'votes_desc' }),
-          adminAPI.getVotes({ limit: 5 }),
-        ]);
+      }
 
-        setStats(statsData);
-        setTopCandidates(candidatesData.data || []);
-        setRecentVotes(votesData.data || []);
-      } catch (err) {
-        if (err?.isSessionExpired) {
-          return;
-        }
+      setError(null);
+      const [statsData, votesData] = await Promise.all([
+        adminAPI.getStats(),
+        adminAPI.getVotes({ per_page: 5 }),
+      ]);
+
+      setStats(statsData);
+      setRecentVotes((votesData?.data || votesData || []).slice(0, 5));
+      hasLoadedRef.current = true;
+    } catch (err) {
+      if (err?.isSessionExpired) {
+        return;
+      }
+
+      if (isInitialLoad) {
         setError(err.message || 'Erreur lors du chargement des données');
-      } finally {
+      }
+    } finally {
+      if (isInitialLoad) {
+        hasLoadedRef.current = true;
         setLoading(false);
       }
-    };
+    }
+  };
 
-    fetchDashboardData();
-  }, []);
+  useAutoRefresh(fetchDashboardData);
+
+  const retryFetchDashboard = async () => {
+    hasLoadedRef.current = false;
+    await fetchDashboardData();
+  };
 
   if (loading) {
     return (
@@ -107,7 +128,7 @@ const AdminDashboard = () => {
         <div className="error-container">
           <h3>Erreur de chargement</h3>
           <p>{error}</p>
-          <button className="btn-gold" onClick={() => window.location.reload()}>
+          <button className="btn-gold" onClick={retryFetchDashboard}>
             Réessayer
           </button>
         </div>
@@ -235,11 +256,15 @@ const AdminDashboard = () => {
                   </div>
                   <div className="adash-recent-right">
                     <span className="adash-recent-amount">{v.amount} F</span>
-                    <span className="adash-recent-status" style={{ 
-                      borderColor: v.status === 'confirmed' ? '#22c55e' : '#f59e0b',
-                      color: v.status === 'confirmed' ? '#22c55e' : '#f59e0b'
-                    }}>
-                      {v.status}
+                    <span
+                      className="adash-recent-status"
+                      title={RECENT_STATUS_LABELS[v.status]?.title || v.status}
+                      style={{
+                        borderColor: RECENT_STATUS_LABELS[v.status]?.color || '#f59e0b',
+                        color: RECENT_STATUS_LABELS[v.status]?.color || '#f59e0b',
+                      }}
+                    >
+                      {RECENT_STATUS_LABELS[v.status]?.label || v.status}
                     </span>
                     <span className="adash-recent-date">
                       {new Date(v.created_at).toLocaleDateString('fr-FR', { 

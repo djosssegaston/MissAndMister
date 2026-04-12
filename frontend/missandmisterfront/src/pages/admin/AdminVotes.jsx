@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import Loader from '../../components/Loader';
+import { broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminVotes.css';
 
 const STATUS_CONFIG = {
-  confirmed: { label: 'Valide', class: 'status-valid' },
-  pending: { label: 'En attente', class: 'status-pending' },
-  suspect: { label: 'Suspect', class: 'status-suspect' },
-  cancelled: { label: 'Annulé', class: 'status-cancelled' },
-  failed: { label: 'Échoué', class: 'status-failed' },
+  confirmed: { label: 'V', class: 'status-valid', title: 'Validé' },
+  pending: { label: 'En attente', class: 'status-pending', title: 'En attente' },
+  suspect: { label: 'Suspect', class: 'status-suspect', title: 'Suspect' },
+  cancelled: { label: 'X', class: 'status-cancelled', title: 'Annulé' },
+  failed: { label: 'Échoué', class: 'status-failed', title: 'Échoué' },
 };
 
 const OP_COLOR = { MTN: '#FFD700', Moov: '#4499FF', Flooz: '#FF6B00', kkiapay: '#D4AF37' };
@@ -48,6 +49,7 @@ const AdminVotes = () => {
   const [confirm, setConfirm] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const mapVote = (v) => {
     const candidateName = v.candidate ? `${v.candidate.first_name} ${v.candidate.last_name}`.trim() : '—';
@@ -69,25 +71,40 @@ const AdminVotes = () => {
   };
 
   const fetchVotes = async () => {
+    const isInitialLoad = !hasLoadedRef.current;
+
     try {
-      setLoading(true);
-      setError(null);
+      if (isInitialLoad) {
+        setLoading(true);
+      }
+
       const res = await adminAPI.getVotes({ per_page: 200 });
       const data = res?.data || res || [];
       setVotes(data.map(mapVote));
+      setError(null);
+      hasLoadedRef.current = true;
     } catch (err) {
       if (err?.isSessionExpired) {
         return;
       }
-      setError(err.message || 'Erreur de chargement');
+
+      if (isInitialLoad) {
+        setError(err.message || 'Erreur de chargement');
+      }
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        hasLoadedRef.current = true;
+        setLoading(false);
+      }
     }
   };
 
-  useEffect(() => {
-    fetchVotes();
-  }, []);
+  useAutoRefresh(fetchVotes);
+
+  const retryFetchVotes = async () => {
+    hasLoadedRef.current = false;
+    await fetchVotes();
+  };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -124,6 +141,7 @@ const AdminVotes = () => {
         try {
           await adminAPI.updateVote(vote.id, { status: newStatus });
           setVotes(p => p.map(v => v.id === vote.id ? { ...v, status: newStatus } : v));
+          broadcastLiveUpdate('votes');
         } catch (err) {
           if (err?.isSessionExpired) {
             return;
@@ -184,15 +202,16 @@ const AdminVotes = () => {
       }
       setVotes(p => p.map(v => selected.has(v.id) ? { ...v, status } : v));
       setSelected(new Set());
+      broadcastLiveUpdate('votes');
     } catch (err) {
       if (err?.isSessionExpired) {
         return;
       }
-      setError(err.message || 'Échec de la mise à jour groupée');
-    } finally {
-      setBulkLoading(false);
-    }
-  };
+          setError(err.message || 'Échec de la mise à jour groupée');
+        } finally {
+          setBulkLoading(false);
+        }
+      };
 
   if (loading) {
     return (
@@ -241,7 +260,7 @@ const AdminVotes = () => {
       {error && (
         <div className="error-container" style={{ margin: '0 0 1rem 0' }}>
           <p style={{ margin: 0 }}>{error}</p>
-          <button className="btn-gold" onClick={fetchVotes}>Réessayer</button>
+          <button className="btn-gold" onClick={retryFetchVotes}>Réessayer</button>
         </div>
       )}
 
@@ -341,9 +360,12 @@ const AdminVotes = () => {
                     </span>
                   </td>
                   <td data-label="Statut">
-                    <span className={`avotes-status ${STATUS_CONFIG[v.status]?.class || 'status-pending'}`}>
-                      <span className="avotes-status-dot" />
-                      {STATUS_CONFIG[v.status]?.label || v.status}
+                    <span
+                      className={`avotes-status ${STATUS_CONFIG[v.status]?.class || 'status-pending'}`}
+                      title={STATUS_CONFIG[v.status]?.title || v.status}
+                      aria-label={STATUS_CONFIG[v.status]?.title || v.status}
+                    >
+                      <span className="avotes-status-icon">{STATUS_CONFIG[v.status]?.label || v.status}</span>
                     </span>
                   </td>
                   <td data-label="Date"><span className="avotes-date">{v.date ? new Date(v.date).toLocaleString('fr-FR') : '—'}</span></td>

@@ -120,6 +120,9 @@
 .acand-video-upload {
   border-radius: var(--ag-r-md);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .acand-video-drop {
@@ -143,6 +146,7 @@
 
 .acand-video-drop span  { font-size: 0.83rem; color: var(--ag-text-3); }
 .acand-video-drop small { font-size: 0.72rem; color: var(--ag-text-4); }
+.acand-video-hint { display: block; font-size: 0.72rem; color: var(--ag-text-4); }
 
 .acand-video-preview {
   display: flex;

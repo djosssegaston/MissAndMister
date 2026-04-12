@@ -10,6 +10,7 @@ use App\Models\Candidate;
 use App\Repositories\CandidateRepository;
 use App\Services\CandidateAccountService;
 use App\Services\CandidateImages\CandidateImagePipeline;
+use App\Services\Media\CloudinaryMediaService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ class CandidateController extends Controller
         private CandidateRepository $candidates,
         private CandidateAccountService $candidateAccounts,
         private CandidateImagePipeline $candidateImagePipeline,
+        private CloudinaryMediaService $cloudinaryMedia,
     )
     {
     }
@@ -83,11 +85,19 @@ class CandidateController extends Controller
     {
         $data = $request->validated();
         $this->authorize('update', $candidate);
+        $existingVideoPath = $candidate->video_path;
+        $existingVideoMeta = (array) ($candidate->video_meta ?? []);
         $data['description'] = $data['description'] ?? $data['bio'] ?? $candidate->description;
         if (array_key_exists('is_active', $data)) {
             $data['status'] = $data['is_active'] ? 'active' : 'inactive';
         }
         $updated = $this->candidateAccounts->update($candidate, $data);
+
+        if (array_key_exists('video_path', $data) && blank($data['video_path']) && $existingVideoPath) {
+            $this->deleteStoredVideo($existingVideoPath, $existingVideoMeta);
+            $updated->forceFill(['video_meta' => null])->save();
+            $updated->refresh();
+        }
 
         return response()->json([
             'success' => true,
@@ -130,6 +140,38 @@ class CandidateController extends Controller
             'photo.max' => 'La photo ne doit pas dépasser 20 Mo.',
             'photo.uploaded' => 'Le serveur a refusé l’envoi de la photo. Vérifiez la taille du fichier puis réessayez.',
         ]);
+
+        if ($this->usesCloudinaryMedia()) {
+            $realPath = $data['photo']->getRealPath();
+
+            if (!$realPath) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Impossible d’accéder à la photo temporaire envoyée.',
+                ], 422);
+            }
+
+            try {
+                $meta = $this->candidateImagePipeline->validateUpload($realPath);
+            } catch (\RuntimeException $exception) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $exception->getMessage(),
+                ], 503);
+            }
+
+            $candidate->forceFill([
+                'photo_processing_status' => 'queued',
+                'photo_processing_error' => null,
+                'photo_meta' => array_merge((array) ($candidate->photo_meta ?? []), $meta),
+            ])->save();
+
+            return $this->processTemporaryPhotoSynchronously(
+                $candidate,
+                $realPath,
+                $data['photo']->getClientOriginalName(),
+            );
+        }
 
         $diskName = config('candidate_images.disk', 'public');
         $disk = Storage::disk($diskName);
@@ -200,9 +242,64 @@ class CandidateController extends Controller
             'video.uploaded' => 'Le serveur a refusé l’envoi de la vidéo. Vérifiez la taille du fichier puis réessayez.',
         ]);
 
-        $path = $data['video']->store('candidates/videos', 'public'); // relative path
-        $path = $this->compressVideo($path) ?? $path;
-        $candidate->update(['video_path' => $path]);
+        $previousVideoPath = $candidate->video_path;
+        $previousVideoMeta = (array) ($candidate->video_meta ?? []);
+        $path = null;
+        $videoMeta = null;
+
+        if ($this->usesCloudinaryMedia()) {
+            $realPath = $data['video']->getRealPath();
+
+            if (!$realPath) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Impossible d’accéder à la vidéo temporaire envoyée.',
+                ], 422);
+            }
+
+            $upload = $this->cloudinaryMedia->uploadFile($realPath, [
+                'resource_type' => 'video',
+                'folder' => sprintf('candidates/videos/%d', $candidate->id),
+                'public_id' => $this->buildCloudinaryPublicId('video', $candidate->id, $data['video']->getClientOriginalName()),
+                'overwrite' => true,
+                'invalidate' => true,
+            ]);
+
+            $path = $upload['url'];
+            $videoMeta = [
+                'storage' => 'cloudinary',
+                'mime' => $data['video']->getMimeType(),
+                'original_name' => $data['video']->getClientOriginalName(),
+                'cloudinary' => $upload,
+            ];
+        } else {
+            $uploadedPath = $data['video']->store('candidates/videos', 'public');
+            $path = $this->compressVideo($uploadedPath) ?? $uploadedPath;
+
+            if ($path !== $uploadedPath) {
+                Storage::disk('public')->delete($uploadedPath);
+            }
+
+            $videoMeta = [
+                'storage' => 'local',
+                'mime' => $data['video']->getMimeType(),
+                'original_name' => $data['video']->getClientOriginalName(),
+            ];
+        }
+
+        try {
+            $candidate->update([
+                'video_path' => $path,
+                'video_meta' => $videoMeta,
+            ]);
+        } catch (\Throwable $exception) {
+            $this->deleteStoredVideo($path, (array) $videoMeta);
+            throw $exception;
+        }
+
+        if ($previousVideoPath && $previousVideoPath !== $path) {
+            $this->deleteStoredVideo($previousVideoPath, $previousVideoMeta);
+        }
 
         return response()->json([
             'success' => true,
@@ -384,6 +481,49 @@ class CandidateController extends Controller
         ]);
     }
 
+    private function processTemporaryPhotoSynchronously(Candidate $candidate, string $absolutePath, ?string $originalFilename = null): JsonResponse
+    {
+        try {
+            $this->candidateImagePipeline->processTemporaryUpload($candidate->fresh(), $absolutePath, $originalFilename);
+        } catch (ValidationException $exception) {
+            $freshCandidate = $candidate->fresh();
+            if ($freshCandidate) {
+                $message = $exception->errors()['photo'][0]
+                    ?? collect($exception->errors())->flatten()->first()
+                    ?? $exception->getMessage();
+
+                $this->candidateImagePipeline->markFailed($freshCandidate, $message);
+            }
+
+            throw $exception;
+        } catch (\Throwable $exception) {
+            $freshCandidate = $candidate->fresh();
+            if ($freshCandidate) {
+                $this->candidateImagePipeline->markFailed($freshCandidate, $exception->getMessage());
+            }
+
+            report($exception);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'La photo a ete recue, mais son traitement a echoue. ' . $exception->getMessage(),
+                'candidate' => $candidate->fresh(),
+            ], 500);
+        }
+
+        $candidate->refresh();
+
+        return response()->json([
+            'success' => true,
+            'processing' => false,
+            'message' => 'Photo mise a jour avec succes.',
+            'candidate' => $candidate,
+            'photo_path' => $candidate->photo_path,
+            'photo_url' => $this->publicUrl($candidate->photo_path),
+            'photo_urls' => $candidate->photo_urls,
+        ]);
+    }
+
     private function compressVideo(string $relativePath): ?string
     {
         if (!class_exists(\ProtoneMedia\LaravelFFMpeg\Support\FFMpeg::class)) {
@@ -406,6 +546,31 @@ class CandidateController extends Controller
         } catch (\Throwable $e) {
             return $relativePath;
         }
+    }
+
+    private function deleteStoredVideo(?string $path, array $meta = []): void
+    {
+        if (!$path) {
+            return;
+        }
+
+        if ($this->usesCloudinaryMedia()) {
+            $asset = $meta['cloudinary'] ?? null;
+            if (is_array($asset) && !empty($asset['public_id'])) {
+                $this->cloudinaryMedia->destroy($asset);
+                return;
+            }
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return;
+        }
+
+        $normalizedPath = str_starts_with($path, '/storage/')
+            ? ltrim(substr($path, strlen('/storage/')), '/')
+            : ltrim($path, '/');
+
+        Storage::disk('public')->delete($normalizedPath);
     }
 
     private function invalidUploadResponse(?UploadedFile $file, string $field, string $label, ?string $appLimitLabel = null): ?JsonResponse
@@ -468,5 +633,24 @@ class CandidateController extends Controller
         }
 
         return "{$sizeInMegabytes} Mo";
+    }
+
+    private function usesCloudinaryMedia(): bool
+    {
+        return $this->cloudinaryMedia->enabled();
+    }
+
+    private function buildCloudinaryPublicId(string $type, int $candidateId, ?string $filename = null): string
+    {
+        $basename = pathinfo((string) $filename, PATHINFO_FILENAME);
+        $slug = Str::slug($basename);
+
+        return trim(implode('-', array_filter([
+            $type,
+            (string) $candidateId,
+            $slug ?: null,
+            now()->format('YmdHis'),
+            bin2hex(random_bytes(4)),
+        ])), '-');
     }
 }

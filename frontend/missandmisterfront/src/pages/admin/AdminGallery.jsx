@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import Loader from '../../components/Loader';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
+import { broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminGallery.css';
 
@@ -57,7 +59,7 @@ const normalizeItem = (item) => ({
   category: item.category || DEFAULT_CATEGORIES[0],
   altText: item.alt_text || item.title || 'Photo de galerie',
   caption: item.caption || '',
-  imageUrl: item.image_url || null,
+  imageUrl: resolveMediaUrl(item.image_url || item.image_path || null),
   imageMeta: item.image_meta || null,
   layoutSpan: item.layout_span || 'standard',
   sortOrder: Number(item.sort_order || 0),
@@ -92,6 +94,7 @@ const AdminGallery = () => {
   const [feedback, setFeedback] = useState(null);
   const [errors, setErrors] = useState({});
   const [confirm, setConfirm] = useState(null);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => () => {
     if (previewUrl?.startsWith('blob:')) {
@@ -100,29 +103,38 @@ const AdminGallery = () => {
   }, [previewUrl]);
 
   const fetchGallery = async () => {
+    const isInitialLoad = !hasLoadedRef.current;
+
     try {
-      setLoading(true);
+      if (isInitialLoad) {
+        setLoading(true);
+      }
+
       const response = await adminAPI.getGalleryItems();
       const rows = (response?.data || []).map(normalizeItem);
       setItems(rows);
       setCategories(response?.categories?.length ? response.categories : DEFAULT_CATEGORIES);
-      setFeedback(null);
+      hasLoadedRef.current = true;
     } catch (error) {
       if (error?.isSessionExpired) {
         return;
       }
-      setFeedback({
-        type: 'error',
-        message: error.message || 'Impossible de charger la galerie admin.',
-      });
+
+      if (isInitialLoad) {
+        setFeedback({
+          type: 'error',
+          message: error.message || 'Impossible de charger la galerie admin.',
+        });
+      }
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        hasLoadedRef.current = true;
+        setLoading(false);
+      }
     }
   };
 
-  useEffect(() => {
-    fetchGallery();
-  }, []);
+  useAutoRefresh(fetchGallery);
 
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -285,6 +297,7 @@ const AdminGallery = () => {
           ? 'Photo de galerie mise à jour avec succès.'
           : 'Photo de galerie ajoutée avec succès.',
       });
+      broadcastLiveUpdate('gallery');
       resetPanel();
     } catch (error) {
       if (error?.isSessionExpired) {
@@ -321,6 +334,7 @@ const AdminGallery = () => {
               ? 'La photo est maintenant visible dans la galerie publique.'
               : 'La photo a été retirée de la galerie publique.',
           });
+          broadcastLiveUpdate('gallery');
         } catch (error) {
           if (error?.isSessionExpired) {
             return;
@@ -344,6 +358,7 @@ const AdminGallery = () => {
           await adminAPI.deleteGalleryItem(item.id);
           setItems((prev) => prev.filter((entry) => entry.id !== item.id));
           setFeedback({ type: 'success', message: 'Photo de galerie supprimée avec succès.' });
+          broadcastLiveUpdate('gallery');
         } catch (error) {
           if (error?.isSessionExpired) {
             return;

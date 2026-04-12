@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\GalleryItem;
+use App\Services\Media\CloudinaryMediaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class GalleryController extends Controller
@@ -15,6 +17,11 @@ class GalleryController extends Controller
     private const DEFAULT_CATEGORIES = ['Cérémonie', 'Candidats', 'Coulisses', 'Gala'];
 
     private const DEFAULT_SPANS = ['standard', 'wide', 'tall'];
+
+    public function __construct(
+        private CloudinaryMediaService $cloudinaryMedia,
+    ) {
+    }
 
     public function publicIndex(Request $request): JsonResponse
     {
@@ -141,9 +148,13 @@ class GalleryController extends Controller
             'image.uploaded' => 'Le serveur a refusé l’envoi de l’image. Vérifiez la taille du fichier puis réessayez.',
         ]);
 
+        $previousPath = null;
+        $previousMeta = [];
+
         if (!empty($data['image'])) {
-            $this->deleteImage($galleryItem->image_path);
             [$path, $meta] = $this->storeImage($data['image']);
+            $previousPath = $galleryItem->image_path;
+            $previousMeta = (array) ($galleryItem->image_meta ?? []);
             $galleryItem->image_path = $path;
             $galleryItem->image_meta = $meta;
         }
@@ -184,6 +195,10 @@ class GalleryController extends Controller
 
         $galleryItem->save();
 
+        if ($previousPath && $previousPath !== $galleryItem->image_path) {
+            $this->deleteImage($previousPath, $previousMeta);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Photo de galerie mise à jour avec succès.',
@@ -193,7 +208,7 @@ class GalleryController extends Controller
 
     public function destroy(GalleryItem $galleryItem): JsonResponse
     {
-        $this->deleteImage($galleryItem->image_path);
+        $this->deleteImage($galleryItem->image_path, (array) ($galleryItem->image_meta ?? []));
         $galleryItem->delete();
 
         return response()->json([
@@ -204,11 +219,39 @@ class GalleryController extends Controller
 
     private function storeImage(UploadedFile $image): array
     {
+        if ($this->cloudinaryMedia->enabled()) {
+            $realPath = $image->getRealPath();
+
+            if (!$realPath) {
+                throw new \RuntimeException('Impossible d’accéder au fichier image temporaire.');
+            }
+
+            [$width, $height] = array_pad((array) @getimagesize($realPath), 2, null);
+            $upload = $this->cloudinaryMedia->uploadFile($realPath, [
+                'resource_type' => 'image',
+                'folder' => 'gallery/photos',
+                'public_id' => $this->buildCloudinaryPublicId($image->getClientOriginalName()),
+                'overwrite' => true,
+                'invalidate' => true,
+            ]);
+
+            return [$upload['url'], [
+                'storage' => 'cloudinary',
+                'width' => $upload['width'] ?? $width,
+                'height' => $upload['height'] ?? $height,
+                'size' => $upload['bytes'] ?? $image->getSize(),
+                'mime' => $image->getMimeType(),
+                'original_name' => $image->getClientOriginalName(),
+                'cloudinary' => $upload,
+            ]];
+        }
+
         $path = $image->store('gallery/photos', 'public');
         $absolutePath = Storage::disk('public')->path($path);
         [$width, $height] = array_pad((array) @getimagesize($absolutePath), 2, null);
 
         return [$path, [
+            'storage' => 'local',
             'width' => $width,
             'height' => $height,
             'size' => $image->getSize(),
@@ -217,11 +260,35 @@ class GalleryController extends Controller
         ]];
     }
 
-    private function deleteImage(?string $path): void
+    private function deleteImage(?string $path, array $meta = []): void
     {
-        if ($path) {
+        if (!$path) {
+            return;
+        }
+
+        if ($this->cloudinaryMedia->enabled()) {
+            $asset = $meta['cloudinary'] ?? null;
+            if (is_array($asset) && !empty($asset['public_id'])) {
+                $this->cloudinaryMedia->destroy($asset);
+                return;
+            }
+        }
+
+        if (!str_starts_with($path, 'http://') && !str_starts_with($path, 'https://')) {
             Storage::disk('public')->delete($path);
         }
+    }
+
+    private function buildCloudinaryPublicId(?string $filename = null): string
+    {
+        $basename = pathinfo((string) $filename, PATHINFO_FILENAME);
+        $slug = Str::slug($basename);
+
+        return trim(implode('-', array_filter([
+            now()->format('YmdHis'),
+            $slug ?: 'gallery',
+            bin2hex(random_bytes(4)),
+        ])), '-');
     }
 
     private function availableCategories(bool $publishedOnly = false): array

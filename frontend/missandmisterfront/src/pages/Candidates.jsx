@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useOutletContext } from 'react-router-dom';
 import { candidatesAPI } from '../services/api';
 import CandidateCard from '../components/CandidateCard';
 import Loader from '../components/Loader';
+import { useAutoRefresh } from '../utils/liveUpdates';
 import './Candidates.css';
 
 const FILTERS = [
@@ -18,49 +19,46 @@ const SORTS = [
 ];
 
 const Candidates = () => {
-  console.log('🔄 Candidates component rendering');
-
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('votes');
   const [searchQuery, setSearchQuery] = useState('');
+  const hasLoadedRef = useRef(false);
   const { votingBlocked = false } = useOutletContext() || {};
 
-  useEffect(() => {
-    const fetchCandidates = async () => {
-      try {
-        console.log('🔄 Candidates: Début du chargement...');
+  const fetchCandidates = async () => {
+    const isInitialLoad = !hasLoadedRef.current;
+
+    try {
+      if (isInitialLoad) {
         setLoading(true);
-        setError(null);
-        const data = await candidatesAPI.getAll();
-        console.log('✅ Candidates: Données reçues:', data);
-        setCandidates(data?.data || []);
-        console.log('✅ Candidates: État mis à jour');
-      } catch (err) {
-        console.error('❌ Candidates: Erreur lors du chargement:', err);
+      }
+
+      const data = await candidatesAPI.getAll();
+      setCandidates(data?.data || []);
+      setError(null);
+      hasLoadedRef.current = true;
+    } catch (err) {
+      console.error('❌ Candidates: Erreur lors du chargement:', err);
+      if (isInitialLoad) {
         setError(err.message || 'Erreur lors du chargement des candidats');
-        // Fallback temporaire pour debug
-        setCandidates([
-          {
-            id: 1,
-            first_name: 'Test',
-            last_name: 'Candidate',
-            category: { name: 'Miss' },
-            university: 'Test University',
-            photo_path: null,
-            votes_count: 0
-          }
-        ]);
-      } finally {
-        console.log('🔄 Candidates: Fin du chargement, loading=false');
+      }
+    } finally {
+      if (isInitialLoad) {
+        hasLoadedRef.current = true;
         setLoading(false);
       }
-    };
+    }
+  };
 
-    fetchCandidates();
-  }, []);
+  useAutoRefresh(fetchCandidates);
+
+  const retryFetchCandidates = async () => {
+    hasLoadedRef.current = false;
+    await fetchCandidates();
+  };
 
   const buildName = (candidate) => `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim();
 
@@ -79,9 +77,6 @@ const Candidates = () => {
       }
       return buildName(a).toLowerCase().localeCompare(buildName(b).toLowerCase());
     });
-
-  console.log('🔄 Candidates: Rendu avec loading=', loading, 'error=', error, 'candidates=', candidates.length);
-
   return (
     <div className="candidates-page">
       {/* ── HERO ── */}
@@ -176,7 +171,7 @@ const Candidates = () => {
               </svg>
               <h3>Erreur de chargement</h3>
               <p>{error}</p>
-              <button className="btn-gold" onClick={() => window.location.reload()}>
+              <button className="btn-gold" onClick={retryFetchCandidates}>
                 Réessayer
               </button>
             </div>

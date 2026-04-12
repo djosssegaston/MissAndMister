@@ -35,6 +35,13 @@ return [
         'version' => env('AWS_REKOGNITION_VERSION', 'latest'),
     ],
 
+    'kkiapay' => [
+        'public_key' => env('KKIAPAY_PUBLIC_KEY'),
+        'private_key' => env('KKIAPAY_PRIVATE_KEY'),
+        'secret' => env('KKIAPAY_SECRET'),
+        'webhook_secret' => env('KKIAPAY_WEBHOOK_SECRET'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

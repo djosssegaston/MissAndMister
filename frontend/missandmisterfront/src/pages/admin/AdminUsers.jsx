@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import Loader from '../../components/Loader';
+import { broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminUsers.css';
 
@@ -32,29 +33,45 @@ const AdminUsers = () => {
   const [confirm, setConfirm]   = useState(null);
   const [page, setPage]         = useState(1);
   const [perPage]               = useState(25);
+  const hasLoadedRef = useRef(false);
 
   const isGuestUser = (user) => user?.registered === false || user?.status === 'guest' || String(user?.id || '').startsWith('guest-');
 
   const fetchUsers = async () => {
+    const isInitialLoad = !hasLoadedRef.current;
+
     try {
-      setLoading(true);
-      setError(null);
+      if (isInitialLoad) {
+        setLoading(true);
+      }
+
       const res = await adminAPI.getUsers({ per_page: 200 });
       const data = res?.data || res || [];
       setUsers(data);
+      setError(null);
+      hasLoadedRef.current = true;
     } catch (err) {
       if (err?.isSessionExpired) {
         return;
       }
-      setError(err.message || 'Erreur de chargement');
+
+      if (isInitialLoad) {
+        setError(err.message || 'Erreur de chargement');
+      }
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        hasLoadedRef.current = true;
+        setLoading(false);
+      }
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useAutoRefresh(fetchUsers);
+
+  const retryFetchUsers = async () => {
+    hasLoadedRef.current = false;
+    await fetchUsers();
+  };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -87,6 +104,7 @@ const AdminUsers = () => {
         try {
           await adminAPI.updateUserStatus(user.id);
           setUsers(p => p.map(x => x.id === user.id ? { ...x, status: x.status === 'active' ? 'inactive' : 'active' } : x));
+          broadcastLiveUpdate('users');
         } catch (err) {
           if (err?.isSessionExpired) {
             return;
@@ -111,6 +129,7 @@ const AdminUsers = () => {
         // On enlève de la liste côté UI pour qu'il disparaisse immédiatement,
         // tout en gardant une désactivation en base (status=inactive).
         setUsers(p => p.filter(x => x.id !== user.id));
+        broadcastLiveUpdate('users');
       } catch (err) {
         if (err?.isSessionExpired) {
           return;
@@ -160,7 +179,7 @@ const AdminUsers = () => {
       {error && (
         <div className="error-container" style={{ margin:'0 0 1rem 0' }}>
           <p style={{ margin:0 }}>{error}</p>
-          <button className="btn-gold" onClick={fetchUsers}>Réessayer</button>
+          <button className="btn-gold" onClick={retryFetchUsers}>Réessayer</button>
         </div>
       )}
 

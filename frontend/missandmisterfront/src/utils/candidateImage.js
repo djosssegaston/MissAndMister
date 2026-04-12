@@ -1,17 +1,13 @@
-const buildMediaUrl = (path = '') => {
-  if (!path) return null;
-  if (/^https?:\/\//i.test(path)) return path;
+import { resolveMediaUrl } from './mediaUrl';
 
-  const base = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
-  return `${base}/storage/${path.replace(/^\/+/, '')}`;
-};
+const buildMediaUrl = (path = '') => resolveMediaUrl(path);
 
 export const getCandidateImageSources = (candidate = {}, preferred = 'medium') => {
   const urls = candidate.photo_urls || {};
-  const large = urls.large || candidate.photo_url || buildMediaUrl(candidate.photo_path);
-  const medium = urls.medium || large;
-  const thumbnail = urls.thumbnail || medium || large;
-  const original = urls.original || buildMediaUrl(candidate.photo_original_path);
+  const large = resolveMediaUrl(urls.large) || resolveMediaUrl(candidate.photo_url) || buildMediaUrl(candidate.photo_path);
+  const medium = resolveMediaUrl(urls.medium) || large;
+  const thumbnail = resolveMediaUrl(urls.thumbnail) || medium || large;
+  const original = resolveMediaUrl(urls.original) || buildMediaUrl(candidate.photo_original_path);
   const portrait = original || large || medium || thumbnail || null;
   const backdrop = medium || large || thumbnail || portrait || null;
 

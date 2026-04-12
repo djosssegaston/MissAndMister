@@ -113,7 +113,12 @@ class UserController extends Controller
             return $user;
         }
 
-        $user->status = $user->status === 'active' ? 'inactive' : 'active';
+        $validated = request()->validate([
+            'status' => ['nullable', 'in:active,inactive'],
+        ]);
+
+        $user->status = $validated['status']
+            ?? ($user->status === 'active' ? 'inactive' : 'active');
         $user->save();
 
         return response()->json($user);

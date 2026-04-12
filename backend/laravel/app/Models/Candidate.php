@@ -29,6 +29,7 @@ class Candidate extends Model
         'photo_processing_status',
         'photo_processing_error',
         'video_path',
+        'video_meta',
         'age',
         'university',
         'is_active',
@@ -39,6 +40,7 @@ class Candidate extends Model
         'is_active' => 'boolean',
         'photo_variants' => 'array',
         'photo_meta' => 'array',
+        'video_meta' => 'array',
     ];
 
     protected $appends = [

@@ -6,6 +6,7 @@ import CandidateCard from '../components/CandidateCard';
 import Loader from '../components/Loader';
 import sessionHero from '../assets/session_hero.png';
 import sessionMobile from '../assets/session_mobil.png';
+import { useAutoRefresh } from '../utils/liveUpdates';
 import './Home.css';
 
 const fadeUp = (delay = 0) => ({
@@ -110,54 +111,47 @@ const Home = () => {
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('votes');
   const [searchQuery, setSearchQuery] = useState('');
+  const hasLoadedRef = useRef(false);
   const {
     publicSettings = null,
     votingBlocked = false,
   } = useOutletContext() || {};
 
   const fetchAll = async () => {
+    const isInitialLoad = !hasLoadedRef.current;
+
     try {
-      setError(null);
+      if (isInitialLoad) {
+        setLoading(true);
+      }
+
       const [candidatesResponse, statsResponse] = await Promise.all([
         candidatesAPI.getAll(),
         candidatesAPI.getStats(),
       ]);
       setCandidates(candidatesResponse?.data || []);
       setStats(statsResponse || stats);
+      setError(null);
+      hasLoadedRef.current = true;
     } catch (error) {
       console.error('❌ Erreur lors du chargement des données:', error);
-      setError(error.message || 'Erreur lors du chargement des candidats');
+      if (isInitialLoad) {
+        setError(error.message || 'Erreur lors du chargement des candidats');
+      }
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        hasLoadedRef.current = true;
+        setLoading(false);
+      }
     }
   };
 
-  useEffect(() => {
-    fetchAll();
+  useAutoRefresh(fetchAll);
 
-    // Revalidation auto toutes les 30s
-    const interval = setInterval(fetchAll, 30000);
-
-    // Rafraîchit quand l'admin sauvegarde (localStorage broadcast)
-    const onStorage = (e) => {
-      if (e.key === 'settings_updated_at') fetchAll();
-    };
-    const onCustom = () => fetchAll();
-    window.addEventListener('storage', onStorage);
-    window.addEventListener('settings-updated', onCustom);
-
-    // Rafraîchit quand l’onglet reprend le focus
-    const onFocus = () => fetchAll();
-    window.addEventListener('focus', onFocus);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener('settings-updated', onCustom);
-      window.removeEventListener('focus', onFocus);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const retryFetchAll = async () => {
+    hasLoadedRef.current = false;
+    await fetchAll();
+  };
 
   useEffect(() => {
     if (!publicSettings?.vote_end_at) {
@@ -554,7 +548,7 @@ const Home = () => {
               </svg>
               <h3>Erreur de chargement</h3>
               <p>{error}</p>
-              <button className="btn-gold" onClick={() => window.location.reload()}>
+              <button className="btn-gold" onClick={retryFetchAll}>
                 Réessayer
               </button>
             </div>

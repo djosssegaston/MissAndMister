@@ -1,0 +1,13 @@
+.env
+.env.backup
+.env.production
+node_modules
+vendor
+composer-cache
+composer-home
+storage/logs
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+.phpunit.result.cache
+tests

@@ -4,8 +4,10 @@ namespace App\Services\CandidateImages;
 
 use App\Contracts\CandidateFaceDetector;
 use App\Models\Candidate;
+use App\Services\Media\CloudinaryMediaService;
 use App\Support\CandidateFaceBox;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Intervention\Image\Encoders\JpegEncoder;
 use Intervention\Image\Encoders\WebpEncoder;
@@ -15,6 +17,7 @@ class CandidateImagePipeline
 {
     public function __construct(
         private readonly CandidateFaceDetector $faceDetector,
+        private readonly CloudinaryMediaService $cloudinaryMedia,
     ) {
     }
 
@@ -122,6 +125,7 @@ class CandidateImagePipeline
             'photo_path' => $variants['large'] ?? end($variants),
             'photo_variants' => $variants,
             'photo_meta' => array_merge($meta, [
+                'storage' => 'local',
                 'source_width' => (int) $sourceInfo[0],
                 'source_height' => (int) $sourceInfo[1],
                 'processed_at' => now()->toIso8601String(),
@@ -136,6 +140,105 @@ class CandidateImagePipeline
         if (!empty($stalePaths)) {
             $storage->delete($stalePaths);
         }
+    }
+
+    public function processTemporaryUpload(Candidate $candidate, string $absolutePath, ?string $originalFilename = null): void
+    {
+        if (!$this->cloudinaryMedia->enabled()) {
+            throw new \RuntimeException('Le stockage Cloudinary n’est pas actif.');
+        }
+
+        $meta = is_array($candidate->photo_meta) ? $candidate->photo_meta : [];
+        $sourceInfo = $this->readImageInfo($absolutePath);
+        $face = CandidateFaceBox::fromArray($meta['face'] ?? null);
+        $faceDetectionError = $meta['face_detection_error'] ?? null;
+
+        if (!$face) {
+            $detection = $this->detectFaceResult($absolutePath);
+            $face = $detection['face'];
+            $faceDetectionError = $faceDetectionError ?: $detection['error'];
+        }
+
+        if (!$face && !$faceDetectionError && config('candidate_images.require_face_detection')) {
+            throw ValidationException::withMessages([
+                'photo' => 'Impossible de traiter la photo sans visage detecte.',
+            ]);
+        }
+
+        $previousMeta = $meta;
+        $previousOriginalPath = $candidate->photo_original_path;
+        $previousVariants = array_values(array_filter((array) ($candidate->photo_variants ?? [])));
+        $uploads = [
+            'original' => null,
+            'variants' => [],
+        ];
+        $variantUrls = [];
+
+        try {
+            $uploads['original'] = $this->cloudinaryMedia->uploadFile($absolutePath, [
+                'resource_type' => 'image',
+                'folder' => sprintf('candidate-images/%d/originals', $candidate->id),
+                'public_id' => $this->cloudinaryPublicId($candidate, $originalFilename, 'original'),
+                'overwrite' => true,
+                'invalidate' => true,
+            ]);
+
+            foreach ((array) config('candidate_images.sizes', []) as $name => $size) {
+                $width = (int) ($size['width'] ?? 0);
+                $height = (int) ($size['height'] ?? 0);
+
+                if ($width < 1 || $height < 1) {
+                    continue;
+                }
+
+                $image = $this->createVariant($absolutePath, $width, $height, $face);
+                $encodedVariant = $this->encodeVariant($image);
+                $upload = $this->cloudinaryMedia->uploadBinary(
+                    (string) $encodedVariant['encoded'],
+                    sprintf('%s.%s', $name, $encodedVariant['extension']),
+                    [
+                        'resource_type' => 'image',
+                        'folder' => sprintf('candidate-images/%d/%s', $candidate->id, $name),
+                        'public_id' => $this->cloudinaryPublicId($candidate, $originalFilename, $name),
+                        'overwrite' => true,
+                        'invalidate' => true,
+                    ],
+                );
+
+                $uploads['variants'][$name] = $upload;
+                $variantUrls[$name] = $upload['url'];
+            }
+
+            if (empty($variantUrls)) {
+                throw new \RuntimeException('Aucune variante d’image n’a ete generee.');
+            }
+
+            $candidate->forceFill([
+                'photo_path' => $variantUrls['large'] ?? end($variantUrls),
+                'photo_original_path' => $uploads['original']['url'] ?? null,
+                'photo_variants' => $variantUrls,
+                'photo_meta' => array_merge($meta, [
+                    'storage' => 'cloudinary',
+                    'source_width' => (int) $sourceInfo[0],
+                    'source_height' => (int) $sourceInfo[1],
+                    'processed_at' => now()->toIso8601String(),
+                    'face' => $face?->toArray(),
+                    'face_detection_error' => $faceDetectionError,
+                    'cloudinary' => [
+                        'original' => $uploads['original'],
+                        'variants' => $uploads['variants'],
+                    ],
+                ]),
+                'photo_processing_status' => 'ready',
+                'photo_processing_error' => null,
+            ])->save();
+        } catch (\Throwable $exception) {
+            $this->destroyCloudinaryUploads($uploads);
+            throw $exception;
+        }
+
+        $this->deleteCloudinaryPhotoAssets($previousMeta);
+        $this->deleteLocalPhotoAssets(array_merge($previousVariants, [$previousOriginalPath]));
     }
 
     public function markFailed(Candidate $candidate, string $message): void
@@ -324,6 +427,71 @@ class CandidateImagePipeline
     private function manager(): ImageManager
     {
         return new ImageManager(config('candidate_images.driver'));
+    }
+
+    private function deleteCloudinaryPhotoAssets(array $meta): void
+    {
+        $cloudinary = $meta['cloudinary'] ?? null;
+        if (!is_array($cloudinary)) {
+            return;
+        }
+
+        $this->cloudinaryMedia->destroy($cloudinary['original'] ?? null);
+
+        foreach ((array) ($cloudinary['variants'] ?? []) as $asset) {
+            $this->cloudinaryMedia->destroy(is_array($asset) ? $asset : null);
+        }
+    }
+
+    private function destroyCloudinaryUploads(array $uploads): void
+    {
+        $this->cloudinaryMedia->destroy($uploads['original'] ?? null);
+
+        foreach ((array) ($uploads['variants'] ?? []) as $asset) {
+            $this->cloudinaryMedia->destroy(is_array($asset) ? $asset : null);
+        }
+    }
+
+    private function deleteLocalPhotoAssets(array $paths): void
+    {
+        $normalizedPaths = collect($paths)
+            ->filter()
+            ->map(function (string $path): ?string {
+                if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                    return null;
+                }
+
+                if (str_starts_with($path, '/storage/')) {
+                    return ltrim(substr($path, strlen('/storage/')), '/');
+                }
+
+                return ltrim($path, '/');
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($normalizedPaths === []) {
+            return;
+        }
+
+        Storage::disk(config('candidate_images.disk', 'public'))->delete($normalizedPaths);
+    }
+
+    private function cloudinaryPublicId(Candidate $candidate, ?string $filename, string $variant): string
+    {
+        $basename = pathinfo((string) $filename, PATHINFO_FILENAME);
+        $slug = Str::slug($basename);
+
+        return trim(implode('-', array_filter([
+            'candidate',
+            (string) $candidate->id,
+            $variant,
+            $slug ?: null,
+            now()->format('YmdHis'),
+            bin2hex(random_bytes(4)),
+        ])), '-');
     }
 
     private function fail(string $message): never
