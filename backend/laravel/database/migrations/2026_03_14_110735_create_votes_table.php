@@ -19,7 +19,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('candidate_id')->constrained()->cascadeOnUpdate()->restrictOnDelete();
-            $table->foreignId('payment_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('payment_id')->nullable();
             $table->decimal('amount', 12, 2)->default(0);
             $table->string('currency', 8)->default('XOF');
             $table->enum('status', ['pending', 'confirmed', 'failed'])->default('pending')->index();
