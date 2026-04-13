@@ -326,8 +326,9 @@ const Home = () => {
   const paddedMinutes = String(countdown.minutes).padStart(2, '0');
   const paddedSeconds = String(countdown.seconds).padStart(2, '0');
   const countdownProgress = hasCountdown ? countdown.percentLeft : 100;
+  const candidateList = Array.isArray(candidates) ? candidates : [];
   const buildCandidateName = (candidate) => `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim();
-  const filteredCandidates = candidates
+  const filteredCandidates = candidateList
     .filter((candidate) => {
       const name = buildCandidateName(candidate).toLowerCase();
       const university = (candidate.university || '').toLowerCase();
@@ -343,7 +344,7 @@ const Home = () => {
       }
       return buildCandidateName(a).toLowerCase().localeCompare(buildCandidateName(b).toLowerCase());
     });
-  const topCandidates = [...candidates]
+  const topCandidates = [...candidateList]
     .sort((a, b) => (b.votes_count || 0) - (a.votes_count || 0))
     .slice(0, 6);
 
@@ -450,7 +451,7 @@ const Home = () => {
                 <span>MISS &amp; MISTER UNIVERSITY BENIN 2026</span>
               </div>
               <div className="hcm-avatar-row">
-                {candidates.slice(0, 3).map((c, i) => (
+                {candidateList.slice(0, 3).map((c, i) => (
                   <div key={c.id} className="hcm-avatar" style={{ zIndex: 3 - i, marginLeft: i > 0 ? '-12px' : '0' }}>
                     {`${c.first_name} ${c.last_name}`.charAt(0)}
                   </div>
@@ -813,7 +814,7 @@ const Home = () => {
               <div className="step-icon">{s.icon}</div>
               <h3>{s.title}</h3>
               <p>{s.desc}</p>
-              {i < STEPS.length - 1 && <div className="step-connector" />}
+              {i < PROGRAM_STEPS.length - 1 && <div className="step-connector" />}
             </motion.div>
           ))}
         </div>
