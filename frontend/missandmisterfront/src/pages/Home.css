@@ -345,6 +345,13 @@
   -webkit-backdrop-filter: blur(8px);
 }
 
+.home-loading-card {
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .hero-countdown-card {
   max-width: min(100%, 350px);
 }

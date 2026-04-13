@@ -347,16 +347,6 @@ const Home = () => {
     .sort((a, b) => (b.votes_count || 0) - (a.votes_count || 0))
     .slice(0, 6);
 
-  if (loading) {
-    return (
-      <Loader
-        fullScreen={true}
-        text="MISS & MISTER UNIVERSITY BENIN 2026"
-        subtext="Veuillez vous patientez ........"
-      />
-    );
-  }
-
   return (
   <div className="home-page">
 
@@ -441,52 +431,63 @@ const Home = () => {
         </motion.div>
 
         <motion.div className="hero-visual" {...heroVisualMotion}>
-          <div className="hero-card-main hero-countdown-card">
-            <div className="hcm-top">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                  stroke="#D4AF37" strokeWidth="1.5" fill="rgba(212,175,55,0.12)"/>
-              </svg>
-              <span>MISS &amp; MISTER UNIVERSITY BENIN 2026</span>
+          {loading ? (
+            <div className="hero-card-main hero-countdown-card home-loading-card">
+              <Loader
+                size="small"
+                color="secondary"
+                text="MISS & MISTER UNIVERSITY BENIN 2026"
+                subtext="Veuillez vous patientez ........"
+              />
             </div>
-            <div className="hcm-avatar-row">
-              {candidates.slice(0, 3).map((c, i) => (
-                <div key={c.id} className="hcm-avatar" style={{ zIndex: 3 - i, marginLeft: i > 0 ? '-12px' : '0' }}>
-                  {`${c.first_name} ${c.last_name}`.charAt(0)}
+          ) : (
+            <div className="hero-card-main hero-countdown-card">
+              <div className="hcm-top">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                    stroke="#D4AF37" strokeWidth="1.5" fill="rgba(212,175,55,0.12)"/>
+                </svg>
+                <span>MISS &amp; MISTER UNIVERSITY BENIN 2026</span>
+              </div>
+              <div className="hcm-avatar-row">
+                {candidates.slice(0, 3).map((c, i) => (
+                  <div key={c.id} className="hcm-avatar" style={{ zIndex: 3 - i, marginLeft: i > 0 ? '-12px' : '0' }}>
+                    {`${c.first_name} ${c.last_name}`.charAt(0)}
+                  </div>
+                ))}
+                <span className="hcm-more">+{Math.max(0, stats.totalCandidates - 3)} candidats</span>
+              </div>
+              <div className="hcm-stats-row">
+                <div className="hcm-stat">
+                  <strong>{hasCountdown ? countdown.days : 0}</strong>
+                  <span>Jours</span>
                 </div>
-              ))}
-              <span className="hcm-more">+{Math.max(0, stats.totalCandidates - 3)} candidats</span>
-            </div>
-            <div className="hcm-stats-row">
-              <div className="hcm-stat">
-                <strong>{hasCountdown ? countdown.days : 0}</strong>
-                <span>Jours</span>
+                <div className="hcm-divider" />
+                <div className="hcm-stat">
+                  <strong>{hasCountdown ? paddedHours : '00'}</strong>
+                  <span>Heures</span>
+                </div>
+                <div className="hcm-divider" />
+                <div className="hcm-stat">
+                  <strong>{hasCountdown ? `${paddedMinutes}:${paddedSeconds}` : '00:00'}</strong>
+                  <span>Min : Sec</span>
+                </div>
               </div>
-              <div className="hcm-divider" />
-              <div className="hcm-stat">
-                <strong>{hasCountdown ? paddedHours : '00'}</strong>
-                <span>Heures</span>
-              </div>
-              <div className="hcm-divider" />
-              <div className="hcm-stat">
-                <strong>{hasCountdown ? `${paddedMinutes}:${paddedSeconds}` : '00:00'}</strong>
-                <span>Min : Sec</span>
-              </div>
-            </div>
-            <div className="hcm-progress-wrap">
-              <div className="hcm-progress-label">
-                <span>Temps restant pour le vote en %</span>
-                <span className="text-gold">{countdownProgress}%</span>
-              </div>
-              <div className="hcm-progress-bar">
-                <motion.div className="hcm-progress-fill"
-                  initial={false}
-                  animate={{ width: `${countdownProgress}%` }}
-                  transition={{ duration: 0.85, ease: 'easeOut' }}
-                />
+              <div className="hcm-progress-wrap">
+                <div className="hcm-progress-label">
+                  <span>Temps restant pour le vote en %</span>
+                  <span className="text-gold">{countdownProgress}%</span>
+                </div>
+                <div className="hcm-progress-bar">
+                  <motion.div className="hcm-progress-fill"
+                    initial={false}
+                    animate={{ width: `${countdownProgress}%` }}
+                    transition={{ duration: 0.85, ease: 'easeOut' }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Floating cards */}
           {/* <motion.div className="hero-float-card fc-top"
