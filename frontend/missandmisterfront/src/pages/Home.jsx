@@ -222,6 +222,7 @@ const Home = () => {
     publicSettings = null,
     votingBlocked = false,
   } = useOutletContext() || {};
+  const resultsPublicEnabled = Boolean(publicSettings?.results_public);
 
   const fetchAll = async () => {
     const isInitialLoad = !hasLoadedRef.current;
@@ -740,59 +741,61 @@ const Home = () => {
 
    
     {/* ══════════════════════════════════════════ TOP CANDIDATS */}
-    <section className="home-top-candidates section">
-      <div className="container">
-        <motion.div className="section-header text-center"
-          initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-          <span className="section-eyebrow">Classement en direct</span>
-          <h2>Top <span className="text-gold">Candidats</span></h2>
-          <div className="section-divider centered" />
-        </motion.div>
+    {resultsPublicEnabled && (
+      <section className="home-top-candidates section">
+        <div className="container">
+          <motion.div className="section-header text-center"
+            initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+            <span className="section-eyebrow">Classement en direct</span>
+            <h2>Top <span className="text-gold">Candidats</span></h2>
+            <div className="section-divider centered" />
+          </motion.div>
 
-        <div className="top-cand-grid">
-          {topCandidates.map((c, i) => (
-            <motion.div key={c.id} className={`top-cand-card ${i === 0 ? 'featured' : ''}`}
-              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }} transition={{ delay: i * 0.12 }}
-              whileHover={{ y: -8 }}>
-              <div className="tc-rank">
-                {i === 0
-                  ? <svg width="20" height="20" viewBox="0 0 24 24" fill="#D4AF37"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                  : `#${i + 1}`}
-              </div>
-              <div className="tc-avatar">{`${c.first_name} ${c.last_name}`.charAt(0)}</div>
-              <div className="tc-info">
-                <h3>{`${c.first_name} ${c.last_name}`}</h3>
-                <div className="tc-meta">
-                  <span className={`tc-cat ${c.category?.name?.toLowerCase() || 'miss'}`}>{c.category?.name || 'Miss'}</span>
-                  <span className="tc-univ">{c.university || 'Université'}</span>
+          <div className="top-cand-grid">
+            {topCandidates.map((c, i) => (
+              <motion.div key={c.id} className={`top-cand-card ${i === 0 ? 'featured' : ''}`}
+                initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }} transition={{ delay: i * 0.12 }}
+                whileHover={{ y: -8 }}>
+                <div className="tc-rank">
+                  {i === 0
+                    ? <svg width="20" height="20" viewBox="0 0 24 24" fill="#D4AF37"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    : `#${i + 1}`}
                 </div>
-              </div>
-              <div className="tc-votes">
-                <strong>{(c.votes_count || 0).toLocaleString('fr-FR')}</strong>
-                <span>votes</span>
-              </div>
-              {votingBlocked ? (
-                <span className="tc-vote-btn tc-vote-btn-disabled">Vote bloqué</span>
-              ) : (
-                <Link to={`/candidates/${c.id}`} className="tc-vote-btn">Voter</Link>
-              )}
-            </motion.div>
-          ))}
-        </div>
+                <div className="tc-avatar">{`${c.first_name} ${c.last_name}`.charAt(0)}</div>
+                <div className="tc-info">
+                  <h3>{`${c.first_name} ${c.last_name}`}</h3>
+                  <div className="tc-meta">
+                    <span className={`tc-cat ${c.category?.name?.toLowerCase() || 'miss'}`}>{c.category?.name || 'Miss'}</span>
+                    <span className="tc-univ">{c.university || 'Université'}</span>
+                  </div>
+                </div>
+                <div className="tc-votes">
+                  <strong>{(c.votes_count || 0).toLocaleString('fr-FR')}</strong>
+                  <span>votes</span>
+                </div>
+                {votingBlocked ? (
+                  <span className="tc-vote-btn tc-vote-btn-disabled">Vote bloqué</span>
+                ) : (
+                  <Link to={`/candidates/${c.id}`} className="tc-vote-btn">Voter</Link>
+                )}
+              </motion.div>
+            ))}
+          </div>
 
-        <div className="section-cta">
-          <Link to="/candidates">
-            <motion.button className="btn-gold" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-              Voir tous les candidats
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </motion.button>
-          </Link>
+          <div className="section-cta">
+            <Link to="/candidates">
+              <motion.button className="btn-gold" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
+                Voir tous les candidats
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </motion.button>
+            </Link>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    )}
 
     {/* ══════════════════════════════════════════ COMMENT VOTER */}
     <section className="home-how section">

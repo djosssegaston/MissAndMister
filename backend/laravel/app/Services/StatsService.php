@@ -44,13 +44,17 @@ class StatsService
 
     public function publicSummary(): array
     {
-        $universities = Candidate::distinct('university')->count('university');
+        $publicCandidates = Candidate::query()
+            ->where(function ($query) {
+                $query->where('status', 'active')->orWhereNull('status');
+            })
+            ->where('is_active', true);
 
         return [
-            'totalCandidates' => Candidate::where('is_active', true)->count(),
+            'totalCandidates' => (clone $publicCandidates)->count(),
             'totalVotes' => Vote::where('status', 'confirmed')->sum('quantity'),
             'totalUsers' => User::count(),
-            'totalUniversities' => $universities,
+            'totalUniversities' => (clone $publicCandidates)->distinct('university')->count('university'),
         ];
     }
 }
