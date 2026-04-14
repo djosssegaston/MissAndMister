@@ -14,7 +14,19 @@ const STATUS_CONFIG = {
   failed: { label: 'Échoué', class: 'status-failed', title: 'Échoué' },
 };
 
-const OP_COLOR = { MTN: '#FFD700', Moov: '#4499FF', Flooz: '#FF6B00', kkiapay: '#D4AF37' };
+const OP_COLOR = { MTN: '#FFD700', Moov: '#4499FF', Flooz: '#FF6B00', fedapay: '#D4AF37', kkiapay: '#C8A53A' };
+
+const formatProviderLabel = (provider = '') => {
+  if (provider === 'fedapay') {
+    return 'FedaPay';
+  }
+
+  if (provider === 'kkiapay') {
+    return 'Kkiapay';
+  }
+
+  return provider || '—';
+};
 
 const ConfirmModal = ({ message, onConfirm, onCancel }) => (
   <div className="agc-overlay" onClick={onCancel}>
@@ -62,7 +74,7 @@ const AdminVotes = () => {
       voter: v.user?.email || v.user?.name || '—',
       qty,
       amount: v.amount || 0,
-      operator: v.payment?.provider || v.operator || 'kkiapay',
+      operator: v.payment?.provider || v.operator || 'fedapay',
       status: v.status || 'pending',
       date: v.created_at,
       ip: v.ip_address || '—',
@@ -287,10 +299,11 @@ const AdminVotes = () => {
         </select>
         <select className="ag-input ag-select avotes-select" value={operatorFilter} onChange={e => setOperator(e.target.value)}>
           <option>Tous</option>
+          <option value="fedapay">FedaPay</option>
+          <option value="kkiapay">Kkiapay</option>
           <option>MTN</option>
           <option>Moov</option>
           <option>Flooz</option>
-          <option>kkiapay</option>
         </select>
         <input type="date" className="ag-input avotes-select" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="Du" />
         <input type="date" className="ag-input avotes-select" value={dateTo} onChange={e => setDateTo(e.target.value)} title="Au" />
@@ -356,7 +369,7 @@ const AdminVotes = () => {
                   <td data-label="Montant"><span className="avotes-amount">{v.amount} F</span></td>
                   <td data-label="Opérateur">
                     <span className="avotes-op" style={{ color: OP_COLOR[v.operator] || '#D4AF37', borderColor: (OP_COLOR[v.operator] || '#D4AF37') + '44' }}>
-                      {v.operator}
+                      {formatProviderLabel(v.operator)}
                     </span>
                   </td>
                   <td data-label="Statut">

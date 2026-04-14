@@ -19,8 +19,8 @@ class PaymentFactory extends Factory
     {
         return [
             'user_id' => 1,
-            'provider' => 'kkiapay',
-            'reference' => strtoupper($this->faker->bothify('KKIA-####-####')),
+            'provider' => 'fedapay',
+            'reference' => strtoupper($this->faker->bothify('FEDA-####-####')),
             'transaction_id' => null,
             'amount' => 500,
             'currency' => 'XOF',

@@ -32,9 +32,17 @@ class SettingsController extends Controller
         'maintenance_end_at',
     ];
 
+    private array $paymentKeys = [
+        'fedapay_public_key',
+        'fedapay_secret_key',
+        'fedapay_webhook_secret',
+        'fedapay_environment',
+    ];
+
     private array $runtimeKeys = [];
 
     private array $allowedKeys = [];
+    private array $writableKeys = [];
 
     public function __construct(private VotingWindowService $votingWindow)
     {
@@ -42,6 +50,7 @@ class SettingsController extends Controller
         $this->allowedKeys = array_merge($this->booleanKeys, $this->intKeys, $this->dateKeys, [
             'currency',
         ]);
+        $this->writableKeys = array_merge($this->allowedKeys, $this->paymentKeys);
     }
 
     public function index(): JsonResponse
@@ -65,14 +74,14 @@ class SettingsController extends Controller
         ])->validate();
 
         $currentSettings = $this->formatCollection(
-            Setting::whereIn('key', array_merge($this->allowedKeys, $this->runtimeKeys))->get()
+            Setting::whereIn('key', array_merge($this->writableKeys, $this->runtimeKeys))->get()
         );
 
         $nextSettings = $currentSettings;
         $validatedSettings = [];
 
         foreach ($payload as $key => $value) {
-            if (!in_array($key, $this->allowedKeys, true)) {
+            if (!in_array($key, $this->writableKeys, true)) {
                 continue;
             }
 
@@ -154,6 +163,7 @@ class SettingsController extends Controller
             in_array($key, $this->booleanKeys, true) => 'features',
             in_array($key, $this->intKeys, true) => 'rules',
             in_array($key, $this->dateKeys, true) => 'dates',
+            in_array($key, $this->paymentKeys, true) => 'payments',
             $key === 'currency' => 'payments',
             default => 'general',
         };
@@ -171,6 +181,12 @@ class SettingsController extends Controller
 
         if (in_array($key, $this->dateKeys, true)) {
             return (string) $value;
+        }
+
+        if ($key === 'fedapay_environment') {
+            $environment = strtolower(trim((string) $value));
+
+            return in_array($environment, ['live', 'sandbox'], true) ? $environment : 'sandbox';
         }
 
         return (string) $value;

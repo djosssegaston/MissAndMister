@@ -16,6 +16,11 @@ class PaymentRepository
         return Payment::where('reference', $reference)->first();
     }
 
+    public function findByTransactionId(string $transactionId): ?Payment
+    {
+        return Payment::where('transaction_id', $transactionId)->first();
+    }
+
     public function updateStatus(Payment $payment, string $status, array $payload = []): Payment
     {
         $payment->update([

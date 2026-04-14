@@ -8,28 +8,64 @@ use App\Repositories\PaymentRepository;
 use App\Repositories\TransactionRepository;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PaymentService
 {
     public function __construct(
         private PaymentRepository $payments,
         private TransactionRepository $transactions,
-        private KkiapayService $kkiapay,
+        private FedaPayService $fedapay,
     ) {
     }
 
     public function initiate(?int $userId, float $amount, string $currency = "XOF", array $metadata = []): Payment
     {
-        $init = $this->kkiapay->initiatePayment($amount, $currency, $metadata);
+        $currency = strtoupper($currency);
+        $reference = Str::upper(Str::random(12));
+        $candidateName = trim((string) Arr::get($metadata, 'candidate_name', ''));
+        $description = $candidateName !== ''
+            ? 'Vote pour ' . $candidateName
+            : 'Paiement sécurisé Miss & Mister';
+        $callbackUrl = rtrim((string) config('app.url'), '/') . '/api/payment/webhook';
+
+        $transaction = $this->fedapay->createTransaction(
+            $amount,
+            $currency,
+            $description,
+            $callbackUrl,
+            $reference,
+            array_merge($metadata, [
+                'payment_reference' => $reference,
+                'amount' => $amount,
+                'currency' => strtoupper($currency),
+                'provider' => 'fedapay',
+            ])
+        );
+
+        $transactionId = (string) Arr::get($transaction, 'id', '');
+        $transactionStatus = strtolower((string) Arr::get($transaction, 'status', 'pending'));
+        $status = in_array($transactionStatus, ['approved', 'succeeded'], true) ? 'succeeded' : 'initiated';
 
         $payment = $this->payments->create([
             'user_id' => $userId,
-            'reference' => $init['reference'],
+            'reference' => $reference,
+            'transaction_id' => $transactionId !== '' ? $transactionId : null,
             'amount' => $amount,
             'currency' => $currency,
-            'provider' => 'kkiapay',
-            'status' => 'initiated',
-            'meta' => Arr::only($init, ['payment_url', 'meta']),
+            'provider' => 'fedapay',
+            'status' => $status,
+            'payload' => [
+                'fedapay' => $transaction,
+            ],
+            'meta' => array_merge($metadata, [
+                'payment_url' => route('payments.show', ['reference' => $reference]),
+                'provider' => 'fedapay',
+                'fedapay_transaction_id' => $transactionId ?: null,
+                'fedapay_status' => $transactionStatus,
+                'fedapay_environment' => $this->fedapay->environment(),
+            ]),
+            'paid_at' => $status === 'succeeded' ? now() : null,
         ]);
 
         ActivityLog::create([
@@ -37,7 +73,12 @@ class PaymentService
             'causer_type' => \App\Models\User::class,
             'action' => 'payment_initiated',
             'ip_address' => $metadata['ip'] ?? null,
-            'meta' => ['payment_id' => $payment->id, 'reference' => $payment->reference],
+            'meta' => [
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference,
+                'transaction_id' => $payment->transaction_id,
+                'provider' => 'fedapay',
+            ],
             'status' => 'active',
         ]);
 
@@ -56,8 +97,13 @@ class PaymentService
         }
 
         return DB::transaction(function () use ($payment, $payload) {
+            $transactionReference = $this->extractTransactionReference($payload) ?? $payment->transaction_id;
+
+            if ($transactionReference && !$payment->transaction_id) {
+                $payment->update(['transaction_id' => $transactionReference]);
+            }
+
             $this->payments->updateStatus($payment, 'succeeded', $payload);
-            $transactionReference = $payload['transactionId'] ?? $payload['transaction_id'] ?? null;
 
             if (!$transactionReference || !$payment->transactions()->where('provider_reference', $transactionReference)->exists()) {
                 $this->transactions->create([
@@ -82,5 +128,36 @@ class PaymentService
 
             return $payment;
         });
+    }
+
+    private function extractTransactionReference(array $payload): ?string
+    {
+        $candidates = [
+            data_get($payload, 'transaction_id'),
+            data_get($payload, 'transactionId'),
+            data_get($payload, 'transaction.id'),
+            data_get($payload, 'data.id'),
+            data_get($payload, 'data.entity.id'),
+            data_get($payload, 'entity.id'),
+            data_get($payload, 'data.transaction_id'),
+            data_get($payload, 'merchant_reference'),
+            data_get($payload, 'data.merchant_reference'),
+            data_get($payload, 'data.entity.merchant_reference'),
+            data_get($payload, 'custom_metadata.payment_reference'),
+            data_get($payload, 'data.custom_metadata.payment_reference'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate === null) {
+                continue;
+            }
+
+            $value = trim((string) $candidate);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Candidate;
 use App\Models\Vote;
 use App\Repositories\VoteRepository;
 use App\Models\ActivityLog;
@@ -20,7 +21,14 @@ class VoteService
     {
         $this->fraudDetection->assertNotFraudulent($userId, $ip, $quantity);
 
-        $payment = $this->payments->initiate($userId, $amount, $currency, array_merge($meta, ['ip' => $ip]));
+        $candidate = Candidate::query()->find($candidateId);
+        $candidateName = $candidate ? trim(($candidate->first_name ?? '') . ' ' . ($candidate->last_name ?? '')) : null;
+
+        $payment = $this->payments->initiate($userId, $amount, $currency, array_merge($meta, [
+            'ip' => $ip,
+            'candidate_id' => $candidateId,
+            'candidate_name' => $candidateName,
+        ]));
 
         // Create pending vote linked to payment
         $vote = $this->votes->create([
@@ -62,6 +70,33 @@ class VoteService
                 'action' => 'vote_confirmed',
                 'ip_address' => $vote->ip_address,
                 'meta' => ['candidate_id' => $vote->candidate_id, 'vote_id' => $vote->id, 'quantity' => $vote->quantity],
+                'status' => 'active',
+            ]);
+
+            return $vote;
+        });
+    }
+
+    public function failVote(Vote $vote, ?string $reason = null): Vote
+    {
+        if ($vote->status === 'failed') {
+            return $vote;
+        }
+
+        return DB::transaction(function () use ($vote, $reason) {
+            $vote->update(['status' => 'failed']);
+
+            ActivityLog::create([
+                'causer_id' => $vote->user_id,
+                'causer_type' => \App\Models\User::class,
+                'action' => 'vote_failed',
+                'ip_address' => $vote->ip_address,
+                'meta' => array_filter([
+                    'candidate_id' => $vote->candidate_id,
+                    'vote_id' => $vote->id,
+                    'quantity' => $vote->quantity,
+                    'reason' => $reason,
+                ], static fn ($value) => $value !== null && $value !== ''),
                 'status' => 'active',
             ]);
 

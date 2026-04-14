@@ -35,11 +35,11 @@ return [
         'version' => env('AWS_REKOGNITION_VERSION', 'latest'),
     ],
 
-    'kkiapay' => [
-        'public_key' => env('KKIAPAY_PUBLIC_KEY'),
-        'private_key' => env('KKIAPAY_PRIVATE_KEY'),
-        'secret' => env('KKIAPAY_SECRET'),
-        'webhook_secret' => env('KKIAPAY_WEBHOOK_SECRET'),
+    'fedapay' => [
+        'public_key' => env('FEDAPAY_PUBLIC_KEY'),
+        'secret_key' => env('FEDAPAY_SECRET_KEY'),
+        'webhook_secret' => env('FEDAPAY_WEBHOOK_SECRET'),
+        'environment' => env('FEDAPAY_ENVIRONMENT', 'sandbox'),
     ],
 
     'slack' => [

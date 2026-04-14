@@ -5,6 +5,19 @@ import { broadcastLiveUpdate } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminSettings.css';
 
+const resolveWebhookUrl = () => {
+  const apiBase = String(import.meta.env.VITE_API_URL || '').trim();
+
+  if (!apiBase) {
+    return '';
+  }
+
+  const normalized = apiBase.replace(/\/+$/, '').replace(/\/api$/i, '');
+  return `${normalized}/api/payment/webhook`;
+};
+
+const PAYMENT_WEBHOOK_URL = resolveWebhookUrl();
+
 const Toggle = ({ checked, onChange, danger }) => (
   <button
     className={`as-toggle ${checked ? 'on' : ''} ${danger ? 'danger' : ''}`}
@@ -25,6 +38,12 @@ const AdminSettings = () => {
   const [feats,   setFeats]   = useState({ votingOpen: false, galleryPublic: false, resultsPublic: false });
   const [notifs,  setNotifs]  = useState({ emailConfirm: false, smsConfirm: false });
   const [security,setSecurity]= useState({ captcha: false, ipTracking: false, maintenance: false, maintenanceEnd: '' });
+  const [payment, setPayment] = useState({
+    publicKey: '',
+    secretKey: '',
+    webhookSecret: '',
+    environment: 'sandbox',
+  });
 
   // Load settings on mount
   useEffect(() => {
@@ -54,6 +73,12 @@ const AdminSettings = () => {
           ipTracking: !!data?.ip_tracking_enabled,
           maintenance: !!data?.maintenance_mode,
           maintenanceEnd: data?.maintenance_end_at || '',
+        });
+        setPayment({
+          publicKey: data?.fedapay_public_key || '',
+          secretKey: data?.fedapay_secret_key || '',
+          webhookSecret: data?.fedapay_webhook_secret || '',
+          environment: data?.fedapay_environment || 'sandbox',
         });
       } catch (err) {
         if (err?.isSessionExpired) {
@@ -96,6 +121,10 @@ const AdminSettings = () => {
       ip_tracking_enabled: security.ipTracking,
       maintenance_mode: security.maintenance,
       maintenance_end_at: security.maintenanceEnd,
+      fedapay_public_key: payment.publicKey,
+      fedapay_secret_key: payment.secretKey,
+      fedapay_webhook_secret: payment.webhookSecret,
+      fedapay_environment: payment.environment,
     };
 
     setSaving(true);
@@ -123,6 +152,18 @@ const AdminSettings = () => {
     setFeats({ votingOpen: true, galleryPublic: true, resultsPublic: false });
     setNotifs({ emailConfirm: true, smsConfirm: false });
     setSecurity({ captcha: true, ipTracking: true, maintenance: false, maintenanceEnd: '' });
+  };
+
+  const copyWebhookUrl = async () => {
+    if (!PAYMENT_WEBHOOK_URL || typeof navigator === 'undefined' || !navigator.clipboard) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(PAYMENT_WEBHOOK_URL);
+    } catch {
+      setError('Impossible de copier l’URL du webhook.');
+    }
   };
 
   return (
@@ -154,6 +195,57 @@ const AdminSettings = () => {
       </div>
 
       <div className="asetts-grid">
+
+        {/* Paiement FedaPay */}
+        <motion.div className="ag-card asetts-payment-card" initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.03 }}>
+          <div className="ag-card-header">
+            <h3>Paiement sécurisé FedaPay</h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="var(--ag-gold-1)" strokeWidth="1.8"/></svg>
+          </div>
+          <div className="ag-card-body asetts-payment-body">
+            <p className="asetts-payment-desc">
+              Configurez ici les clés FedaPay utilisées pour générer les transactions, ouvrir le widget de paiement et valider les webhooks signés côté serveur.
+            </p>
+
+            <div className="asetts-payment-grid">
+              <div className="ag-form-group">
+                <label className="ag-label">Environnement</label>
+                <select className="ag-input" value={payment.environment} onChange={e => setPayment(p => ({ ...p, environment: e.target.value }))} disabled={loading}>
+                  <option value="sandbox">Sandbox</option>
+                  <option value="live">Live</option>
+                </select>
+              </div>
+              <div className="ag-form-group">
+                <label className="ag-label">Clé publique</label>
+                <input type="text" className="ag-input" value={payment.publicKey} onChange={e => setPayment(p => ({ ...p, publicKey: e.target.value }))} placeholder="pk_..." disabled={loading} />
+              </div>
+              <div className="ag-form-group">
+                <label className="ag-label">Clé secrète</label>
+                <input type="password" className="ag-input" value={payment.secretKey} onChange={e => setPayment(p => ({ ...p, secretKey: e.target.value }))} placeholder="sk_..." disabled={loading} />
+              </div>
+              <div className="ag-form-group">
+                <label className="ag-label">Secret webhook</label>
+                <input type="password" className="ag-input" value={payment.webhookSecret} onChange={e => setPayment(p => ({ ...p, webhookSecret: e.target.value }))} placeholder="Secret du webhook FedaPay (optionnel)" disabled={loading} />
+              </div>
+            </div>
+
+            <div className="asetts-payment-callout">
+              <div>
+                <strong>Webhook à renseigner dans FedaPay</strong>
+                <p>{PAYMENT_WEBHOOK_URL || 'Définissez VITE_API_URL pour afficher l’URL du webhook.'}</p>
+              </div>
+              {PAYMENT_WEBHOOK_URL && (
+                <button type="button" className="ag-btn ag-btn-ghost" onClick={copyWebhookUrl}>
+                  Copier l’URL
+                </button>
+              )}
+            </div>
+
+            <p className="asetts-payment-note">
+              Le secret webhook est vérifié côté serveur. Si FedaPay utilise la même clé que la clé secrète API sur votre compte, vous pouvez laisser ce champ vide.
+            </p>
+          </div>
+        </motion.div>
 
         {/* Dates */}
         <motion.div className="ag-card" initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.05 }}>

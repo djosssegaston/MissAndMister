@@ -23,10 +23,10 @@ Ces variables sont deja referencees dans `render.yaml`, mais certaines doivent e
 - `DB_PASSWORD`
 - `CLOUDINARY_URL`
 - `PROD_ADMIN_PASSWORD`
-- `KKIAPAY_PUBLIC_KEY`
-- `KKIAPAY_PRIVATE_KEY`
-- `KKIAPAY_SECRET`
-- `KKIAPAY_WEBHOOK_SECRET`
+- `FEDAPAY_PUBLIC_KEY`
+- `FEDAPAY_SECRET_KEY`
+- `FEDAPAY_WEBHOOK_SECRET`
+- `FEDAPAY_ENVIRONMENT`
 
 ## Base MySQL Railway retenue
 
@@ -47,4 +47,4 @@ Ne pas utiliser l’hote interne Railway `mysql.railway.internal` depuis Render.
 
 - Render Free ne permet pas les `Background Workers` ni les `Cron Jobs`.
 - Les emails sont gardes en log pour ce premier deploiement.
-- Les paiements Kkiapay restent en mode non finalise tant que les vraies cles ne sont pas fournies.
+- Les paiements FedaPay restent inactifs tant que les clés publiques, secrètes et de webhook ne sont pas fournies.
