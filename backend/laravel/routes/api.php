@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CandidateController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\GalleryController;
+use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ResultController;
 use App\Http\Controllers\Api\SettingsController;
@@ -37,6 +38,7 @@ Route::prefix('public')->group(function () {
     Route::get('candidates/{id}', [PublicCandidateController::class, 'show']);
     Route::get('stats', [StatsController::class, 'publicStats']);
     Route::get('gallery', [GalleryController::class, 'publicIndex']);
+    Route::get('partners', [PartnerController::class, 'publicIndex']);
 });
 
 // Legacy public endpoints (kept for compatibility)
@@ -62,6 +64,10 @@ Route::middleware(['auth:sanctum', 'role:admin,superadmin'])->prefix('admin')->g
     Route::post('gallery', [GalleryController::class, 'store']);
     Route::put('gallery/{galleryItem}', [GalleryController::class, 'update']);
     Route::delete('gallery/{galleryItem}', [GalleryController::class, 'destroy']);
+    Route::get('partners', [PartnerController::class, 'adminIndex']);
+    Route::post('partners', [PartnerController::class, 'store']);
+    Route::put('partners/{partnerLogo}', [PartnerController::class, 'update']);
+    Route::delete('partners/{partnerLogo}', [PartnerController::class, 'destroy']);
     Route::apiResource('categories', CategoryController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::get('payments', [PaymentController::class, 'index']);
     Route::get('votes', [VoteController::class, 'index']);

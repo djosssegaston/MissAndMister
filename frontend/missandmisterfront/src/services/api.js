@@ -534,6 +534,13 @@ export const galleryAPI = {
   },
 };
 
+// ===== PARTENAIRES =====
+export const partnersAPI = {
+  getAll: async () => {
+    return fetchPublicAPI('/public/partners');
+  },
+};
+
 // ===== CONTACT =====
 export const contactAPI = {
   // Envoyer un message de contact
@@ -699,6 +706,33 @@ export const adminAPI = {
     });
   },
 
+  getPartners: async () => {
+    return fetchAPI('/admin/partners');
+  },
+
+  createPartner: async (payload) => {
+    return fetchAPI('/admin/partners', {
+      method: 'POST',
+      body: payload,
+      timeout: 120000,
+    });
+  },
+
+  updatePartner: async (id, payload) => {
+    payload.append('_method', 'PUT');
+    return fetchAPI(`/admin/partners/${id}`, {
+      method: 'POST',
+      body: payload,
+      timeout: 120000,
+    });
+  },
+
+  deletePartner: async (id) => {
+    return fetchAPI(`/admin/partners/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Catégories
   getCategories: async () => {
     return fetchAPI('/admin/categories');
@@ -752,6 +786,7 @@ export default {
   votes: votesAPI,
   results: resultsAPI,
   gallery: galleryAPI,
+  partners: partnersAPI,
   contact: contactAPI,
   faq: faqAPI,
   payment: paymentAPI,

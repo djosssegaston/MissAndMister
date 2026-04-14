@@ -2,12 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 import { candidatesAPI } from '../services/api';
-import CandidateCard from '../components/CandidateCard';
+import PartnerShowcase from '../components/PartnerShowcase';
 import Loader from '../components/Loader';
 import sessionHero from '../assets/session_hero.png';
 import sessionMobile from '../assets/session_mobil.png';
 import { useAutoRefresh } from '../utils/liveUpdates';
 import './Home.css';
+
+const WHATSAPP_PARTNER_URL = 'https://wa.me/2290147171509?text=Bonjour%20l%27%C3%A9quipe%20Miss%20%26%20Mister%20University%20B%C3%A9nin%2C%20je%20souhaite%20devenir%20partenaire.';
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 40 },
@@ -65,27 +67,16 @@ const CountUp = ({ target, suffix = '' }) => {
   return <span ref={ref}><span ref={countRef}>0{suffix}</span></span>;
 };
 
-const FILTERS = [
-  { key: 'all', label: 'Tous' },
-  { key: 'miss', label: 'Miss' },
-  { key: 'mister', label: 'Mister' },
-];
-
-const SORTS = [
-  { key: 'votes', label: 'Votes (décroissant)' },
-  { key: 'name', label: 'Nom A→Z' },
-];
-
 const HERO_TITLE_LINES = [
   { text: 'MISS & MISTER', className: 'hero-title-line-primary' },
-  { text: 'University Bénin', className: 'hero-title-line-secondary' },
+  { text: 'University Bénin 2026', className: 'hero-title-line-secondary' },
 ];
 
 const HOME_OVERVIEW = [
   {
-    title: 'Concours national',
-    description: 'Une plateforme éducative, culturelle et citoyenne ouverte aux universités publiques et privées du Bénin.',
-    badge: 'Projet officiel',
+    title: 'Concours national universitaire',
+    description: 'Un événement éducatif, culturel et social ouvert aux universités publiques et privées du Bénin.',
+    badge: 'Édition inaugurale',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round"/>
@@ -94,8 +85,19 @@ const HOME_OVERVIEW = [
     ),
   },
   {
+    title: 'Jeunesse universitaire',
+    description: 'Des étudiants de 16 à 25 ans, issus des universités publiques et privées du territoire national.',
+    badge: 'Public cible',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
+        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.9"/>
+      </svg>
+    ),
+  },
+  {
     title: 'Excellence et leadership',
-    description: 'Le projet valorise l’excellence académique, l’éloquence, la discipline et l’esprit d’initiative des étudiants.',
+    description: 'Le concours valorise l’éloquence, la culture, la responsabilité et les projets sociaux utiles à la société.',
     badge: 'Valeurs fortes',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -104,25 +106,13 @@ const HOME_OVERVIEW = [
     ),
   },
   {
-    title: 'Participation encadrée',
-    description: 'Les candidatures sont gratuites, vérifiées administrativement, puis accompagnées jusqu’à la grande finale.',
-    badge: '16 à 25 ans',
+    title: 'Universités et partenaires',
+    description: 'Une plateforme de collaboration entre établissements, entreprises, médias et institutions autour de la jeunesse.',
+    badge: 'Réseau national',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
-        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.9"/>
-        <path d="M16 5h6M19 2v6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  {
-    title: 'Transparence et sécurité',
-    description: 'Jury pluriel, vote sécurisé, validation claire et protection active contre les tentatives de fraude.',
-    badge: 'Vote sécurisé',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round"/>
-        <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M8.5 14.5l-1.2 1.2a3.5 3.5 0 01-4.95-4.95l3-3a3.5 3.5 0 014.95 0l1.1 1.1" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M15.5 9.5l1.2-1.2a3.5 3.5 0 014.95 4.95l-3 3a3.5 3.5 0 01-4.95 0l-1.1-1.1" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
   },
@@ -213,10 +203,6 @@ const Home = () => {
     days: 0, hours: 0, minutes: 0, seconds: 0, percentLeft: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('votes');
-  const [searchQuery, setSearchQuery] = useState('');
   const hasLoadedRef = useRef(false);
   const {
     publicSettings = null,
@@ -238,13 +224,9 @@ const Home = () => {
       ]);
       setCandidates(candidatesResponse?.data || []);
       setStats(statsResponse || stats);
-      setError(null);
       hasLoadedRef.current = true;
-    } catch (error) {
-      console.error('❌ Erreur lors du chargement des données:', error);
-      if (isInitialLoad) {
-        setError(error.message || 'Erreur lors du chargement des candidats');
-      }
+    } catch (fetchError) {
+      console.error('❌ Erreur lors du chargement des données:', fetchError);
     } finally {
       if (isInitialLoad) {
         hasLoadedRef.current = true;
@@ -254,11 +236,6 @@ const Home = () => {
   };
 
   useAutoRefresh(fetchAll);
-
-  const retryFetchAll = async () => {
-    hasLoadedRef.current = false;
-    await fetchAll();
-  };
 
   useEffect(() => {
     if (!publicSettings?.vote_end_at) {
@@ -328,23 +305,6 @@ const Home = () => {
   const paddedSeconds = String(countdown.seconds).padStart(2, '0');
   const countdownProgress = hasCountdown ? countdown.percentLeft : 100;
   const candidateList = Array.isArray(candidates) ? candidates : [];
-  const buildCandidateName = (candidate) => `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim();
-  const filteredCandidates = candidateList
-    .filter((candidate) => {
-      const name = buildCandidateName(candidate).toLowerCase();
-      const university = (candidate.university || '').toLowerCase();
-      const category = candidate.category?.name?.toLowerCase() || '';
-      const matchesFilter = filter === 'all' || category === filter;
-      const needle = searchQuery.trim().toLowerCase();
-      const matchesSearch = !needle || name.includes(needle) || university.includes(needle);
-      return matchesFilter && matchesSearch;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'votes') {
-        return (b.votes_count || 0) - (a.votes_count || 0);
-      }
-      return buildCandidateName(a).toLowerCase().localeCompare(buildCandidateName(b).toLowerCase());
-    });
   const topCandidates = [...candidateList]
     .sort((a, b) => (b.votes_count || 0) - (a.votes_count || 0))
     .slice(0, 6);
@@ -378,28 +338,26 @@ const Home = () => {
           <AnimatedHeroTitle />
 
           <p className="hero-subtitle">
-            Concours universitaire national dédié à l’excellence académique,
-            au leadership, à la culture, à l’éloquence et à l’engagement social
-            de la jeunesse universitaire béninoise.
+            Plateforme officielle du concours universitaire national, première édition 2026,
+            dédiée à l’excellence académique, au leadership, à la culture, à l’éloquence
+            et à l’engagement social de la jeunesse universitaire béninoise.
           </p>
 
           <div className="hero-actions">
-            {votingBlocked ? (
-              <button className="btn-hero-primary btn-hero-disabled" type="button" disabled>
-                Vote bloqué
-              </button>
-            ) : (
-              <Link to="/candidates">
-                <motion.button className="btn-hero-primary" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="11" width="18" height="10" rx="2" stroke="currentColor" strokeWidth="2"/>
-                    <path d="M9 11V7a3 3 0 016 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
-                  </svg>
-                  Voter maintenant
-                </motion.button>
-              </Link>
-            )}
+            <motion.a
+              className="btn-hero-primary"
+              href={WHATSAPP_PARTNER_URL}
+              target="_blank"
+              rel="noreferrer"
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                <path d="M8.5 14.5l-1.2 1.2a3.5 3.5 0 01-4.95-4.95l3-3a3.5 3.5 0 014.95 0l1.1 1.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M15.5 9.5l1.2-1.2a3.5 3.5 0 014.95 4.95l-3 3a3.5 3.5 0 01-4.95 0l-1.1-1.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Devenir partenaire
+            </motion.a>
             <Link to="/about">
               <motion.button className="btn-hero-secondary" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
                 En savoir plus
@@ -420,8 +378,8 @@ const Home = () => {
               Inscription gratuite
             </div>
             <div className="hero-badge">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M2 10h20" stroke="currentColor" strokeWidth="2"/></svg>
-              Vote sécurisé
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
+              Édition inaugurale 2026
             </div>
             {/* {publicSettings?.vote_end_at && (
               <div className="hero-badge">
@@ -616,130 +574,49 @@ const Home = () => {
       </div>
     </section>
 
+    <PartnerShowcase
+      eyebrow="Partenaires officiels"
+      title="Ils soutiennent l’aventure"
+      description="Découvrez les institutions, entreprises et médias qui accompagnent cette édition de MISS & MISTER University Bénin."
+      contactTitle="Vous souhaitez devenir partenaire ?"
+      contactDescription="Envoyez un message WhatsApp au comité organisateur pour proposer votre collaboration et faire apparaître votre logo dans le carrousel public."
+      contactButtonLabel="Contacter l’équipe"
+    />
 
-    <div className="home-candidates-showcase">
-      <section className="home-candidates-intro section">
-        <div className="container">
-          <motion.div
-            className="home-candidates-header text-center"
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <span className="home-candidates-eyebrow">Vote en direct</span>
-            <h2>Explorez les <span className="text-gold">candidats</span></h2>
+    <section className="home-discover section">
+      <div className="container">
+        <motion.div
+          className="home-discover-card"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <div className="home-discover-copy">
+            <span className="section-eyebrow">Candidats retenus</span>
+            <h2>Découvrir les candidats</h2>
             <p>
-              Retrouvez rapidement vos favoris, filtrez par catégorie et parcourez les profils les plus soutenus du concours.
+              Consultez les profils officiels, les universités représentées et les parcours
+              des candidats qualifiés pour cette édition inaugurale.
             </p>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── FILTRES ── */}
-      <section className="candidates-controls home-candidates-controls">
-        <div className="container">
-          <div className="home-candidates-panel">
-            <motion.div className="controls-bar" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
-
-              {/* Filtres catégories */}
-              <div className="filter-tabs">
-                {FILTERS.map(f => (
-                  <button
-                    key={f.key}
-                    type="button"
-                    className={`filter-tab ${filter === f.key ? 'active' : ''}`}
-                    onClick={() => setFilter(f.key)}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Recherche + tri */}
-              <div className="controls-right">
-                <div className="search-wrap">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="search-ico">
-                    <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
-                    <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Rechercher un candidat..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="search-input"
-                  />
-                </div>
-                <select
-                  className="site-select sort-select"
-                  value={sortBy}
-                  onChange={e => setSortBy(e.target.value)}
-                >
-                  {SORTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                </select>
-              </div>
-            </motion.div>
-
-            {/* Compteur résultats */}
-            <p className="results-count">
-              {filteredCandidates.length} candidat{filteredCandidates.length !== 1 ? 's' : ''} trouvé{filteredCandidates.length !== 1 ? 's' : ''}
-            </p>
+            <div className="home-discover-points" aria-label="Points clés de la page candidats">
+              <span>Profils officiels</span>
+              <span>Universités béninoises</span>
+              <span>Parcours et votes</span>
+            </div>
           </div>
-        </div>
-      </section>
 
-      {/* ── GRILLE ── */}
-      <section className="candidates-grid-section section home-candidates-grid-section">
-        <div className="container">
-          {error ? (
-            <div className="error-container">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="#ef4444" strokeWidth="1.5"/>
-                <path d="M15 9l-6 6M9 9l6 6" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"/>
+          <Link to="/candidates" className="home-discover-action">
+            <motion.button className="btn-gold" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
+              Découvrir les candidats
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              <h3>Erreur de chargement</h3>
-              <p>{error}</p>
-              <button className="btn-gold" onClick={retryFetchAll}>
-                Réessayer
-              </button>
-            </div>
-          ) : (
-            <div>
-              {filteredCandidates.length > 0 ? (
-                <>
-                  <div className="candidates-grid home-candidates-grid">
-                    {filteredCandidates.map((candidate) => (
-                      <CandidateCard key={candidate.id} candidate={candidate} votingBlocked={votingBlocked} />
-                    ))}
-                  </div>
-                  <div className="home-candidates-cta">
-                    <Link to="/candidates">
-                      <motion.button className="btn-gold" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-                        Voir tous les candidats
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </motion.button>
-                    </Link>
-                  </div>
-                </>
-              ) : (
-                <div className="no-results">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="rgba(212,175,55,0.5)" strokeWidth="1.5" />
-                    <path d="M15 9l-6 6M9 9l6 6" stroke="rgba(212,175,55,0.6)" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                  <h3>Aucun candidat trouvé</h3>
-                  <p>Essayez de modifier vos critères de recherche.</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
-    </div>
+            </motion.button>
+          </Link>
+        </motion.div>
+      </div>
+    </section>
 
-   
     {/* ══════════════════════════════════════════ TOP CANDIDATS */}
     {resultsPublicEnabled && (
       <section className="home-top-candidates section">
@@ -878,20 +755,25 @@ const Home = () => {
         <motion.div className="cta-final"
           initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
           <div className="cta-final-orb" aria-hidden="true" />
-          <span className="section-eyebrow">Ne manquez pas l'événement</span>
-          <h2>Soutenez votre<br /><span className="text-gold">candidat favori</span></h2>
-          <p>Le concours se termine bientôt. Chaque vote peut faire basculer le classement !</p>
+          <span className="section-eyebrow">Première édition 2026</span>
+          <h2>Rejoignez<br /><span className="text-gold">l’aventure</span></h2>
+          <p>La plateforme officielle du concours réunit étudiants, universités et partenaires autour de l’excellence, du leadership et de l’engagement social.</p>
           <div className="cta-final-actions">
-            <Link to="/login">
-              <motion.button className="btn-hero-primary" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-                Connectez-vous
-              </motion.button>
-            </Link>
             <Link to="/candidates">
-              <motion.button className="btn-hero-secondary" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
-                Voir les candidats
+              <motion.button className="btn-hero-primary" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
+                Découvrir les candidats
               </motion.button>
             </Link>
+            <motion.a
+              className="btn-hero-secondary"
+              href={WHATSAPP_PARTNER_URL}
+              target="_blank"
+              rel="noreferrer"
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              Devenir partenaire
+            </motion.a>
           </div>
         </motion.div>
       </div>

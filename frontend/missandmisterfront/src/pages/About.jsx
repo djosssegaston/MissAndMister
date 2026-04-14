@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import PartnerShowcase from '../components/PartnerShowcase';
 import './About.css';
 
 const fadeUp = {
@@ -14,7 +15,7 @@ const fadeUp = {
 const heroStats = [
   { value: '16-25 ans', label: 'Public cible' },
   { value: 'Gratuite', label: 'Inscription' },
-  { value: '7 étapes', label: 'Déroulement' },
+  { value: '10 phases', label: 'Déroulement' },
 ];
 
 const pillars = [
@@ -123,8 +124,8 @@ const About = () => (
           </span>
           <h1>À propos du <span className="text-gold">concours</span></h1>
           <p className="about-hero-subtitle">
-            Un concours universitaire national dédié à l’excellence académique, au leadership,
-            à la culture, à l’éloquence et à l’engagement social de la jeunesse béninoise.
+            Une plateforme officielle, première édition 2026, dédiée à l’excellence académique,
+            au leadership, à la culture, à l’éloquence et à l’engagement social de la jeunesse béninoise.
           </p>
 
           <div className="about-hero-center">
@@ -155,13 +156,19 @@ const About = () => (
             <div className="section-divider" />
             <p>
               Dans un contexte où l’éducation, l’excellence académique et l’engagement de la
-              jeunesse constituent des leviers essentiels du développement durable, ce concours
-              crée un cadre d’expression, de valorisation et de motivation pour les étudiants.
+              jeunesse constituent des leviers essentiels du développement durable, le projet
+              MISS &amp; MISTER UNIVERSITY BENIN crée un cadre d’expression, de valorisation
+              et de motivation pour les étudiants.
             </p>
             <p>
-              MISS &amp; MISTER UNIVERSITY BENIN rassemble les universités publiques et privées
-              autour d’une vision commune : identifier, former et valoriser des étudiants modèles
-              capables de devenir de véritables ambassadeurs universitaires.
+              Le concours est un événement à caractère éducatif, culturel et social destiné à
+              promouvoir l’excellence intellectuelle, le leadership, la citoyenneté et l’image
+              positive de l’étudiant béninois.
+            </p>
+            <p>
+              MISS &amp; MISTER UNIVERSITY BENIN rassemble les universités publiques et privées,
+              les entreprises, les institutions et les partenaires sociaux autour d’une vision
+              commune : investir dans la jeunesse, soutenir l’éducation et accompagner les talents.
             </p>
             <Link to="/candidates">
               <motion.button className="btn-gold" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
@@ -188,7 +195,7 @@ const About = () => (
                   />
                 </svg>
                 <h3>MISS &amp; MISTER<br />University Bénin</h3>
-                <p>Concours national 2026</p>
+                <p>Édition inaugurale 2026</p>
                 <div className="mission-tags">
                   {['Excellence', 'Leadership', 'Culture', 'Transparence'].map((tag) => (
                     <span key={tag} className="mission-tag">{tag}</span>
@@ -322,15 +329,23 @@ const About = () => (
       </div>
     </section>
 
+    <PartnerShowcase
+      eyebrow="Partenaires & collaboration"
+      title="Une aventure ouverte aux institutions"
+      description="Le concours accueille les partenaires qui souhaitent soutenir la jeunesse béninoise tout en gagnant en visibilité et en crédibilité."
+      contactTitle="Rejoindre le projet"
+      contactDescription="Une entreprise, une école ou une institution peut prendre contact directement avec l’équipe organisatrice sur WhatsApp."
+      contactButtonLabel="Nous écrire sur WhatsApp"
+    />
+
     <section className="about-cta section">
       <div className="container">
         <motion.div className="cta-box" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
           <span className="section-eyebrow">Prêt à participer ?</span>
           <h2>Rejoignez <span className="text-gold">l’aventure</span></h2>
           <p>
-            Soutenez vos candidats préférés et faites partie de l’histoire du concours.
-            Les informations sensibles comme le budget et le calendrier détaillé restent
-            gérées par le comité d’organisation.
+            La plateforme officielle du concours réunit étudiants, universités et partenaires
+            autour de l’excellence académique, du leadership et de l’engagement social.
           </p>
           <div className="cta-actions">
             <Link to="/candidates">

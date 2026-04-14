@@ -19,6 +19,7 @@ import AdminLogin from '../pages/admin/AdminLogin';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import AdminCandidates from '../pages/admin/AdminCandidates';
 import AdminGallery from '../pages/admin/AdminGallery';
+import AdminPartners from '../pages/admin/AdminPartners';
 import AdminUsers from '../pages/admin/AdminUsers';
 import AdminVotes from '../pages/admin/AdminVotes';
 import AdminSettings from '../pages/admin/AdminSettings';
@@ -405,6 +406,7 @@ const AppRouter = () => (
       <Route path="/admin/dashboard"  element={<RequireAdmin><WithAdminLayout><AdminDashboard /></WithAdminLayout></RequireAdmin>} />
       <Route path="/admin/candidates" element={<RequireAdmin><WithAdminLayout><AdminCandidates /></WithAdminLayout></RequireAdmin>} />
       <Route path="/admin/gallery"    element={<RequireAdmin><WithAdminLayout><AdminGallery /></WithAdminLayout></RequireAdmin>} />
+      <Route path="/admin/partners"   element={<RequireAdmin><WithAdminLayout><AdminPartners /></WithAdminLayout></RequireAdmin>} />
       <Route path="/admin/users"      element={<RequireAdmin><WithAdminLayout><AdminUsers /></WithAdminLayout></RequireAdmin>} />
       <Route path="/admin/votes"      element={<RequireAdmin><WithAdminLayout><AdminVotes /></WithAdminLayout></RequireAdmin>} />
       <Route path="/admin/settings"   element={<RequireAdmin><WithAdminLayout><AdminSettings /></WithAdminLayout></RequireAdmin>} />
