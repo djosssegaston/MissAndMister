@@ -449,7 +449,7 @@ const Home = () => {
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
                     stroke="#D4AF37" strokeWidth="1.5" fill="rgba(212,175,55,0.12)"/>
                 </svg>
-                <span>MISS &amp; MISTER UNIVERSITY BENIN 2026</span>
+                <span>MISS & MISTER <br /> UNIVERSITY BENIN 2026</span>
               </div>
               <div className="hcm-avatar-row">
                 {candidateList.slice(0, 3).map((c, i) => (
