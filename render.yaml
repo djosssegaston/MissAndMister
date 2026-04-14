@@ -78,7 +78,7 @@ services:
       - key: PROD_ADMIN_EMAIL
         value: djossegaston7@gmail.com
       - key: PROD_ADMIN_PHONE
-        value: 0168552584
+        value: "+22955748787"
       - key: PROD_ADMIN_PASSWORD
         sync: false
       - key: PROD_ADMIN_ROLE

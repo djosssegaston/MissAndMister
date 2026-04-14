@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
-import { motion, useInView } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { candidatesAPI } from '../services/api';
 import PartnerShowcase from '../components/PartnerShowcase';
 import Loader from '../components/Loader';
+import WhatsAppIcon from '../components/WhatsAppIcon';
 import sessionHero from '../assets/session_hero.png';
 import sessionMobile from '../assets/session_mobil.png';
+import sessionMobileAlt from '../assets/session_mobil1.png';
+import initiatorVisual from '../assets/logo1.jpeg';
 import { useAutoRefresh } from '../utils/liveUpdates';
+import { PARTNER_WHATSAPP_URL, PROJECT_PHONE_DISPLAY } from '../utils/siteContact';
 import './Home.css';
-
-const WHATSAPP_PARTNER_URL = 'https://wa.me/2290147171509?text=Bonjour%20l%27%C3%A9quipe%20Miss%20%26%20Mister%20University%20B%C3%A9nin%2C%20je%20souhaite%20devenir%20partenaire.';
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 40 },
@@ -45,31 +47,58 @@ const getCountdownState = (remainingSeconds = 0, totalSeconds = 0) => {
   };
 };
 
-const CountUp = ({ target, suffix = '' }) => {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true });
-  const countRef = useRef(null);
-
-  useEffect(() => {
-    if (!isInView) return;
-    let start = 0;
-    const duration = 1800;
-    const step = 16;
-    const increment = target / (duration / step);
-    const timer = setInterval(() => {
-      start += increment;
-      if (start >= target) { start = target; clearInterval(timer); }
-      if (countRef.current) countRef.current.textContent = Math.floor(start).toLocaleString('fr-FR') + suffix;
-    }, step);
-    return () => clearInterval(timer);
-  }, [isInView, target, suffix]);
-
-  return <span ref={ref}><span ref={countRef}>0{suffix}</span></span>;
-};
-
 const HERO_TITLE_LINES = [
   { text: 'MISS & MISTER', className: 'hero-title-line-primary' },
   { text: 'University Bénin 2026', className: 'hero-title-line-secondary' },
+];
+const OFFICIAL_MARKERS = [
+  {
+    value: '1ère',
+    accent: 'édition',
+    label: 'Édition inaugurale 2026',
+    detail: 'Le concours ouvre officiellement son histoire avec une première édition nationale ambitieuse.',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    value: '16-25',
+    accent: 'ans',
+    label: 'Public universitaire ciblé',
+    detail: 'Étudiants régulièrement inscrits dans les universités publiques et privées du Bénin.',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
+        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.9"/>
+        <path d="M17 11h5M19.5 8.5v5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    value: '100%',
+    accent: 'gratuite',
+    label: 'Inscription au concours',
+    detail: 'La participation est ouverte et gratuite, avec validation administrative avant publication.',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7H14.5a3.5 3.5 0 010 7H6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    value: 'Cadre',
+    accent: 'officiel',
+    label: 'Plateforme du concours',
+    detail: 'Une vitrine institutionnelle pensée pour présenter le projet, ses talents, ses partenaires et sa vision.',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <path d="M3 5h18v14H3z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round"/>
+        <path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
 ];
 
 const HOME_OVERVIEW = [
@@ -155,6 +184,12 @@ const PROGRAM_STEPS = [
     desc: 'Épreuves finales, résultats du jury et couronnement des lauréats.',
     icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>,
   },
+];
+
+const INITIATOR_PILLARS = [
+  'Créer un cadre crédible de valorisation, de motivation et d’expression pour les étudiants béninois.',
+  'Faire dialoguer universités, entreprises, institutions et partenaires sociaux autour d’une vision commune.',
+  'Installer un concours durable qui révèle des ambassadeurs universitaires utiles à la société.',
 ];
 
 const AnimatedHeroTitle = () => {
@@ -314,16 +349,33 @@ const Home = () => {
 
     {/* ══════════════════════════════════════════ HERO */}
     <section className="hero-section">
-      <picture className="hero-media" aria-hidden="true">
-        <source media="(max-width: 600px)" srcSet={sessionMobile} />
+      <div className="hero-media" aria-hidden="true">
         <img
           src={sessionHero}
           alt=""
+          className="hero-media-desktop"
           loading="eager"
           decoding="async"
           fetchPriority="high"
         />
-      </picture>
+        <div className="hero-media-mobile">
+          <img
+            src={sessionMobile}
+            alt=""
+            className="hero-media-mobile-image is-primary"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+          />
+          <img
+            src={sessionMobileAlt}
+            alt=""
+            className="hero-media-mobile-image is-secondary"
+            loading="eager"
+            decoding="async"
+          />
+        </div>
+      </div>
       <div className="hero-bg" aria-hidden="true">
         <div className="hero-orb orb-1" />
         <div className="hero-orb orb-2" />
@@ -339,23 +391,20 @@ const Home = () => {
 
           <p className="hero-subtitle">
             Plateforme officielle du concours universitaire national, première édition 2026,
-            dédiée à l’excellence académique, au leadership, à la culture, à l’éloquence
-            et à l’engagement social de la jeunesse universitaire béninoise.
+            conçue pour révéler l’excellence académique, le leadership, la culture,
+            l’éloquence et l’engagement social de la jeunesse universitaire béninoise.
           </p>
 
           <div className="hero-actions">
             <motion.a
               className="btn-hero-primary"
-              href={WHATSAPP_PARTNER_URL}
+              href={PARTNER_WHATSAPP_URL}
               target="_blank"
               rel="noreferrer"
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
             >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-                <path d="M8.5 14.5l-1.2 1.2a3.5 3.5 0 01-4.95-4.95l3-3a3.5 3.5 0 014.95 0l1.1 1.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M15.5 9.5l1.2-1.2a3.5 3.5 0 014.95 4.95l-3 3a3.5 3.5 0 01-4.95 0l-1.1-1.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <WhatsAppIcon width={18} height={18} />
               Devenir partenaire
             </motion.a>
             <Link to="/about">
@@ -506,30 +555,7 @@ const Home = () => {
       </motion.div>
     </section>
 
-     {/* ══════════════════════════════════════════ STATS */}
-    <section className="home-stats section">
-      <div className="container">
-        <div className="stats-grid">
-          {[
-            { value: stats.totalCandidates, suffix: '',  label: 'Candidats', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> },
-            { value: stats.totalVotes, suffix: '+', label: 'Votes enregistrés', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="10" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M9 11V7a3 3 0 016 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg> },
-            { value: stats.totalUsers, suffix: '+', label: 'Votants inscrits', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> },
-            { value: stats.totalUniversities, suffix: '+', label: 'Universités', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/><path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg> },
-          ].map((stat, i) => (
-            <motion.div key={i} className="stat-card"
-              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }} transition={{ delay: i * 0.1 }}
-              whileHover={{ y: -6 }}>
-              <div className="stat-icon">{stat.icon}</div>
-              <div className="stat-value">
-                <CountUp target={stat.value} suffix={stat.suffix} />
-              </div>
-              <p className="stat-label">{stat.label}</p>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
+  
 
     {/* ══════════════════════════════════════════ CONCOURS EN BREF */}
     <section className="home-overview section">
@@ -574,16 +600,120 @@ const Home = () => {
       </div>
     </section>
 
-    <PartnerShowcase
-      eyebrow="Partenaires officiels"
-      title="Ils soutiennent l’aventure"
-      description="Découvrez les institutions, entreprises et médias qui accompagnent cette édition de MISS & MISTER University Bénin."
-      contactTitle="Vous souhaitez devenir partenaire ?"
-      contactDescription="Envoyez un message WhatsApp au comité organisateur pour proposer votre collaboration et faire apparaître votre logo dans le carrousel public."
-      contactButtonLabel="Contacter l’équipe"
-    />
+    <section className="home-initiator section">
+      <div className="container">
+        <div className="initiator-grid">
+          <motion.div
+            className="initiator-copy"
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <span className="section-eyebrow">Vision de l’initiateur</span>
+            <h2>Une initiative pensée pour <span className="text-gold">faire rayonner la jeunesse universitaire</span></h2>
+            <div className="section-divider" />
+            <p>
+              À l’origine de MISS &amp; MISTER UNIVERSITY BENIN, il y a une volonté claire :
+              offrir au Bénin un cadre sérieux, inspirant et structuré où les étudiants peuvent
+              être révélés pour leurs idées, leur leadership, leur culture et leur capacité
+              à porter des actions utiles à la société.
+            </p>
+            <p>
+              L’ambition n’est pas seulement d’organiser un concours, mais de construire une
+              plateforme officielle qui rassemble universités, institutions, médias, entreprises
+              et partenaires autour d’une même cause : investir dans les talents universitaires.
+            </p>
 
-    <section className="home-discover section">
+            <div className="initiator-points" aria-label="Axes portés par l’initiateur du projet">
+              {INITIATOR_PILLARS.map((point) => (
+                <div key={point} className="initiator-point">
+                  <span className="initiator-point-icon" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </span>
+                  <span>{point}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="initiator-contact-chip">
+              <span>Contact direct de l’équipe</span>
+              <strong>{PROJECT_PHONE_DISPLAY}</strong>
+            </div>
+          </motion.div>
+
+          <motion.div
+            className="initiator-visual"
+            initial={{ opacity: 0, y: 28 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.08 }}
+          >
+            <div className="initiator-visual-card">
+              <div className="initiator-visual-orb" aria-hidden="true" />
+              <img
+                src={initiatorVisual}
+                alt="Identité visuelle officielle du projet Miss & Mister University Bénin"
+                className="initiator-image"
+                loading="lazy"
+                decoding="async"
+              />
+              <div className="initiator-visual-badge">
+                <span className="initiator-badge-label">Initiateur</span>
+                <strong>Mahugnon Delphin Dossa </strong>
+              </div>
+              <div className="initiator-quote-card">
+                <p>
+                  “Valoriser des étudiants capables de représenter dignement leurs universités
+                  et d’inspirer leurs pairs.”
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+
+       {/* ══════════════════════════════════════════ STATS */}
+    <section className="home-stats section">
+      <div className="container">
+        <motion.div
+          className="section-header text-center"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <span className="section-eyebrow">Repères officiels</span>
+          <h2>Une plateforme pensée pour <span className="text-gold">présenter le projet</span></h2>
+          <div className="section-divider centered" />
+          <p className="section-lead">
+            MISS &amp; MISTER UNIVERSITY BENIN n’est pas uniquement un espace de vote :
+            c’est la vitrine institutionnelle de la première édition d’un concours
+            universitaire éducatif, culturel et citoyen.
+          </p>
+        </motion.div>
+
+        <div className="stats-grid">
+          {OFFICIAL_MARKERS.map((stat, i) => (
+            <motion.div key={i} className="stat-card"
+              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }} transition={{ delay: i * 0.1 }}
+              whileHover={{ y: -6 }}>
+              <div className="stat-icon">{stat.icon}</div>
+              <div className="stat-value stat-value-text">
+                <span className="stat-value-main">{stat.value}</span>
+                <span className="stat-value-accent">{stat.accent}</span>
+              </div>
+              <p className="stat-label">{stat.label}</p>
+              <p className="stat-detail">{stat.detail}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+     <section className="home-discover section">
       <div className="container">
         <motion.div
           className="home-discover-card"
@@ -616,6 +746,12 @@ const Home = () => {
         </motion.div>
       </div>
     </section>
+
+    
+
+    
+
+   
 
     {/* ══════════════════════════════════════════ TOP CANDIDATS */}
     {resultsPublicEnabled && (
@@ -749,6 +885,17 @@ const Home = () => {
       </div>
     </section>
 
+      <PartnerShowcase
+      eyebrow="Partenaires officiels"
+      title="Ils soutiennent l’aventure"
+      description="Découvrez les institutions, entreprises et médias qui accompagnent cette édition de MISS & MISTER University Bénin."
+      contactTitle="Vous souhaitez devenir partenaire ?"
+      contactDescription="Envoyez un message WhatsApp au comité organisateur pour proposer votre collaboration et faire apparaître votre logo dans le carrousel public."
+      contactButtonLabel="Contacter l’équipe"
+      contactButtonVariant="gold"
+    />
+
+
     {/* ══════════════════════════════════════════ CTA FINAL */}
     <section className="home-cta section">
       <div className="container">
@@ -766,12 +913,13 @@ const Home = () => {
             </Link>
             <motion.a
               className="btn-hero-secondary"
-              href={WHATSAPP_PARTNER_URL}
+              href={PARTNER_WHATSAPP_URL}
               target="_blank"
               rel="noreferrer"
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
             >
+              <WhatsAppIcon width={16} height={16} />
               Devenir partenaire
             </motion.a>
           </div>

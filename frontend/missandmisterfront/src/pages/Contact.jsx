@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { contactAPI } from '../services/api';
+import WhatsAppIcon from '../components/WhatsAppIcon';
 import { useToast } from '../components/Toast';
+import {
+  PROJECT_EMAIL,
+  PROJECT_PHONE_DISPLAY,
+  PROJECT_PHONE_TEL,
+  PROJECT_SOCIAL_LINKS,
+  PROJECT_WHATSAPP_URL,
+} from '../utils/siteContact';
 import './Contact.css';
 
 const fadeUp = (delay = 0) => ({
@@ -19,8 +27,8 @@ const CONTACT_INFO = [
       </svg>
     ),
     label: 'Email',
-    value: 'contact@missandmister.bj',
-    href: 'mailto:contact@missandmister.bj',
+    value: PROJECT_EMAIL,
+    href: `mailto:${PROJECT_EMAIL}`,
   },
   {
     icon: (
@@ -29,18 +37,14 @@ const CONTACT_INFO = [
       </svg>
     ),
     label: 'Téléphone',
-    value: '+229 01 47 17 15 09',
-    href: 'tel:+2290147171509',
+    value: PROJECT_PHONE_DISPLAY,
+    href: PROJECT_PHONE_TEL,
   },
   {
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-        <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-      </svg>
-    ),
+    icon: <WhatsAppIcon width={20} height={20} />,
     label: 'WhatsApp',
-    value: '+229 01 47 17 15 09',
-    href: 'https://wa.me/2290147171509',
+    value: PROJECT_PHONE_DISPLAY,
+    href: PROJECT_WHATSAPP_URL,
   },
   {
     icon: (
@@ -69,33 +73,33 @@ const CONTACT_INFO = [
 const SOCIAL_LINKS = [
   {
     label: 'Facebook',
-    href: 'https://facebook.com/',
+    href: PROJECT_SOCIAL_LINKS.facebook,
     display: 'facebook.com',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/></svg>,
   },
   {
     label: 'Instagram',
-    href: 'https://instagram.com/',
+    href: PROJECT_SOCIAL_LINKS.instagram,
     display: 'instagram.com',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>,
   },
   {
     label: 'TikTok',
-    href: 'https://tiktok.com/',
+    href: PROJECT_SOCIAL_LINKS.tiktok,
     display: 'tiktok.com',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M14 3c.38 2.28 1.92 4.04 4 4.6v3.02a7.14 7.14 0 01-4-1.25v5.26a5.63 5.63 0 11-5.63-5.63c.3 0 .6.03.88.08v3.15a2.57 2.57 0 00-.88-.15 2.55 2.55 0 102.55 2.55V3H14z" fill="currentColor"/></svg>,
   },
   {
     label: 'YouTube',
-    href: 'https://youtube.com/',
+    href: PROJECT_SOCIAL_LINKS.youtube,
     display: 'youtube.com',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 12s0-3.26-.42-4.83a2.68 2.68 0 00-1.89-1.9C18.12 4.85 12 4.85 12 4.85s-6.12 0-7.69.42a2.68 2.68 0 00-1.89 1.9C2 8.74 2 12 2 12s0 3.26.42 4.83a2.68 2.68 0 001.89 1.9c1.57.42 7.69.42 7.69.42s6.12 0 7.69-.42a2.68 2.68 0 001.89-1.9C22 15.26 22 12 22 12z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M10 9.5v5l4.5-2.5L10 9.5z" fill="currentColor"/></svg>,
   },
   {
     label: 'WhatsApp',
-    href: 'https://wa.me/2290147171509',
-    display: 'wa.me/2290147171509',
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>,
+    href: PROJECT_SOCIAL_LINKS.whatsapp,
+    display: 'wa.me/22955748787',
+    icon: <WhatsAppIcon width={18} height={18} />,
   },
 ];
 

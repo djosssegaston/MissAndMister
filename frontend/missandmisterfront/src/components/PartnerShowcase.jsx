@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { partnersAPI } from '../services/api';
 import Loader from './Loader';
+import WhatsAppIcon from './WhatsAppIcon';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 import { useAutoRefresh } from '../utils/liveUpdates';
+import { PARTNER_WHATSAPP_URL } from '../utils/siteContact';
 import './PartnerShowcase.css';
-
-const WHATSAPP_PARTNER_URL = 'https://wa.me/2290147171509?text=Bonjour%20l%27%C3%A9quipe%20Miss%20%26%20Mister%20University%20B%C3%A9nin%2C%20je%20souhaite%20devenir%20partenaire.';
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 28 },
@@ -82,6 +82,7 @@ const PartnerShowcase = ({
   contactTitle = 'Devenir partenaire',
   contactDescription = 'Vous souhaitez associer votre institution, votre marque ou votre entreprise au concours ? Contactez directement le comité organisateur sur WhatsApp.',
   contactButtonLabel = 'Discuter sur WhatsApp',
+  contactButtonVariant = 'whatsapp',
   className = '',
 }) => {
   const [partners, setPartners] = useState([]);
@@ -199,14 +200,12 @@ const PartnerShowcase = ({
           </div>
 
           <a
-            className="partner-whatsapp-btn"
-            href={WHATSAPP_PARTNER_URL}
+            className={`partner-whatsapp-btn ${contactButtonVariant === 'gold' ? 'is-gold' : ''}`.trim()}
+            href={PARTNER_WHATSAPP_URL}
             target="_blank"
             rel="noreferrer"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-            </svg>
+            <WhatsAppIcon width={18} height={18} />
             <span>{contactButtonLabel}</span>
           </a>
         </motion.div>
