@@ -714,11 +714,16 @@
 
             if (
                 urlState.get('payment') === 'processing'
-                || ['processing', 'pending', 'initiated', 'succeeded'].includes(status)
-                || initialVoteStatus === 'pending'
+                || status === 'processing'
+                || (status === 'succeeded' && initialVoteStatus !== 'confirmed')
             ) {
                 markProcessing();
                 startSyncLoop();
+                return;
+            }
+
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                initCheckout();
                 return;
             }
 
