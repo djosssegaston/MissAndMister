@@ -535,6 +535,20 @@
                 setButtonState(true, 'Vérification...');
             };
 
+            const offerCheckoutRetry = (
+                nextMessage = 'Le paiement n’a pas encore été finalisé. Cliquez sur "Payer" pour ouvrir ou relancer FedaPay.'
+            ) => {
+                stopSyncLoop();
+                initialized = false;
+                updateUrlState('opening');
+                setState(
+                    'opening',
+                    'Paiement prêt à reprendre',
+                    nextMessage
+                );
+                setButtonState(false, 'Payer');
+            };
+
             const stopSyncLoop = () => {
                 if (syncTimer) {
                     window.clearInterval(syncTimer);
@@ -588,6 +602,14 @@
                     syncAttempts += 1;
 
                     if (syncAttempts >= 12) {
+                        const retryablePaymentStates = new Set(['', 'initiated', 'pending', 'processing', 'created']);
+                        const retryableVoteStates = new Set(['', 'pending']);
+
+                        if (retryablePaymentStates.has(paymentStatus) && retryableVoteStates.has(voteStatus)) {
+                            offerCheckoutRetry();
+                            return;
+                        }
+
                         stopSyncLoop();
                         setState(
                             'opening',
@@ -599,13 +621,9 @@
                     syncAttempts += 1;
 
                     if (syncAttempts >= 12) {
-                        stopSyncLoop();
-                        setState(
-                            'opening',
-                            'Vérification temporairement indisponible',
-                            'Le paiement est peut-être encore en cours. Patientez puis actualisez cette page pour relancer la vérification serveur.'
+                        offerCheckoutRetry(
+                            'La vérification serveur prend trop de temps. Cliquez sur "Payer" pour relancer le widget FedaPay en toute sécurité.'
                         );
-                        setButtonState(false, 'Vérifier à nouveau');
                     }
                 } finally {
                     syncInFlight = false;
