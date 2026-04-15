@@ -31,16 +31,18 @@ class PaymentPageController extends Controller
 
         $frontendUrl = rtrim((string) (config('app.frontend_url') ?: config('app.frontend-url') ?: env('FRONTEND_URL', '')), '/');
         $candidateId = (int) (Arr::get($payment->meta, 'candidate_id') ?: $payment->vote?->candidate_id ?: 0);
+        $candidatePublicUid = trim((string) ($payment->vote?->candidate?->public_uid ?? ''));
         $candidateSlug = trim((string) ($payment->vote?->candidate?->slug ?? ''));
         $candidateName = trim((string) Arr::get($payment->meta, 'candidate_name', ''));
 
-        if (($candidateName === '' || $candidateSlug === '') && $candidateId > 0) {
+        if (($candidateName === '' || $candidateSlug === '' || $candidatePublicUid === '') && $candidateId > 0) {
             $candidate = Candidate::query()
-                ->select(['id', 'slug', 'first_name', 'last_name'])
+                ->select(['id', 'public_uid', 'slug', 'first_name', 'last_name'])
                 ->find($candidateId);
 
             if ($candidate) {
                 $candidateName = trim(($candidate->first_name ?? '') . ' ' . ($candidate->last_name ?? ''));
+                $candidatePublicUid = $candidatePublicUid !== '' ? $candidatePublicUid : (string) ($candidate->public_uid ?? '');
                 $candidateSlug = $candidateSlug !== '' ? $candidateSlug : (string) ($candidate->slug ?? '');
             }
         }
@@ -49,9 +51,11 @@ class PaymentPageController extends Controller
             $candidateName = 'Candidat inconnu';
         }
 
-        $candidateIdentifier = $candidateSlug !== '' ? $candidateSlug : null;
+        $candidateIdentifier = $candidatePublicUid !== ''
+            ? $candidatePublicUid
+            : ($candidateSlug !== '' ? $candidateSlug : null);
         $candidateLink = $candidateIdentifier
-            ? "{$frontendUrl}/candidates/{$candidateIdentifier}"
+            ? "{$frontendUrl}/candidates/" . rawurlencode($candidateIdentifier)
             : "{$frontendUrl}/candidates";
 
         if ($candidateLink === '/candidates') {
@@ -61,9 +65,6 @@ class PaymentPageController extends Controller
         $quantity = (int) ($payment->vote?->quantity ?: Arr::get($payment->meta, 'quantity', 1));
         $paymentData = [
             'reference' => $payment->reference,
-            'payment_id' => $payment->id,
-            'vote_id' => $payment->vote?->id,
-            'candidate_id' => $candidateId ?: null,
             'quantity' => max(1, $quantity),
             'amount' => (float) $payment->amount,
             'transaction_id' => (string) ($payment->transaction_id ?? ''),
@@ -111,7 +112,12 @@ class PaymentPageController extends Controller
 
         $frontendUrl = rtrim((string) (config('app.frontend_url') ?: config('app.frontend-url') ?: env('FRONTEND_URL', '')), '/');
         $candidateId = (int) (Arr::get($payment->meta, 'candidate_id') ?: $payment->vote?->candidate_id ?: 0);
-        $candidateIdentifier = trim((string) ($payment->vote?->candidate?->slug ?? ''));
+        $candidateIdentifier = trim((string) ($payment->vote?->candidate?->public_uid ?? ''));
+        if ($candidateIdentifier === '' && $candidateId > 0) {
+            $candidateIdentifier = (string) Candidate::query()
+                ->whereKey($candidateId)
+                ->value('public_uid');
+        }
         if ($candidateIdentifier === '' && $candidateId > 0) {
             $candidateIdentifier = (string) Candidate::query()
                 ->whereKey($candidateId)

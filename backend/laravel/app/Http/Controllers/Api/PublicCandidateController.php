@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Candidate;
 use App\Repositories\CandidateRepository;
 use Illuminate\Http\JsonResponse;
 
@@ -14,7 +15,12 @@ class PublicCandidateController extends Controller
 
     public function index(): JsonResponse
     {
-        return response()->json($this->candidates->paginatePublic());
+        $paginator = $this->candidates->paginatePublic();
+        $paginator->setCollection(
+            $paginator->getCollection()->map(fn (Candidate $candidate) => $this->presentCandidate($candidate))
+        );
+
+        return response()->json($paginator);
     }
 
     public function show(string $identifier): JsonResponse
@@ -24,6 +30,18 @@ class PublicCandidateController extends Controller
             return response()->json(['message' => 'Candidate not found'], 404);
         }
 
-        return response()->json($candidate);
+        return response()->json($this->presentCandidate($candidate));
+    }
+
+    private function presentCandidate(Candidate $candidate): array
+    {
+        $data = $candidate->toArray();
+        unset($data['id'], $data['deleted_at']);
+
+        if (isset($data['category']) && is_array($data['category'])) {
+            unset($data['category']['id']);
+        }
+
+        return $data;
     }
 }

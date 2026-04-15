@@ -19,7 +19,13 @@ class ResultController extends Controller
      */
     public function index(): JsonResponse
     {
-        return response()->json(Result::with('candidate')->orderByDesc('total_votes')->get());
+        return response()->json(
+            Result::with(['candidate.category', 'category'])
+                ->orderByRaw('CASE WHEN category_id IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('category_id')
+                ->orderByDesc('total_votes')
+                ->get()
+        );
     }
 
     /**
@@ -44,7 +50,11 @@ class ResultController extends Controller
     {
         $this->authorize('viewAny', Result::class);
 
-        $rows = Result::with('candidate')->orderByDesc('total_votes')->get();
+        $rows = Result::with(['candidate.category', 'category'])
+            ->orderByRaw('CASE WHEN category_id IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('category_id')
+            ->orderByDesc('total_votes')
+            ->get();
 
         $headers = [
             'Content-Type' => 'text/csv',
@@ -53,9 +63,10 @@ class ResultController extends Controller
 
         $callback = function () use ($rows) {
             $output = fopen('php://output', 'w');
-            fputcsv($output, ['Candidate', 'Total Votes', 'Total Amount']);
+            fputcsv($output, ['Categorie', 'Candidate', 'Total Votes', 'Total Amount']);
             foreach ($rows as $row) {
                 fputcsv($output, [
+                    $row->category?->name ?? $row->candidate?->category?->name,
                     optional($row->candidate)->first_name . ' ' . optional($row->candidate)->last_name,
                     $row->total_votes,
                     $row->total_amount,

@@ -48,7 +48,9 @@ class StatsService
             ->where(function ($query) {
                 $query->where('status', 'active')->orWhereNull('status');
             })
-            ->where('is_active', true);
+            ->where(function ($query) {
+                $query->where('is_active', true)->orWhereNull('is_active');
+            });
 
         return [
             'totalCandidates' => (clone $publicCandidates)->count(),

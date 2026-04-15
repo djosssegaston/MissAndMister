@@ -1,4 +1,9 @@
 export const getCandidatePublicIdentifier = (candidate = {}) => {
+  const publicUid = String(candidate?.public_uid || candidate?.publicUid || '').trim();
+  if (publicUid) {
+    return publicUid;
+  }
+
   const slug = String(candidate?.slug || '').trim();
   if (slug) {
     return slug;

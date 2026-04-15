@@ -23,7 +23,8 @@ class CandidateRepository
 
     public function paginateAll(int $perPage = 500): LengthAwarePaginator
     {
-        return Candidate::with('category')
+        return Candidate::withTrashed()
+            ->with('category')
             ->withSum(['votes as votes_count' => function ($q) {
                 $q->successful();
             }], 'quantity')
@@ -48,7 +49,8 @@ class CandidateRepository
                 $q->successful();
             }], 'quantity')
             ->where(function (Builder $query) use ($normalized) {
-                $query->where('slug', $normalized);
+                $query->where('public_uid', $normalized)
+                    ->orWhere('slug', $normalized);
 
                 if (ctype_digit($normalized)) {
                     $query->orWhere('public_number', (int) $normalized);

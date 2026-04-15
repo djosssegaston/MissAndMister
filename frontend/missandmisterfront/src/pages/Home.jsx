@@ -461,7 +461,7 @@ const Home = () => {
               </div>
               <div className="hcm-avatar-row">
                 {candidateList.slice(0, 3).map((c, i) => (
-                  <div key={c.id} className="hcm-avatar" style={{ zIndex: 3 - i, marginLeft: i > 0 ? '-12px' : '0' }}>
+                  <div key={c.public_uid || c.slug || c.public_number || i} className="hcm-avatar" style={{ zIndex: 3 - i, marginLeft: i > 0 ? '-12px' : '0' }}>
                     {`${c.first_name} ${c.last_name}`.charAt(0)}
                   </div>
                 ))}
@@ -767,7 +767,7 @@ const Home = () => {
 
           <div className="top-cand-grid">
             {topCandidates.map((c, i) => (
-              <motion.div key={c.id} className={`top-cand-card ${i === 0 ? 'featured' : ''}`}
+              <motion.div key={c.public_uid || c.slug || c.public_number || i} className={`top-cand-card ${i === 0 ? 'featured' : ''}`}
                 initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }} transition={{ delay: i * 0.12 }}
                 whileHover={{ y: -8 }}>

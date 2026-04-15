@@ -14,7 +14,7 @@ const FILTERS = [
 ];
 
 const SORTS = [
-  { key: 'votes', label: 'Votes (décroissant)' },
+  { key: 'order', label: "Numéro d'ordre" },
   { key: 'name', label: 'Nom A→Z' },
 ];
 
@@ -23,7 +23,7 @@ const Candidates = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('votes');
+  const [sortBy, setSortBy] = useState('order');
   const [searchQuery, setSearchQuery] = useState('');
   const hasLoadedRef = useRef(false);
   const { votingBlocked = false } = useOutletContext() || {};
@@ -72,9 +72,15 @@ const Candidates = () => {
       return matchCat && matchSearch;
     })
     .sort((a, b) => {
-      if (sortBy === 'votes') {
-        return (b.votes_count || 0) - (a.votes_count || 0);
+      if (sortBy === 'order') {
+        const left = Number(a.public_number || Number.MAX_SAFE_INTEGER);
+        const right = Number(b.public_number || Number.MAX_SAFE_INTEGER);
+
+        if (left !== right) {
+          return left - right;
+        }
       }
+
       return buildName(a).toLowerCase().localeCompare(buildName(b).toLowerCase());
     });
   return (
@@ -179,10 +185,14 @@ const Candidates = () => {
             <div>
               {filtered.length > 0 ? (
                 <div className="candidates-grid">
-                  {filtered.map((candidate) => (
-                    <CandidateCard key={candidate.id} candidate={candidate} votingBlocked={votingBlocked} />
+                  {filtered.map((candidate, index) => (
+                    <CandidateCard
+                      key={candidate.public_uid || candidate.slug || candidate.public_number || index}
+                      candidate={candidate}
+                      votingBlocked={votingBlocked}
+                    />
                   ))}
-                </div>
+              </div>
               ) : (
                 <div className="no-results">
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none">

@@ -84,7 +84,11 @@ const AdminVotes = () => {
       || v.payment?.payload?.customer?.phone_number
       || v.payment?.payload?.fedapay?.customer?.phone_number
       || '—';
-    const voterIdentity = v.user?.email || v.user?.name || v.payment?.meta?.voter_email || '—';
+    const voterIdentity = v.user?.name
+      || v.payment?.meta?.voter_name
+      || v.user?.email
+      || v.payment?.meta?.voter_email
+      || (voterPhone !== '—' ? `Paiement ${voterPhone}` : '—');
     const protectedSuccessfulVote = v.status === 'confirmed' && paymentStatus === 'succeeded';
 
     return {

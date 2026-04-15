@@ -479,11 +479,11 @@ export const candidateAPI = {
 // ===== VOTES =====
 export const votesAPI = {
   // Voter pour un candidat (public - sans auth)
-  vote: async (candidateId, voteData) => {
+  vote: async (candidateIdentifier, voteData) => {
     return fetchAPI('/votes', {
       method: 'POST',
       body: JSON.stringify({
-        candidate_id: candidateId,
+        candidate_identifier: candidateIdentifier,
         amount: voteData.amount,
         quantity: voteData.quantity || 1,
         currency: 'XOF',

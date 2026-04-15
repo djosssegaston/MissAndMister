@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\VoteRequest;
+use App\Models\Candidate;
 use App\Models\Payment;
 use App\Models\Vote;
+use App\Services\PaymentService;
 use App\Services\VoteService;
 use App\Services\VotingWindowService;
 use App\Repositories\VoteRepository;
@@ -20,6 +22,7 @@ class VoteController extends Controller
 {
     public function __construct(
         private VoteService $voteService,
+        private PaymentService $payments,
         private VoteRepository $votes,
         private VotingWindowService $votingWindow,
     )
@@ -32,6 +35,7 @@ class VoteController extends Controller
     public function index(): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
+        $this->payments->reconcileSuccessfulAssociations();
         $filters = request()->only(['status', 'candidate_id', 'from', 'to']);
         $perPage = max(5, min((int) request()->get('per_page', 20), 500));
         $list = $this->votes->paginateFiltered($filters, $perPage);
@@ -62,9 +66,26 @@ class VoteController extends Controller
 
         $user = $this->resolveOptionalAuthenticatedUser($request);
         $quantity = $request->integer('quantity', 1);
+        $candidateId = $request->integer('candidate_id');
+
+        if (!$candidateId) {
+            $identifier = trim((string) $request->input('candidate_identifier', ''));
+            $candidateId = Candidate::query()
+                ->where('public_uid', $identifier)
+                ->orWhere('slug', $identifier)
+                ->when(ctype_digit($identifier), fn ($query) => $query->orWhere('public_number', (int) $identifier))
+                ->value('id');
+        }
+
+        if (!$candidateId) {
+            return response()->json([
+                'message' => 'Candidat introuvable pour cette opération.',
+            ], 422);
+        }
+
         [$payment, $vote] = $this->voteService->initiateVote(
             $user->id ?? null,
-            $request->integer('candidate_id'),
+            (int) $candidateId,
             $request->float('amount'),
             $request->input('currency', 'XOF'),
             $request->ip(),
@@ -86,6 +107,7 @@ class VoteController extends Controller
     public function show(int $id): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
+        $this->payments->reconcileSuccessfulAssociations();
         $vote = $this->votes->paginateFiltered(['id' => $id], 1)->first();
         if (!$vote) {
             return response()->json(['message' => 'Vote not found'], 404);
@@ -174,6 +196,7 @@ class VoteController extends Controller
     public function export(): StreamedResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
+        $this->payments->reconcileSuccessfulAssociations();
         $filters = request()->only(['status', 'candidate_id', 'from', 'to']);
         $query = \App\Models\Vote::with(['user', 'candidate.category', 'payment'])
             ->when(isset($filters['status']) && $filters['status'], fn($q) => $q->where('status', $filters['status']))

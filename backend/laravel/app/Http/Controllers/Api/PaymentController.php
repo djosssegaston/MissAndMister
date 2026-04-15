@@ -307,6 +307,7 @@ class PaymentController extends Controller
                 data_get($payment->meta, 'candidate_name')
                 ?: trim(($payment->vote?->candidate?->first_name ?? '') . ' ' . ($payment->vote?->candidate?->last_name ?? ''))
             )),
+            'candidate_public_uid' => $payment->vote?->candidate?->public_uid,
             'candidate_slug' => $payment->vote?->candidate?->slug,
             'candidate_public_number' => $payment->vote?->candidate?->public_number,
             'remote_status' => $remoteTransaction ? strtolower((string) Arr::get($remoteTransaction, 'status', '')) : null,

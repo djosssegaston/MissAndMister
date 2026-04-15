@@ -91,6 +91,22 @@ const buildCandidatePreview = (candidate) => {
   return sources.src || sources.medium || sources.large || sources.original || null;
 };
 
+const sortCandidates = (rows = []) => [...rows]
+  .sort((leftCandidate, rightCandidate) => {
+    const leftNumber = Number(leftCandidate.publicNumber ?? Number.MAX_SAFE_INTEGER);
+    const rightNumber = Number(rightCandidate.publicNumber ?? Number.MAX_SAFE_INTEGER);
+
+    if (leftNumber !== rightNumber) {
+      return leftNumber - rightNumber;
+    }
+
+    return String(leftCandidate.name || '').localeCompare(String(rightCandidate.name || ''), 'fr', { sensitivity: 'base' });
+  })
+  .map((candidate, index) => ({
+    ...candidate,
+    rank: index + 1,
+  }));
+
 const ConfirmModal = ({ message, onConfirm, onCancel }) => (
   <AnimatePresence>
     <motion.div className="agc-overlay" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }} onClick={onCancel}>
@@ -174,7 +190,7 @@ const AdminCandidates = () => {
 
       const catList = cats?.data || cats || [];
       setCategories(catList);
-      const rows = (list?.data || list || []).map((c, idx) => mapCandidate(c, idx, catList));
+      const rows = sortCandidates((list?.data || list || []).map((c, idx) => mapCandidate(c, idx, catList)));
       setCandidates(rows);
       setError(null);
       hasLoadedRef.current = true;
@@ -319,7 +335,7 @@ const AdminCandidates = () => {
       onConfirm: async () => {
         try {
           await adminAPI.deleteCandidate(cand.id);
-          setCandidates(p => p.filter(c => c.id !== cand.id));
+          setCandidates(previousCandidates => sortCandidates(previousCandidates.filter(c => c.id !== cand.id)));
           setFeedback({ type: 'success', message: `${cand.name} a été désactivé avec succès.` });
           broadcastLiveUpdate('candidates');
         } catch (err) {
@@ -341,7 +357,7 @@ const AdminCandidates = () => {
       onConfirm: async () => {
         try {
           await adminAPI.toggleCandidateStatus(cand.id, nextState);
-          setCandidates(p => p.map(c => c.id === cand.id ? { ...c, active: nextState } : c));
+          setCandidates(previousCandidates => sortCandidates(previousCandidates.map(c => c.id === cand.id ? { ...c, active: nextState } : c)));
           setFeedback({
             type: 'success',
             message: `${cand.name} est maintenant ${nextState ? 'actif' : 'inactif'}.`,
@@ -426,7 +442,7 @@ const AdminCandidates = () => {
         }
 
         const updated = mapCandidate(workingCandidate, candidates.findIndex(c => c.id === editing));
-        setCandidates(p => p.map(c => c.id === editing ? updated : c));
+        setCandidates(previousCandidates => sortCandidates(previousCandidates.map(c => c.id === editing ? updated : c)));
 
         if (Object.keys(mediaErrors).length > 0) {
           setFormErrors(mediaErrors);
@@ -486,7 +502,7 @@ const AdminCandidates = () => {
         }
 
         const created = mapCandidate(workingCandidate, candidates.length);
-        setCandidates(p => [created, ...p]);
+        setCandidates(previousCandidates => sortCandidates([created, ...previousCandidates]));
 
         if (Object.keys(mediaErrors).length > 0) {
           setEditing(created.id);
@@ -595,9 +611,9 @@ const AdminCandidates = () => {
           const workingCandidate = response?.candidate || response || {};
           const updated = mapCandidate(workingCandidate, candidates.findIndex(c => c.id === editing));
 
-          setCandidates((previousCandidates) => previousCandidates.map((candidate) => (
+          setCandidates((previousCandidates) => sortCandidates(previousCandidates.map((candidate) => (
             candidate.id === editing ? updated : candidate
-          )));
+          ))));
           setForm((previousForm) => ({
             ...previousForm,
             video: null,

@@ -39,7 +39,7 @@ const PaymentConfirmation = () => {
   const queryStatus = (searchParams.get('status') || 'processing').trim().toLowerCase();
   const [paymentDetails, setPaymentDetails] = useState({
     candidateName: 'ce candidat',
-    candidateSlug: (searchParams.get('candidate') || '').trim(),
+    candidatePublicId: (searchParams.get('candidate') || '').trim(),
     amount: 0,
     quantity: 1,
     currency: 'XOF',
@@ -54,8 +54,8 @@ const PaymentConfirmation = () => {
   const amount = paymentDetails.amount;
   const quantity = paymentDetails.quantity;
   const currency = paymentDetails.currency;
-  const candidateLink = paymentDetails.candidateSlug
-    ? getCandidatePublicPath({ slug: paymentDetails.candidateSlug })
+  const candidateLink = paymentDetails.candidatePublicId
+    ? getCandidatePublicPath({ public_uid: paymentDetails.candidatePublicId })
     : '/candidates';
 
   const stateCopy = useMemo(() => {
@@ -122,7 +122,7 @@ const PaymentConfirmation = () => {
         const nextState = buildStateFromStatuses(paymentStatus, voteStatus, 'processing');
         setPaymentDetails({
           candidateName: String(payload?.candidate_name || 'ce candidat').trim() || 'ce candidat',
-          candidateSlug: String(payload?.candidate_slug || '').trim(),
+          candidatePublicId: String(payload?.candidate_public_uid || payload?.candidate_slug || '').trim(),
           amount: parseAmount(payload?.amount),
           quantity: parseQuantity(payload?.quantity),
           currency: (String(payload?.currency || 'XOF').trim() || 'XOF'),

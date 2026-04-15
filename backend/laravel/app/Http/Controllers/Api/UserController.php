@@ -3,11 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
 use App\Models\User;
 
 class UserController extends Controller
 {
+    public function __construct(private PaymentService $payments)
+    {
+    }
+
     public function profile(): JsonResponse
     {
         $user = request()->user();
@@ -16,6 +21,8 @@ class UserController extends Controller
 
     public function dashboard(): JsonResponse
     {
+        $this->payments->reconcileSuccessfulAssociations();
+
         $user = request()->user();
         return response()->json([
             'message' => 'User dashboard',
@@ -29,6 +36,7 @@ class UserController extends Controller
     public function adminIndex(): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
+        $this->payments->reconcileSuccessfulAssociations();
         $perPage = max(25, min((int) request()->integer('per_page', 200), 500));
 
         // Utilisateurs inscrits

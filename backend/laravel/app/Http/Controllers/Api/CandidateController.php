@@ -56,7 +56,6 @@ class CandidateController extends Controller
     public function store(StoreCandidateRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $data['slug'] = Str::slug($data['first_name'] . ' ' . $data['last_name'] . '-' . Str::lower(Str::random(10)));
         $data['description'] = $data['description'] ?? $data['bio'] ?? null;
         $data['is_active'] = $data['is_active'] ?? ($data['status'] ?? 'active') === 'active';
         $data['status'] = ($data['is_active'] ?? true) ? 'active' : 'inactive';
@@ -366,11 +365,15 @@ class CandidateController extends Controller
                 $query->successful();
             }], 'quantity')
             ->where('is_active', true)
+            ->where('category_id', $candidate->category_id)
             ->where(function (Builder $query) {
                 $query->where('status', 'active')->orWhereNull('status');
             })
             ->orderByDesc('votes_count')
-            ->orderBy('id')
+            ->orderByRaw('CASE WHEN public_number IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('public_number')
+            ->orderBy('last_name')
+            ->orderBy('first_name')
             ->get();
 
         $rank = $rankedCandidates->search(fn ($row) => (int) $row->id === (int) $candidate->id);

@@ -5,7 +5,7 @@ import { candidatesAPI, votesAPI } from '../services/api';
 import { useToast } from '../components/Toast';
 import Loader from '../components/Loader';
 import { getCandidateImageSources } from '../utils/candidateImage';
-import { formatCandidatePublicNumber } from '../utils/candidatePublic';
+import { formatCandidatePublicNumber, getCandidatePublicIdentifier } from '../utils/candidatePublic';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 import { useAutoRefresh } from '../utils/liveUpdates';
 import './CandidateDetails.css';
@@ -103,7 +103,12 @@ const CandidateDetails = () => {
     setErrors({});
 
     try {
-      const response = await votesAPI.vote(candidate.id, { amount: total, quantity: nbVotes });
+      const candidateIdentifier = getCandidatePublicIdentifier(candidate);
+      if (!candidateIdentifier) {
+        throw new Error('Impossible d’identifier ce candidat pour le paiement sécurisé.');
+      }
+
+      const response = await votesAPI.vote(candidateIdentifier, { amount: total, quantity: nbVotes });
       const paymentUrl = response?.payment_url
         || response?.payment?.meta?.payment_url
         || response?.payment?.payment_url;
