@@ -51,6 +51,21 @@ class PaymentService
                 'response_keys' => array_keys($transaction),
                 'response_status' => $transactionStatus,
             ]);
+
+            throw new \RuntimeException('Impossible d’obtenir la transaction FedaPay. Réessayez dans quelques instants.');
+        }
+
+        $tokenPayload = $this->fedapay->generateTransactionToken($transactionId);
+        $hostedPaymentUrl = trim((string) Arr::get($tokenPayload, 'url', ''));
+
+        if ($hostedPaymentUrl === '') {
+            logger()->warning('FedaPay token generated without hosted payment url', [
+                'reference' => $reference,
+                'transaction_id' => $transactionId,
+                'token_keys' => array_keys($tokenPayload),
+            ]);
+
+            throw new \RuntimeException('Impossible d’ouvrir la page de paiement FedaPay pour le moment.');
         }
         // The initial API call only reserves the remote transaction. The local payment
         // becomes successful only after server-side sync/webhook confirmation.
@@ -66,13 +81,16 @@ class PaymentService
             'status' => $status,
             'payload' => [
                 'fedapay' => $transaction,
+                'fedapay_token' => $tokenPayload,
             ],
             'meta' => array_merge($metadata, [
-                'payment_url' => route('payments.show', ['reference' => $reference]),
+                'payment_url' => $hostedPaymentUrl,
+                'payment_page_url' => route('payments.show', ['reference' => $reference]),
                 'provider' => 'fedapay',
                 'fedapay_transaction_id' => $transactionId ?: null,
                 'fedapay_status' => $transactionStatus,
                 'fedapay_environment' => $this->fedapay->environment(),
+                'fedapay_token' => Arr::get($tokenPayload, 'token'),
             ]),
             'paid_at' => null,
         ]);

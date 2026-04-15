@@ -103,6 +103,23 @@ class FedaPayService
         return $this->normalizeTransactionPayload((array) $response);
     }
 
+    /**
+     * @throws ConnectionException
+     * @throws RequestException
+     */
+    public function generateTransactionToken(int|string $transactionId): array
+    {
+        $response = Http::baseUrl($this->apiBaseUrl())
+            ->acceptJson()
+            ->asJson()
+            ->withToken($this->requireSecretKey())
+            ->post('/transactions/' . $transactionId . '/token')
+            ->throw()
+            ->json();
+
+        return $this->normalizeTokenPayload((array) $response);
+    }
+
     public function verifyWebhookSignature(string $payload, ?string $signature): bool
     {
         $secret = $this->webhookSecret();
@@ -207,6 +224,33 @@ class FedaPayService
         foreach ($payload as $value) {
             if (is_array($value) && $this->looksLikeTransaction($value)) {
                 return $value;
+            }
+        }
+
+        return $payload;
+    }
+
+    private function normalizeTokenPayload(array $payload): array
+    {
+        $candidates = [
+            $payload,
+            Arr::get($payload, 'data'),
+            Arr::get($payload, 'token'),
+            Arr::get($payload, 'data.token'),
+            Arr::get($payload, 'v1/token'),
+            Arr::get($payload, 'v1.token'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (!is_array($candidate)) {
+                continue;
+            }
+
+            $url = trim((string) Arr::get($candidate, 'url', ''));
+            $token = trim((string) Arr::get($candidate, 'token', ''));
+
+            if ($url !== '' || $token !== '') {
+                return $candidate;
             }
         }
 
