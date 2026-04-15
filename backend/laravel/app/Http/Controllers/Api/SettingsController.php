@@ -32,13 +32,6 @@ class SettingsController extends Controller
         'maintenance_end_at',
     ];
 
-    private array $paymentKeys = [
-        'fedapay_public_key',
-        'fedapay_secret_key',
-        'fedapay_webhook_secret',
-        'fedapay_environment',
-    ];
-
     private array $runtimeKeys = [];
 
     private array $allowedKeys = [];
@@ -50,13 +43,16 @@ class SettingsController extends Controller
         $this->allowedKeys = array_merge($this->booleanKeys, $this->intKeys, $this->dateKeys, [
             'currency',
         ]);
-        $this->writableKeys = array_merge($this->allowedKeys, $this->paymentKeys);
+        $this->writableKeys = $this->allowedKeys;
     }
 
     public function index(): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
-        return response()->json($this->formatCollection(Setting::all()));
+
+        return response()->json($this->formatCollection(
+            Setting::whereIn('key', array_merge($this->writableKeys, $this->runtimeKeys))->get()
+        ));
     }
 
     public function store(): JsonResponse
@@ -114,6 +110,7 @@ class SettingsController extends Controller
     public function update(Setting $setting): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
+        abort_unless(in_array($setting->key, $this->writableKeys, true), 404);
         $data = Validator::make(request()->all(), [
             'value' => ['sometimes', 'nullable', 'string'],
             'status' => ['sometimes', 'in:active,inactive'],
@@ -163,7 +160,6 @@ class SettingsController extends Controller
             in_array($key, $this->booleanKeys, true) => 'features',
             in_array($key, $this->intKeys, true) => 'rules',
             in_array($key, $this->dateKeys, true) => 'dates',
-            in_array($key, $this->paymentKeys, true) => 'payments',
             $key === 'currency' => 'payments',
             default => 'general',
         };
@@ -181,12 +177,6 @@ class SettingsController extends Controller
 
         if (in_array($key, $this->dateKeys, true)) {
             return (string) $value;
-        }
-
-        if ($key === 'fedapay_environment') {
-            $environment = strtolower(trim((string) $value));
-
-            return in_array($environment, ['live', 'sandbox'], true) ? $environment : 'sandbox';
         }
 
         return (string) $value;

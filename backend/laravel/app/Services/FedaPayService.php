@@ -2,37 +2,30 @@
 
 namespace App\Services;
 
-use App\Models\Setting;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 
 class FedaPayService
 {
-    private const ENVIRONMENT_KEY = 'fedapay_environment';
-    private const PUBLIC_KEY = 'fedapay_public_key';
-    private const SECRET_KEY = 'fedapay_secret_key';
-    private const WEBHOOK_SECRET_KEY = 'fedapay_webhook_secret';
-
     public function publicKey(): ?string
     {
-        return $this->settingValue(self::PUBLIC_KEY, 'services.fedapay.public_key');
+        return $this->configValue('services.fedapay.public_key');
     }
 
     public function secretKey(): ?string
     {
-        return $this->settingValue(self::SECRET_KEY, 'services.fedapay.secret_key');
+        return $this->configValue('services.fedapay.secret_key');
     }
 
     public function webhookSecret(): ?string
     {
-        return $this->settingValue(self::WEBHOOK_SECRET_KEY, 'services.fedapay.webhook_secret', $this->secretKey());
+        return $this->configValue('services.fedapay.webhook_secret', $this->secretKey());
     }
 
     public function environment(): string
     {
-        $value = strtolower((string) $this->settingValue(self::ENVIRONMENT_KEY, 'services.fedapay.environment', 'sandbox'));
+        $value = strtolower((string) $this->configValue('services.fedapay.environment', 'sandbox'));
 
         return in_array($value, ['live', 'sandbox'], true) ? $value : 'sandbox';
     }
@@ -164,20 +157,11 @@ class FedaPayService
         return false;
     }
 
-    private function settingValue(string $key, ?string $fallbackConfig = null, ?string $default = null): ?string
+    private function configValue(string $configKey, ?string $default = null): ?string
     {
-        $value = Setting::query()->where('key', $key)->value('value');
-
+        $value = config($configKey);
         if ($value !== null && $value !== '') {
             return (string) $value;
-        }
-
-        if ($fallbackConfig) {
-            $configValue = config($fallbackConfig);
-
-            if ($configValue !== null && $configValue !== '') {
-                return (string) $configValue;
-            }
         }
 
         return $default;

@@ -85,14 +85,14 @@ services:
         value: superadmin
       - key: PROD_ADMIN_STATUS
         value: active
-      - key: KKIAPAY_PUBLIC_KEY
+      - key: FEDAPAY_PUBLIC_KEY
         sync: false
-      - key: KKIAPAY_PRIVATE_KEY
+      - key: FEDAPAY_SECRET_KEY
         sync: false
-      - key: KKIAPAY_SECRET
+      - key: FEDAPAY_WEBHOOK_SECRET
         sync: false
-      - key: KKIAPAY_WEBHOOK_SECRET
-        sync: false
+      - key: FEDAPAY_ENVIRONMENT
+        value: live
 
   - type: web
     runtime: static

@@ -48,3 +48,4 @@ Ne pas utiliser l’hote interne Railway `mysql.railway.internal` depuis Render.
 - Render Free ne permet pas les `Background Workers` ni les `Cron Jobs`.
 - Les emails sont gardes en log pour ce premier deploiement.
 - Les paiements FedaPay restent inactifs tant que les clés publiques, secrètes et de webhook ne sont pas fournies.
+- Les clés FedaPay sont désormais gérées uniquement côté serveur via `.env` / Render, plus via le dashboard admin.
