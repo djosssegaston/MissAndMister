@@ -4,15 +4,23 @@ namespace App\Http\Controllers;
 
 use App\Models\Candidate;
 use App\Models\Payment;
+use App\Models\Vote;
+use App\Repositories\PaymentRepository;
 use App\Services\FedaPayService;
+use App\Services\PaymentService;
+use App\Services\VoteService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Arr;
 
 class PaymentPageController extends Controller
 {
-    public function __construct(private FedaPayService $fedapay)
-    {
+    public function __construct(
+        private FedaPayService $fedapay,
+        private PaymentService $payments,
+        private PaymentRepository $paymentRepo,
+        private VoteService $voteService,
+    ) {
     }
 
     public function show(string $reference): View
@@ -56,13 +64,24 @@ class PaymentPageController extends Controller
             'quantity' => max(1, $quantity),
             'amount' => (float) $payment->amount,
             'transaction_id' => (string) ($payment->transaction_id ?? ''),
+            'payment_status' => (string) $payment->status,
+            'vote_status' => (string) ($payment->vote?->status ?? ''),
         ];
-        $paymentState = $payment->status === 'succeeded'
+        $voteConfirmed = $payment->vote?->status === Vote::STATUS_CONFIRMED;
+        $voteFailed = $payment->vote?->status === 'failed';
+        $paymentState = $payment->status === 'succeeded' && $voteConfirmed
             ? 'success'
-            : ($payment->status === 'failed' ? 'failed' : 'opening');
+            : (($payment->status === 'failed' || $voteFailed) ? 'failed' : 'opening');
         $paymentDescription = $candidateName !== 'Candidat inconnu'
             ? 'Vote sécurisé pour ' . $candidateName
             : 'Paiement sécurisé Miss & Mister University Bénin 2026';
+        $confirmationUrls = $this->buildConfirmationUrls(
+            $payment,
+            $frontendUrl,
+            $candidateId,
+            $candidateName,
+            max(1, $quantity)
+        );
 
         return view('payments.show', [
             'payment' => $payment,
@@ -76,14 +95,150 @@ class PaymentPageController extends Controller
             'fedapayEnvironment' => $this->fedapay->environment(),
             'fedapayConfigured' => $this->fedapay->isConfigured(),
             'fedapayScriptUrl' => 'https://cdn.fedapay.com/checkout.js?v=1.1.7',
+            'paymentSuccessUrl' => $confirmationUrls['success'],
+            'paymentFailureUrl' => $confirmationUrls['failed'],
+            'paymentProcessingUrl' => $confirmationUrls['processing'],
+            'paymentCallbackUrl' => route('payments.callback', ['reference' => $payment->reference]),
         ]);
     }
 
     public function callback(string $reference): RedirectResponse
     {
-        return redirect()->route('payments.show', [
-            'reference' => $reference,
-            'payment' => 'processing',
-        ]);
+        $payment = Payment::with('vote')
+            ->where('reference', $reference)
+            ->firstOrFail();
+        $payment = $this->synchronizeForCallback($payment);
+
+        $frontendUrl = rtrim((string) (config('app.frontend_url') ?: config('app.frontend-url') ?: env('FRONTEND_URL', '')), '/');
+        $candidateId = (int) (Arr::get($payment->meta, 'candidate_id') ?: $payment->vote?->candidate_id ?: 0);
+        $candidateName = trim((string) Arr::get($payment->meta, 'candidate_name', ''));
+        $quantity = (int) ($payment->vote?->quantity ?: Arr::get($payment->meta, 'quantity', 1));
+        $urls = $this->buildConfirmationUrls(
+            $payment,
+            $frontendUrl,
+            $candidateId,
+            $candidateName,
+            max(1, $quantity)
+        );
+
+        $voteStatus = (string) ($payment->vote?->status ?? '');
+        if ($payment->status === 'succeeded' && $voteStatus === Vote::STATUS_CONFIRMED) {
+            return $this->redirectToFrontendUrl($urls['success']);
+        }
+
+        if ($payment->status === 'failed' || $voteStatus === 'failed') {
+            return $this->redirectToFrontendUrl($urls['failed']);
+        }
+
+        return $this->redirectToFrontendUrl($urls['processing']);
+    }
+
+    private function synchronizeForCallback(Payment $payment): Payment
+    {
+        $payment->loadMissing('vote');
+
+        if (!$payment->transaction_id) {
+            return $payment;
+        }
+
+        if (
+            $payment->status === 'succeeded' && $payment->vote?->status === Vote::STATUS_CONFIRMED
+            || $payment->status === 'failed'
+            || $payment->vote?->status === 'failed'
+        ) {
+            return $payment;
+        }
+
+        try {
+            $remoteTransaction = $this->fedapay->retrieveTransaction($payment->transaction_id);
+        } catch (\Throwable $exception) {
+            logger()->warning('FedaPay callback sync failed', [
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference,
+                'transaction_id' => $payment->transaction_id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return $payment->fresh(['vote']);
+        }
+
+        $merchantReference = trim((string) Arr::get($remoteTransaction, 'merchant_reference', ''));
+        if ($merchantReference !== '' && !hash_equals($payment->reference, $merchantReference)) {
+            logger()->warning('FedaPay callback reference mismatch', [
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference,
+                'remote_reference' => $merchantReference,
+            ]);
+
+            return $payment->fresh(['vote']);
+        }
+
+        $remoteStatus = strtolower((string) Arr::get($remoteTransaction, 'status', ''));
+        $successStates = ['approved', 'succeeded', 'successful', 'success', 'paid'];
+        $failureStates = ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected'];
+
+        if (in_array($remoteStatus, $successStates, true)) {
+            $payment = $this->payments->confirm($payment->reference, $remoteTransaction) ?? $payment;
+
+            $vote = Vote::where('payment_id', $payment->id)->first();
+            if ($vote) {
+                $this->voteService->confirmVote($vote);
+            }
+
+            return $payment->fresh(['vote']);
+        }
+
+        if (in_array($remoteStatus, $failureStates, true)) {
+            $payment = $this->paymentRepo->updateStatus($payment, 'failed', $remoteTransaction);
+
+            $vote = Vote::where('payment_id', $payment->id)->first();
+            if ($vote) {
+                $this->voteService->failVote($vote, 'callback-sync');
+            }
+
+            return $payment->fresh(['vote']);
+        }
+
+        $this->paymentRepo->updateStatus($payment, 'processing', $remoteTransaction);
+
+        return $payment->fresh(['vote']);
+    }
+
+    private function buildConfirmationUrls(
+        Payment $payment,
+        string $frontendUrl,
+        int $candidateId,
+        string $candidateName,
+        int $quantity,
+    ): array {
+        $basePath = ($frontendUrl !== '' ? $frontendUrl : '') . '/payment/confirmation';
+        $baseParams = array_filter([
+            'reference' => $payment->reference,
+            'candidate' => $candidateId > 0 ? $candidateId : null,
+            'candidate_name' => $candidateName !== '' ? $candidateName : null,
+            'quantity' => $quantity,
+            'amount' => (int) round((float) $payment->amount),
+            'currency' => $payment->currency,
+        ], static fn ($value) => $value !== null && $value !== '');
+
+        $build = function (string $status) use ($basePath, $baseParams): string {
+            $params = array_merge($baseParams, ['status' => $status]);
+            return $basePath . '?' . http_build_query($params);
+        };
+
+        return [
+            'success' => $build('success'),
+            'failed' => $build('failed'),
+            'processing' => $build('processing'),
+        ];
+    }
+
+    private function redirectToFrontendUrl(string $url): RedirectResponse
+    {
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            return redirect()->away($url);
+        }
+
+        return redirect($url);
     }
 }

@@ -579,6 +579,11 @@ export const paymentAPI = {
   getHistory: async () => {
     return fetchAPI('/payment/history');
   },
+
+  // Synchroniser publiquement un paiement FedaPay a partir de sa reference
+  syncPublic: async (reference) => {
+    return fetchPublicAPI(`/payments/${encodeURIComponent(reference)}/sync`);
+  },
 };
 
 // ===== ADMIN =====

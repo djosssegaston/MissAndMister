@@ -45,7 +45,9 @@ class PaymentService
 
         $transactionId = (string) Arr::get($transaction, 'id', '');
         $transactionStatus = strtolower((string) Arr::get($transaction, 'status', 'pending'));
-        $status = in_array($transactionStatus, ['approved', 'succeeded'], true) ? 'succeeded' : 'initiated';
+        // The initial API call only reserves the remote transaction. The local payment
+        // becomes successful only after server-side sync/webhook confirmation.
+        $status = 'initiated';
 
         $payment = $this->payments->create([
             'user_id' => $userId,
@@ -65,7 +67,7 @@ class PaymentService
                 'fedapay_status' => $transactionStatus,
                 'fedapay_environment' => $this->fedapay->environment(),
             ]),
-            'paid_at' => $status === 'succeeded' ? now() : null,
+            'paid_at' => null,
         ]);
 
         ActivityLog::create([

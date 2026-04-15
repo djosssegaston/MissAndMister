@@ -1,0 +1,281 @@
+.payment-confirmation-page {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 10% 15%, rgba(212, 175, 55, 0.08), transparent 22%),
+    radial-gradient(circle at 88% 10%, rgba(212, 175, 55, 0.05), transparent 20%),
+    linear-gradient(180deg, #040404 0%, #0a0908 46%, #040404 100%);
+}
+
+.payment-confirmation-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 8.5rem 0 5.5rem;
+}
+
+.payment-confirmation-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.payment-confirmation-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.14;
+}
+
+.payment-confirmation-orb.orb-1 {
+  width: 420px;
+  height: 420px;
+  top: -90px;
+  right: -60px;
+  background: var(--primary-gold);
+}
+
+.payment-confirmation-orb.orb-2 {
+  width: 320px;
+  height: 320px;
+  bottom: -80px;
+  left: -50px;
+  background: var(--secondary-gold);
+  opacity: 0.08;
+}
+
+.payment-confirmation-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(212, 175, 55, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(212, 175, 55, 0.04) 1px, transparent 1px);
+  background-size: 54px 54px;
+}
+
+.payment-confirmation-shell {
+  position: relative;
+  z-index: 1;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: clamp(1.7rem, 4vw, 3rem);
+  border-radius: 28px;
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  background:
+    linear-gradient(180deg, rgba(14, 12, 8, 0.94), rgba(7, 7, 7, 0.97)),
+    rgba(255, 255, 255, 0.02);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.payment-confirmation-shell.is-success {
+  border-color: rgba(212, 175, 55, 0.26);
+}
+
+.payment-confirmation-shell.is-failed {
+  border-color: rgba(255, 107, 107, 0.22);
+}
+
+.payment-confirmation-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.52rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, 0.24);
+  background: rgba(212, 175, 55, 0.08);
+  color: var(--primary-gold);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 1.4rem;
+}
+
+.payment-confirmation-top {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.payment-confirmation-icon {
+  width: 88px;
+  height: 88px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.12), transparent 38%),
+    rgba(212, 175, 55, 0.08);
+  color: var(--primary-gold);
+  box-shadow: 0 18px 38px rgba(212, 175, 55, 0.12);
+}
+
+.payment-confirmation-icon.is-failed {
+  color: #ff8585;
+  border-color: rgba(255, 133, 133, 0.22);
+  background: rgba(255, 107, 107, 0.08);
+  box-shadow: 0 18px 38px rgba(255, 107, 107, 0.1);
+}
+
+.payment-confirmation-copy h1 {
+  margin-bottom: 1rem;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--white);
+}
+
+.payment-confirmation-lead {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.05rem;
+  line-height: 1.85;
+  max-width: 62rem;
+}
+
+.payment-confirmation-message {
+  color: rgba(212, 175, 55, 0.95);
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+
+.payment-confirmation-detail {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.payment-confirmation-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.payment-meta-card {
+  padding: 1rem 1.1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(212, 175, 55, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.payment-meta-card span {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 0.4rem;
+}
+
+.payment-meta-card strong {
+  display: block;
+  color: var(--white);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.payment-confirmation-actions {
+  display: flex;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+
+.payment-action-primary,
+.payment-action-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 0.92rem 1.35rem;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.payment-action-primary {
+  color: #100c00;
+  background: linear-gradient(135deg, #ebcf68, #d4af37);
+  box-shadow: 0 16px 34px rgba(212, 175, 55, 0.22);
+}
+
+.payment-action-secondary {
+  color: var(--white);
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.payment-action-primary:hover,
+.payment-action-secondary:hover {
+  transform: translateY(-2px);
+}
+
+.payment-confirmation-note {
+  margin-top: 1.35rem;
+  padding: 0.95rem 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(212, 175, 55, 0.12);
+  background: rgba(212, 175, 55, 0.06);
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.92rem;
+}
+
+.payment-confirmation-spinner {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  border-top-color: var(--primary-gold);
+  border-right-color: rgba(212, 175, 55, 0.55);
+  animation: payment-confirmation-spin 1s linear infinite;
+}
+
+@keyframes payment-confirmation-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  .payment-confirmation-top {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-confirmation-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .payment-confirmation-hero {
+    padding: 7.3rem 0 4.5rem;
+  }
+
+  .payment-confirmation-shell {
+    border-radius: 22px;
+  }
+
+  .payment-confirmation-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+  }
+
+  .payment-confirmation-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-confirmation-actions {
+    flex-direction: column;
+  }
+
+  .payment-action-primary,
+  .payment-action-secondary {
+    width: 100%;
+  }
+}

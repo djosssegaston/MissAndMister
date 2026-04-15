@@ -365,18 +365,18 @@
             <section class="panel status" data-state="{{ $paymentState }}">
                 <div class="spinner" aria-hidden="true"></div>
                 <p class="status-title" data-status-title>
-                    @if($payment->status === 'succeeded')
+                    @if($payment->status === 'succeeded' && ($payment->vote?->status === \App\Models\Vote::STATUS_CONFIRMED))
                         Paiement accepté avec succès
-                    @elseif($payment->status === 'failed')
+                    @elseif($payment->status === 'failed' || $payment->vote?->status === 'failed')
                         Paiement refusé ou interrompu
                     @else
                         Ouverture du paiement sécurisé...
                     @endif
                 </p>
                 <p class="status-text" data-status-text>
-                    @if($payment->status === 'succeeded')
+                    @if($payment->status === 'succeeded' && ($payment->vote?->status === \App\Models\Vote::STATUS_CONFIRMED))
                         Merci pour votre soutien. Votre vote est maintenant enregistré et comptabilisé après confirmation du serveur.
-                    @elseif($payment->status === 'failed')
+                    @elseif($payment->status === 'failed' || $payment->vote?->status === 'failed')
                         Le paiement n’a pas abouti. Aucun vote n’a été comptabilisé.
                     @else
                         Gardez cette fenêtre ouverte. Le widget FedaPay va s’ouvrir pour finaliser le vote de manière sécurisée.
@@ -384,7 +384,7 @@
                 </p>
 
                 <div class="actions">
-                    @if($payment->status !== 'succeeded')
+                    @if($payment->status !== 'succeeded' && $payment->status !== 'failed' && $payment->vote?->status !== 'failed')
                         <button
                             class="button"
                             type="button"
@@ -425,11 +425,16 @@
     <script>
         (() => {
             const payment = @json($paymentData);
-            const status = @json($payment->status);
+            const status = String(payment.payment_status || '').toLowerCase();
+            const initialVoteStatus = String(payment.vote_status || '').toLowerCase();
             const syncUrl = @json(url('/api/payments/' . $payment->reference . '/sync'));
+            const callbackUrl = @json($paymentCallbackUrl);
             const fedapayPublicKey = @json($fedapayPublicKey);
             const fedapayEnvironment = @json($fedapayEnvironment);
             const paymentDescription = @json($paymentDescription);
+            const successRedirectUrl = @json($paymentSuccessUrl);
+            const failureRedirectUrl = @json($paymentFailureUrl);
+            const processingRedirectUrl = @json($paymentProcessingUrl);
             const statusBox = document.querySelector('.status');
             const title = document.querySelector('[data-status-title]');
             const message = document.querySelector('[data-status-text]');
@@ -476,7 +481,20 @@
                 window.history.replaceState({}, '', nextUrl.toString());
             };
 
+            const redirectTo = (url) => {
+                if (!url) {
+                    return false;
+                }
+
+                window.location.replace(url);
+                return true;
+            };
+
             const markSuccess = () => {
+                if (redirectTo(successRedirectUrl)) {
+                    return;
+                }
+
                 updateUrlState('success');
 
                 setState(
@@ -491,6 +509,10 @@
             };
 
             const markFailed = (payload = {}) => {
+                if (payload?.redirect && redirectTo(failureRedirectUrl)) {
+                    return;
+                }
+
                 updateUrlState('failed');
 
                 setState(
@@ -633,6 +655,10 @@
                                 || transactionStatus === 'success'
                                 || transactionStatus === 'succeeded'
                             ) {
+                                if (redirectTo(callbackUrl || processingRedirectUrl)) {
+                                    return;
+                                }
+
                                 markProcessing();
                                 startSyncLoop();
                                 return;
@@ -644,7 +670,7 @@
                             }
 
                             if (transactionStatus === 'canceled' || transactionStatus === 'cancelled' || transactionStatus === 'declined' || transactionStatus === 'failed') {
-                                markFailed({ message: 'Le paiement a été refusé ou annulé.' });
+                                markFailed({ message: 'Le paiement a été refusé ou annulé.', redirect: true });
                                 return;
                             }
 
@@ -676,17 +702,21 @@
                 });
             }
 
-            if (urlState.get('payment') === 'success' || status === 'succeeded') {
+            if (urlState.get('payment') === 'success' && status === 'succeeded' && initialVoteStatus === 'confirmed') {
                 markSuccess();
                 return;
             }
 
-            if (urlState.get('payment') === 'failed' || status === 'failed') {
+            if (urlState.get('payment') === 'failed' || status === 'failed' || initialVoteStatus === 'failed') {
                 markFailed({ message: 'Le paiement associé à cette référence a déjà échoué. Vous pouvez relancer la collecte.' });
                 return;
             }
 
-            if (urlState.get('payment') === 'processing' || ['processing', 'pending'].includes(String(status).toLowerCase())) {
+            if (
+                urlState.get('payment') === 'processing'
+                || ['processing', 'pending', 'initiated', 'succeeded'].includes(status)
+                || initialVoteStatus === 'pending'
+            ) {
                 markProcessing();
                 startSyncLoop();
                 return;
