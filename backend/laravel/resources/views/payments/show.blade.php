@@ -317,30 +317,6 @@
     </style>
 </head>
 <body>
-    @php
-        $candidate = $payment->vote?->candidate;
-        $candidateName = $candidate ? trim(($candidate->first_name ?? '') . ' ' . ($candidate->last_name ?? '')) : 'Candidat inconnu';
-        $candidateLink = $candidate?->id
-            ? rtrim((string) $frontendUrl, '/') . '/candidates/' . $candidate->id
-            : rtrim((string) $frontendUrl, '/') . '/candidates';
-        $quantity = (int) ($payment->vote?->quantity ?? 1);
-        $paymentData = [
-            'reference' => $payment->reference,
-            'payment_id' => $payment->id,
-            'vote_id' => $payment->vote?->id,
-            'candidate_id' => $payment->vote?->candidate_id,
-            'quantity' => $quantity,
-            'amount' => $payment->amount,
-            'transaction_id' => $payment->transaction_id,
-        ];
-        $paymentState = $payment->status === 'succeeded'
-            ? 'success'
-            : ($payment->status === 'failed' ? 'failed' : 'opening');
-        $paymentDescription = $candidateName !== 'Candidat inconnu'
-            ? 'Vote sécurisé pour ' . $candidateName
-            : 'Paiement sécurisé Miss & Mister University Bénin 2026';
-    @endphp
-
     <main class="shell">
         <div class="hero">
             <div class="brand">
