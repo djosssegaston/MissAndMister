@@ -12,7 +12,7 @@ class StatsService
     public function summary(): array
     {
         $top = Vote::selectRaw('candidate_id, SUM(quantity) as votes')
-            ->where('status', 'confirmed')
+            ->successful()
             ->groupBy('candidate_id')
             ->orderByDesc('votes')
             ->take(5)
@@ -22,10 +22,10 @@ class StatsService
 
         return [
             'candidates' => Candidate::count(),
-            'votes' => Vote::where('status', 'confirmed')->sum('quantity'),
+            'votes' => Vote::successful()->sum('quantity'),
             'payments' => Payment::count(),
             'users' => User::count(),
-            'revenue' => Payment::where('status', 'succeeded')->sum('amount'),
+            'revenue' => Payment::succeeded()->sum('amount'),
             'top_candidates' => $top->map(function ($row) {
                 return [
                     'candidate_id' => $row->candidate_id,
@@ -52,7 +52,7 @@ class StatsService
 
         return [
             'totalCandidates' => (clone $publicCandidates)->count(),
-            'totalVotes' => Vote::where('status', 'confirmed')->sum('quantity'),
+            'totalVotes' => Vote::successful()->sum('quantity'),
             'totalUsers' => User::count(),
             'totalUniversities' => (clone $publicCandidates)->distinct('university')->count('university'),
         ];

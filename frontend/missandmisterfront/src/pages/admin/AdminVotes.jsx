@@ -67,6 +67,8 @@ const AdminVotes = () => {
     const candidateName = v.candidate ? `${v.candidate.first_name} ${v.candidate.last_name}`.trim() : '—';
     const categoryName = v.candidate?.category?.name || '—';
     const qty = Number.isFinite(v.quantity) ? v.quantity : (v.amount ? Math.max(1, Math.round(v.amount / 100)) : v.qty || 1);
+    const paymentStatus = v.payment?.status || '';
+    const isCountable = v.status === 'confirmed' && (!paymentStatus || paymentStatus === 'succeeded');
     return {
       id: v.id,
       candidate: candidateName,
@@ -75,6 +77,8 @@ const AdminVotes = () => {
       qty,
       amount: v.amount || 0,
       operator: v.payment?.provider || v.operator || 'fedapay',
+      paymentStatus,
+      isCountable,
       status: v.status || 'pending',
       date: v.created_at,
       ip: v.ip_address || '—',
@@ -181,11 +185,11 @@ const AdminVotes = () => {
     URL.revokeObjectURL(url);
   };
 
-  const total     = votes.reduce((s, v) => s + (v.qty || 0), 0);
-  const valid     = votes.filter(v => v.status === 'confirmed').reduce((s, v) => s + (v.qty || 0), 0);
+  const total     = votes.filter(v => v.isCountable).reduce((s, v) => s + (v.qty || 0), 0);
+  const valid     = votes.filter(v => v.isCountable).reduce((s, v) => s + (v.qty || 0), 0);
   const suspect   = votes.filter(v => v.status === 'suspect').reduce((s, v) => s + (v.qty || 0), 0);
   const cancelled = votes.filter(v => v.status === 'cancelled').reduce((s, v) => s + (v.qty || 0), 0);
-  const revenue   = votes.filter(v => v.status === 'confirmed').reduce((s, v) => s + v.amount, 0);
+  const revenue   = votes.filter(v => v.isCountable).reduce((s, v) => s + v.amount, 0);
 
   const toggleSelectAll = (checked) => {
     if (checked) {
@@ -256,7 +260,7 @@ const AdminVotes = () => {
 
       <div className="avotes-stats">
         {[
-          { label:'Total votes',  value: total,                   color:'#D4AF37' },
+          { label:'Votes comptabilisés', value: total,            color:'#D4AF37' },
           { label:'Valides',      value: valid,                   color:'#4ADE80' },
           { label:'Suspects',     value: suspect,                 color:'#FBBF24' },
           { label:'Annulés',      value: cancelled,               color:'#F87171' },

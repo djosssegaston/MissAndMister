@@ -20,8 +20,8 @@ class UserController extends Controller
         return response()->json([
             'message' => 'User dashboard',
             'stats' => [
-                'votes' => $user->votes()->where('status', 'confirmed')->sum('quantity'),
-                'payments' => $user->payments()->count(),
+                'votes' => $user->votes()->successful()->sum('quantity'),
+                'payments' => $user->payments()->succeeded()->count(),
             ],
         ]);
     }
@@ -34,14 +34,28 @@ class UserController extends Controller
         $registered = User::query()
             ->where('role', 'user')
             ->withSum(['votes as votes_count' => function ($q) {
-                $q->where('status', 'confirmed');
+                $q->successful();
             }], 'quantity')
-            ->withCount(['payments'])
+            ->withCount(['payments as payments_count' => function ($q) {
+                $q->succeeded();
+            }])
             ->select(['id', 'name', 'email', 'phone', 'status', 'created_at'])
             ->addSelect([
                 'last_vote_ip' => function ($q) {
                     $q->from('votes')
                         ->whereColumn('votes.user_id', 'users.id')
+                        ->where('votes.status', 'confirmed')
+                        ->where(function ($voteQuery) {
+                            $voteQuery
+                                ->whereNull('votes.payment_id')
+                                ->orWhereExists(function ($paymentQuery) {
+                                    $paymentQuery
+                                        ->selectRaw('1')
+                                        ->from('payments')
+                                        ->whereColumn('payments.id', 'votes.payment_id')
+                                        ->where('payments.status', 'succeeded');
+                                });
+                        })
                         ->orderByDesc('created_at')
                         ->limit(1)
                         ->select('ip_address');
@@ -49,6 +63,18 @@ class UserController extends Controller
                 'last_vote_at' => function ($q) {
                     $q->from('votes')
                         ->whereColumn('votes.user_id', 'users.id')
+                        ->where('votes.status', 'confirmed')
+                        ->where(function ($voteQuery) {
+                            $voteQuery
+                                ->whereNull('votes.payment_id')
+                                ->orWhereExists(function ($paymentQuery) {
+                                    $paymentQuery
+                                        ->selectRaw('1')
+                                        ->from('payments')
+                                        ->whereColumn('payments.id', 'votes.payment_id')
+                                        ->where('payments.status', 'succeeded');
+                                });
+                        })
                         ->orderByDesc('created_at')
                         ->limit(1)
                         ->select('created_at');
@@ -59,6 +85,7 @@ class UserController extends Controller
 
         // Invités (user_id null)
         $guests = \App\Models\Vote::query()
+            ->successful()
             ->whereNull('user_id')
             ->selectRaw('ip_address, SUM(quantity) as votes_count, MAX(created_at) as last_vote_at, MIN(created_at) as created_at')
             ->groupBy('ip_address')

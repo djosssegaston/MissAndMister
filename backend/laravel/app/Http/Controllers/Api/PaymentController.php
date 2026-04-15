@@ -12,6 +12,7 @@ use App\Services\PaymentService;
 use App\Services\VoteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 
 class PaymentController extends Controller
 {
@@ -51,6 +52,56 @@ class PaymentController extends Controller
         }
 
         abort(403);
+    }
+
+    public function sync(string $reference): JsonResponse
+    {
+        $payment = $this->paymentRepo->findByReference($reference);
+
+        if (!$payment) {
+            return response()->json(['message' => 'Paiement introuvable.'], 404);
+        }
+
+        if (!$payment->transaction_id) {
+            return response()->json($this->syncResponsePayload($payment));
+        }
+
+        try {
+            $remoteTransaction = $this->fedapay->retrieveTransaction($payment->transaction_id);
+        } catch (\Throwable $exception) {
+            logger()->warning('FedaPay payment sync failed', [
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference,
+                'transaction_id' => $payment->transaction_id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Impossible de verifier le paiement pour le moment.',
+                'payment' => $this->syncResponsePayload($payment),
+            ], 502);
+        }
+
+        $merchantReference = trim((string) Arr::get($remoteTransaction, 'merchant_reference', ''));
+        if ($merchantReference !== '' && !hash_equals($payment->reference, $merchantReference)) {
+            logger()->warning('FedaPay sync reference mismatch', [
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference,
+                'remote_reference' => $merchantReference,
+            ]);
+
+            return response()->json([
+                'message' => 'Reference de paiement invalide.',
+            ], 409);
+        }
+
+        $payment = $this->applyOutcome(
+            $payment,
+            $this->resolveWebhookOutcome($remoteTransaction, $remoteTransaction, 'manual-sync'),
+            $remoteTransaction
+        );
+
+        return response()->json($this->syncResponsePayload($payment, $remoteTransaction));
     }
 
     /**
@@ -107,25 +158,40 @@ class PaymentController extends Controller
 
         $outcome = $this->resolveWebhookOutcome($payload, $remoteTransaction, $eventName);
 
+        $this->applyOutcome($payment, $outcome, $remoteTransaction ?: $payload, $eventName);
+
+        return response()->json(['message' => 'Webhook processed']);
+    }
+
+    private function applyOutcome(Payment $payment, string $outcome, array $payload = [], ?string $eventName = null): Payment
+    {
         if ($outcome === 'succeeded') {
-            $payment = $this->payments->confirm($payment->reference, $remoteTransaction ?: $payload);
+            $payment = $this->payments->confirm($payment->reference, $payload);
 
             $vote = Vote::where('payment_id', $payment->id)->first();
             if ($vote) {
                 $this->voteService->confirmVote($vote);
                 SendVoteConfirmationJob::dispatch($vote->id);
             }
-        } elseif ($outcome === 'failed') {
-            $this->paymentRepo->updateStatus($payment, 'failed', $remoteTransaction ?: $payload);
+
+            return $payment->fresh(['vote']);
+        }
+
+        if ($outcome === 'failed') {
+            $payment = $this->paymentRepo->updateStatus($payment, 'failed', $payload);
             $vote = Vote::where('payment_id', $payment->id)->first();
             if ($vote) {
                 $this->voteService->failVote($vote, $eventName ?: 'transaction.failed');
             }
-        } elseif ($outcome === 'processing') {
-            $this->paymentRepo->updateStatus($payment, 'processing', $remoteTransaction ?: $payload);
+
+            return $payment->fresh(['vote']);
         }
 
-        return response()->json(['message' => 'Webhook processed']);
+        if ($outcome === 'processing') {
+            $payment = $this->paymentRepo->updateStatus($payment, 'processing', $payload);
+        }
+
+        return $payment->fresh(['vote']);
     }
 
     private function extractEventName(array $payload): string
@@ -223,5 +289,18 @@ class PaymentController extends Controller
         }
 
         return 'processing';
+    }
+
+    private function syncResponsePayload(Payment $payment, ?array $remoteTransaction = null): array
+    {
+        $payment->loadMissing('vote');
+
+        return [
+            'reference' => $payment->reference,
+            'payment_status' => $payment->status,
+            'vote_status' => $payment->vote?->status,
+            'transaction_id' => $payment->transaction_id,
+            'remote_status' => $remoteTransaction ? strtolower((string) Arr::get($remoteTransaction, 'status', '')) : null,
+        ];
     }
 }

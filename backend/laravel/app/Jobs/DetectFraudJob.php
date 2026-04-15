@@ -15,7 +15,7 @@ class DetectFraudJob implements ShouldQueue
     public function handle(): void
     {
         $service = app(\App\Services\FraudDetectionService::class);
-        $votes = \App\Models\Vote::where('status', 'confirmed')
+        $votes = \App\Models\Vote::successful()
             ->whereDate('created_at', now()->toDateString())
             ->get();
 

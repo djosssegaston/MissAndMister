@@ -355,13 +355,13 @@ class CandidateController extends Controller
         }
 
         $totalVotes = (int) $candidate->votes()
-            ->where('status', 'confirmed')
+            ->successful()
             ->sum('quantity');
 
         $rankedCandidates = Candidate::query()
             ->select('candidates.id')
             ->withSum(['votes as votes_count' => function (Builder $query) {
-                $query->where('status', 'confirmed');
+                $query->successful();
             }], 'quantity')
             ->where('is_active', true)
             ->where(function (Builder $query) {
@@ -380,7 +380,7 @@ class CandidateController extends Controller
             return [
                 'date' => $date->locale('fr')->translatedFormat('d M'),
                 'votes' => (int) $candidate->votes()
-                    ->where('status', 'confirmed')
+                    ->successful()
                     ->whereDate('created_at', $date->toDateString())
                     ->sum('quantity'),
             ];
@@ -388,7 +388,7 @@ class CandidateController extends Controller
 
         $history = $candidate->votes()
             ->with('user:id,name,email')
-            ->where('status', 'confirmed')
+            ->successful()
             ->latest()
             ->limit(12)
             ->get()

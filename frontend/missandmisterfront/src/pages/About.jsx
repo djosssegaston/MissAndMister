@@ -336,6 +336,7 @@ const About = () => (
       contactTitle="Rejoindre le projet"
       contactDescription="Une entreprise, une école ou une institution peut prendre contact directement avec l’équipe organisatrice sur WhatsApp."
       contactButtonLabel="Nous écrire sur WhatsApp"
+      contactButtonVariant="gold"
     />
 
     <section className="about-cta section">

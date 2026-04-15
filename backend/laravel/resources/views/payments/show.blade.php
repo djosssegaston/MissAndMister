@@ -450,6 +450,7 @@
         (() => {
             const payment = @json($paymentData);
             const status = @json($payment->status);
+            const syncUrl = @json(url('/api/payments/' . $payment->reference . '/sync'));
             const fedapayPublicKey = @json($fedapayPublicKey);
             const fedapayEnvironment = @json($fedapayEnvironment);
             const paymentDescription = @json($paymentDescription);
@@ -459,6 +460,9 @@
             const button = document.getElementById('fedapay-pay-btn');
             const urlState = new URLSearchParams(window.location.search);
             let initialized = false;
+            let syncTimer = null;
+            let syncInFlight = false;
+            let syncAttempts = 0;
 
             const setState = (nextState, nextTitle, nextMessage) => {
                 if (!statusBox) {
@@ -476,16 +480,33 @@
                 }
             };
 
-            const markSuccess = () => {
+            const setButtonState = (disabled, label = null) => {
+                if (!button) {
+                    return;
+                }
+
+                button.disabled = disabled;
+                button.setAttribute('aria-busy', disabled ? 'true' : 'false');
+
+                if (label) {
+                    button.textContent = label;
+                }
+            };
+
+            const updateUrlState = (value) => {
                 const nextUrl = new URL(window.location.href);
-                nextUrl.searchParams.set('payment', 'success');
+                nextUrl.searchParams.set('payment', value);
                 nextUrl.searchParams.set('reference', payment.reference);
                 window.history.replaceState({}, '', nextUrl.toString());
+            };
+
+            const markSuccess = () => {
+                updateUrlState('success');
 
                 setState(
                     'success',
                     'Paiement accepté avec succès',
-                    'Merci pour votre soutien. Votre vote sera confirmé automatiquement après le retour signé FedaPay, puis intégré au tableau de bord admin.'
+                    'Merci pour votre soutien. Le vote a été confirmé côté serveur et sera bien pris en compte dans les tableaux de bord.'
                 );
 
                 if (button) {
@@ -494,20 +515,117 @@
             };
 
             const markFailed = (payload = {}) => {
-                const nextUrl = new URL(window.location.href);
-                nextUrl.searchParams.set('payment', 'failed');
-                nextUrl.searchParams.set('reference', payment.reference);
-                window.history.replaceState({}, '', nextUrl.toString());
+                updateUrlState('failed');
 
                 setState(
                     'failed',
                     'Paiement non finalisé',
                     payload?.message || 'Le paiement a été interrompu ou refusé. Aucun vote n’a été comptabilisé.'
                 );
+
+                initialized = false;
+                setButtonState(false, 'Payer');
+            };
+
+            const markProcessing = (nextMessage = 'Le paiement a été transmis à FedaPay. Nous vérifions sa confirmation côté serveur...') => {
+                updateUrlState('processing');
+                setState(
+                    'opening',
+                    'Paiement en attente de confirmation',
+                    nextMessage
+                );
+                setButtonState(true, 'Vérification...');
+            };
+
+            const stopSyncLoop = () => {
+                if (syncTimer) {
+                    window.clearInterval(syncTimer);
+                    syncTimer = null;
+                }
+            };
+
+            const parseSyncPayload = (payload) => {
+                if (!payload || typeof payload !== 'object') {
+                    return {};
+                }
+
+                if (payload.payment && typeof payload.payment === 'object') {
+                    return payload.payment;
+                }
+
+                return payload;
+            };
+
+            const syncPaymentStatus = async () => {
+                if (syncInFlight) {
+                    return;
+                }
+
+                syncInFlight = true;
+
+                try {
+                    const response = await fetch(syncUrl, {
+                        headers: {
+                            Accept: 'application/json',
+                        },
+                    });
+
+                    const payload = await response.json().catch(() => ({}));
+                    const syncedPayment = parseSyncPayload(payload);
+                    const paymentStatus = String(syncedPayment.payment_status || '').toLowerCase();
+                    const voteStatus = String(syncedPayment.vote_status || '').toLowerCase();
+
+                    if (response.ok && paymentStatus === 'succeeded' && voteStatus === 'confirmed') {
+                        stopSyncLoop();
+                        markSuccess();
+                        return;
+                    }
+
+                    if (paymentStatus === 'failed' || voteStatus === 'failed') {
+                        stopSyncLoop();
+                        markFailed({ message: payload?.message || 'Le paiement a été refusé ou annulé. Aucun vote n’a été comptabilisé.' });
+                        return;
+                    }
+
+                    syncAttempts += 1;
+
+                    if (syncAttempts >= 12) {
+                        stopSyncLoop();
+                        setState(
+                            'opening',
+                            'Paiement en attente de confirmation',
+                            'La transaction est encore en cours de vérification. Laissez cette page ouverte quelques instants, la confirmation sera appliquée dès réception côté serveur.'
+                        );
+                    }
+                } catch (error) {
+                    syncAttempts += 1;
+
+                    if (syncAttempts >= 12) {
+                        stopSyncLoop();
+                        setState(
+                            'opening',
+                            'Vérification temporairement indisponible',
+                            'Le paiement est peut-être encore en cours. Patientez puis actualisez cette page pour relancer la vérification serveur.'
+                        );
+                        setButtonState(false, 'Vérifier à nouveau');
+                    }
+                } finally {
+                    syncInFlight = false;
+                }
+            };
+
+            const startSyncLoop = () => {
+                stopSyncLoop();
+                syncAttempts = 0;
+                void syncPaymentStatus();
+                syncTimer = window.setInterval(syncPaymentStatus, 2500);
             };
 
             const initCheckout = () => {
                 if (!button || initialized) {
+                    if (urlState.get('payment') === 'processing') {
+                        startSyncLoop();
+                    }
                     return;
                 }
 
@@ -518,6 +636,7 @@
 
                 try {
                     initialized = true;
+                    setButtonState(true, 'Ouverture...');
 
                     const widget = window.FedaPay.init('#fedapay-pay-btn', {
                         public_key: fedapayPublicKey,
@@ -538,7 +657,8 @@
                                 || transactionStatus === 'success'
                                 || transactionStatus === 'succeeded'
                             ) {
-                                markSuccess();
+                                markProcessing();
+                                startSyncLoop();
                                 return;
                             }
 
@@ -552,11 +672,8 @@
                                 return;
                             }
 
-                            setState(
-                                'opening',
-                                'Paiement en attente de confirmation',
-                                'Le paiement a été transmis à FedaPay. Nous attendons la confirmation finale du serveur.'
-                            );
+                            markProcessing();
+                            startSyncLoop();
                         },
                     });
 
@@ -590,6 +707,12 @@
 
             if (urlState.get('payment') === 'failed' || status === 'failed') {
                 markFailed({ message: 'Le paiement associé à cette référence a déjà échoué. Vous pouvez relancer la collecte.' });
+                return;
+            }
+
+            if (urlState.get('payment') === 'processing' || ['processing', 'pending'].includes(String(status).toLowerCase())) {
+                markProcessing();
+                startSyncLoop();
                 return;
             }
 

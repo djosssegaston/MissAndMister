@@ -14,6 +14,7 @@ class VoteRepository
     public function paginateFiltered(array $filters, int $perPage = 20)
     {
         $query = Vote::with(['user:id,name,email', 'candidate:id,first_name,last_name,category_id', 'candidate.category:id,name', 'payment:id,reference,status,amount,currency'])
+            ->when(isset($filters['id']) && $filters['id'], fn($q) => $q->whereKey($filters['id']))
             ->when(isset($filters['status']) && $filters['status'], fn($q) => $q->where('status', $filters['status']))
             ->when(isset($filters['candidate_id']) && $filters['candidate_id'], fn($q) => $q->where('candidate_id', $filters['candidate_id']))
             ->when(isset($filters['from']) && $filters['from'], fn($q) => $q->whereDate('created_at', '>=', $filters['from']))
@@ -26,7 +27,7 @@ class VoteRepository
     public function recentConfirmed(int $limit = 10)
     {
         return Vote::with(['user:id,name,email', 'candidate:id,first_name,last_name,category_id', 'candidate.category:id,name'])
-            ->where('status', 'confirmed')
+            ->successful()
             ->latest()
             ->limit($limit)
             ->get();

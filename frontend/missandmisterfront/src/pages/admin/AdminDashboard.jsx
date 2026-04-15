@@ -82,11 +82,15 @@ const AdminDashboard = () => {
       setError(null);
       const [statsData, votesData] = await Promise.all([
         adminAPI.getStats(),
-        adminAPI.getVotes({ per_page: 5 }),
+        adminAPI.getVotes({ status: 'confirmed', per_page: 5 }),
       ]);
 
       setStats(statsData);
-      setRecentVotes((votesData?.data || votesData || []).slice(0, 5));
+      setRecentVotes(
+        (votesData?.data || votesData || [])
+          .filter((vote) => !vote.payment?.status || vote.payment?.status === 'succeeded')
+          .slice(0, 5)
+      );
       hasLoadedRef.current = true;
     } catch (err) {
       if (err?.isSessionExpired) {

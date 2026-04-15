@@ -52,6 +52,7 @@ Route::middleware(['auth:sanctum', 'force_password_change'])->group(function () 
 });
 
 Route::post('payment/webhook', [PaymentController::class, 'webhook']);
+Route::get('payments/{reference}/sync', [PaymentController::class, 'sync']);
 
 // Admin-only routes
 Route::middleware(['auth:sanctum', 'role:admin,superadmin'])->prefix('admin')->group(function () {

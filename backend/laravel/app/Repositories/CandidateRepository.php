@@ -11,7 +11,7 @@ class CandidateRepository
     {
         return Candidate::with('category')
             ->withSum(['votes as votes_count' => function ($q) {
-                $q->where('status', 'confirmed');
+                $q->successful();
             }], 'quantity')
             ->where(function ($q) {
                 $q->where('status', 'active')->orWhereNull('status');
@@ -24,7 +24,7 @@ class CandidateRepository
     {
         return Candidate::with('category')
             ->withSum(['votes as votes_count' => function ($q) {
-                $q->where('status', 'confirmed');
+                $q->successful();
             }], 'quantity')
             ->paginate($perPage);
     }
@@ -38,7 +38,7 @@ class CandidateRepository
     {
         return Candidate::with('category')
             ->withSum(['votes as votes_count' => function ($q) {
-                $q->where('status', 'confirmed');
+                $q->successful();
             }], 'quantity')
             ->where(function ($q) {
                 $q->where('status', 'active')->orWhereNull('status');

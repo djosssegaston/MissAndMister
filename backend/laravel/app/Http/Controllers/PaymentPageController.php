@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Payment;
 use App\Services\FedaPayService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 
 class PaymentPageController extends Controller
 {
@@ -25,6 +26,14 @@ class PaymentPageController extends Controller
             'fedapayEnvironment' => $this->fedapay->environment(),
             'fedapayConfigured' => $this->fedapay->isConfigured(),
             'fedapayScriptUrl' => 'https://cdn.fedapay.com/checkout.js?v=1.1.7',
+        ]);
+    }
+
+    public function callback(string $reference): RedirectResponse
+    {
+        return redirect()->route('payments.show', [
+            'reference' => $reference,
+            'payment' => 'processing',
         ]);
     }
 }

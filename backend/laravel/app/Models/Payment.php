@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -10,6 +11,8 @@ class Payment extends Model
 {
     /** @use HasFactory<\Database\Factories\PaymentFactory> */
     use HasFactory, SoftDeletes;
+
+    public const STATUS_SUCCEEDED = 'succeeded';
 
     protected $fillable = [
         'user_id',
@@ -33,6 +36,11 @@ class Payment extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function scopeSucceeded(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_SUCCEEDED);
     }
 
     public function vote()

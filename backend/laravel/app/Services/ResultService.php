@@ -10,9 +10,15 @@ class ResultService
     public function calculateAndPersist(): void
     {
         $aggregates = DB::table('votes')
-            ->selectRaw('candidate_id, SUM(quantity) as total_votes, SUM(amount) as total_amount')
-            ->where('status', 'confirmed')
-            ->groupBy('candidate_id')
+            ->leftJoin('payments', 'payments.id', '=', 'votes.payment_id')
+            ->selectRaw('votes.candidate_id, SUM(votes.quantity) as total_votes, SUM(votes.amount) as total_amount')
+            ->where('votes.status', 'confirmed')
+            ->where(function ($query) {
+                $query
+                    ->whereNull('votes.payment_id')
+                    ->orWhere('payments.status', 'succeeded');
+            })
+            ->groupBy('votes.candidate_id')
             ->get();
 
         foreach ($aggregates as $row) {

@@ -27,7 +27,7 @@ class PaymentService
         $description = $candidateName !== ''
             ? 'Vote pour ' . $candidateName
             : 'Paiement sécurisé Miss & Mister';
-        $callbackUrl = rtrim((string) config('app.url'), '/') . '/api/payment/webhook';
+        $callbackUrl = route('payments.callback', ['reference' => $reference]);
 
         $transaction = $this->fedapay->createTransaction(
             $amount,

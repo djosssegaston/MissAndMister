@@ -8,6 +8,7 @@ use App\Services\VoteService;
 use App\Services\VotingWindowService;
 use App\Repositories\VoteRepository;
 use App\Models\Setting;
+use App\Models\Vote;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -95,14 +96,33 @@ class VoteController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
-        $vote = \App\Models\Vote::find($id);
+        $vote = Vote::with('payment')->find($id);
         if (!$vote) {
             return response()->json(['message' => 'Vote not found'], 404);
         }
         $data = $request->validate([
             'status' => ['required', 'in:pending,confirmed,failed,cancelled,suspect'],
         ]);
-        $vote->update($data);
+
+        if (
+            $data['status'] === Vote::STATUS_CONFIRMED
+            && $vote->payment
+            && $vote->payment->status !== \App\Models\Payment::STATUS_SUCCEEDED
+        ) {
+            return response()->json([
+                'message' => 'Seuls les votes associes a un paiement reussi peuvent etre valides.',
+            ], 422);
+        }
+
+        if ($data['status'] === Vote::STATUS_CONFIRMED) {
+            $vote = $this->voteService->confirmVote($vote);
+        } elseif ($data['status'] === 'failed') {
+            $vote = $this->voteService->failVote($vote, 'admin_review');
+        } else {
+            $vote->update($data);
+            $vote->refresh();
+        }
+
         return response()->json($vote->load(['user:id,name,email', 'candidate:id,first_name,last_name,category_id', 'candidate.category:id,name']));
     }
 
