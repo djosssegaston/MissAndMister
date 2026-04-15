@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Arr;
 
 class FedaPayService
 {
@@ -75,13 +76,15 @@ class FedaPayService
             $payload['mode'] = $mode;
         }
 
-        return Http::baseUrl($this->apiBaseUrl())
+        $response = Http::baseUrl($this->apiBaseUrl())
             ->acceptJson()
             ->asJson()
             ->withToken($this->requireSecretKey())
             ->post('/transactions', $payload)
             ->throw()
             ->json();
+
+        return $this->normalizeTransactionPayload((array) $response);
     }
 
     /**
@@ -90,12 +93,14 @@ class FedaPayService
      */
     public function retrieveTransaction(int|string $transactionId): ?array
     {
-        return Http::baseUrl($this->apiBaseUrl())
+        $response = Http::baseUrl($this->apiBaseUrl())
             ->acceptJson()
             ->withToken($this->requireSecretKey())
             ->get('/transactions/' . $transactionId)
             ->throw()
             ->json();
+
+        return $this->normalizeTransactionPayload((array) $response);
     }
 
     public function verifyWebhookSignature(string $payload, ?string $signature): bool
@@ -176,5 +181,43 @@ class FedaPayService
         }
 
         return $secret;
+    }
+
+    private function normalizeTransactionPayload(array $payload): array
+    {
+        if ($this->looksLikeTransaction($payload)) {
+            return $payload;
+        }
+
+        $candidates = [
+            Arr::get($payload, 'data'),
+            Arr::get($payload, 'transaction'),
+            Arr::get($payload, 'v1/transaction'),
+            Arr::get($payload, 'v1.transaction'),
+            Arr::get($payload, 'data.transaction'),
+            Arr::get($payload, 'data.attributes'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_array($candidate) && $this->looksLikeTransaction($candidate)) {
+                return $candidate;
+            }
+        }
+
+        foreach ($payload as $value) {
+            if (is_array($value) && $this->looksLikeTransaction($value)) {
+                return $value;
+            }
+        }
+
+        return $payload;
+    }
+
+    private function looksLikeTransaction(array $payload): bool
+    {
+        return Arr::has($payload, 'id')
+            || Arr::has($payload, 'status')
+            || Arr::has($payload, 'reference')
+            || Arr::has($payload, 'merchant_reference');
     }
 }

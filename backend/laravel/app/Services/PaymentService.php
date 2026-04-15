@@ -45,6 +45,13 @@ class PaymentService
 
         $transactionId = (string) Arr::get($transaction, 'id', '');
         $transactionStatus = strtolower((string) Arr::get($transaction, 'status', 'pending'));
+        if ($transactionId === '') {
+            logger()->warning('FedaPay transaction created without local transaction id', [
+                'reference' => $reference,
+                'response_keys' => array_keys($transaction),
+                'response_status' => $transactionStatus,
+            ]);
+        }
         // The initial API call only reserves the remote transaction. The local payment
         // becomes successful only after server-side sync/webhook confirmation.
         $status = 'initiated';
