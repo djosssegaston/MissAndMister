@@ -29,6 +29,7 @@ class UpdateCandidateRequest extends FormRequest
             'category_id' => ['sometimes', 'exists:categories,id'],
             'first_name' => ['sometimes', 'string', 'max:120'],
             'last_name' => ['sometimes', 'string', 'max:120'],
+            'public_number' => ['sometimes', 'required', 'integer', 'min:1', 'unique:candidates,public_number,' . $candidateId],
             'email' => ['sometimes', 'required', 'email', 'unique:candidates,email,' . $candidateId, 'unique:users,email,' . $candidateId . ',candidate_id'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:20', 'unique:candidates,phone,' . $candidateId, 'unique:users,phone,' . $candidateId . ',candidate_id'],
             'password' => ['sometimes', 'nullable', 'string', 'confirmed', Password::min(10)->letters()->mixedCase()->numbers()->symbols()],

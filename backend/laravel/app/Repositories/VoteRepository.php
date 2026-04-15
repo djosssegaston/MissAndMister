@@ -13,7 +13,12 @@ class VoteRepository
 
     public function paginateFiltered(array $filters, int $perPage = 20)
     {
-        $query = Vote::with(['user:id,name,email', 'candidate:id,first_name,last_name,category_id', 'candidate.category:id,name', 'payment:id,reference,status,amount,currency'])
+        $query = Vote::with([
+            'user:id,name,email,phone',
+            'candidate:id,first_name,last_name,category_id,public_number,slug',
+            'candidate.category:id,name',
+            'payment:id,user_id,reference,status,amount,currency,provider,meta,payload',
+        ])
             ->when(isset($filters['id']) && $filters['id'], fn($q) => $q->whereKey($filters['id']))
             ->when(isset($filters['status']) && $filters['status'], fn($q) => $q->where('status', $filters['status']))
             ->when(isset($filters['candidate_id']) && $filters['candidate_id'], fn($q) => $q->where('candidate_id', $filters['candidate_id']))

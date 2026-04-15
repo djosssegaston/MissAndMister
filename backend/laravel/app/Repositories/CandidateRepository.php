@@ -4,28 +4,33 @@ namespace App\Repositories;
 
 use App\Models\Candidate;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 class CandidateRepository
 {
-    public function paginatePublic(int $perPage = 15): LengthAwarePaginator
+    public function paginatePublic(int $perPage = 500): LengthAwarePaginator
     {
-        return Candidate::with('category')
+        return $this->publicBaseQuery()
             ->withSum(['votes as votes_count' => function ($q) {
                 $q->successful();
             }], 'quantity')
-            ->where(function ($q) {
-                $q->where('status', 'active')->orWhereNull('status');
-            })
-            ->where('is_active', true)
+            ->orderByRaw('CASE WHEN public_number IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('public_number')
+            ->orderBy('last_name')
+            ->orderBy('first_name')
             ->paginate($perPage);
     }
 
-    public function paginateAll(int $perPage = 15): LengthAwarePaginator
+    public function paginateAll(int $perPage = 500): LengthAwarePaginator
     {
         return Candidate::with('category')
             ->withSum(['votes as votes_count' => function ($q) {
                 $q->successful();
             }], 'quantity')
+            ->orderByRaw('CASE WHEN public_number IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('public_number')
+            ->orderBy('last_name')
+            ->orderBy('first_name')
             ->paginate($perPage);
     }
 
@@ -34,17 +39,22 @@ class CandidateRepository
         return Candidate::with('category')->find($id);
     }
 
-    public function findActive(int $id): ?Candidate
+    public function findActiveByIdentifier(string $identifier): ?Candidate
     {
-        return Candidate::with('category')
+        $normalized = trim($identifier);
+
+        return $this->publicBaseQuery()
             ->withSum(['votes as votes_count' => function ($q) {
                 $q->successful();
             }], 'quantity')
-            ->where(function ($q) {
-                $q->where('status', 'active')->orWhereNull('status');
+            ->where(function (Builder $query) use ($normalized) {
+                $query->where('slug', $normalized);
+
+                if (ctype_digit($normalized)) {
+                    $query->orWhere('public_number', (int) $normalized);
+                }
             })
-            ->where('is_active', true)
-            ->find($id);
+            ->first();
     }
 
     public function create(array $data): Candidate
@@ -66,5 +76,16 @@ class CandidateRepository
     {
         $candidate->update(['status' => 'inactive', 'is_active' => false]);
         $candidate->delete();
+    }
+
+    private function publicBaseQuery(): Builder
+    {
+        return Candidate::with('category')
+            ->where(function (Builder $query) {
+                $query->where('status', 'active')->orWhereNull('status');
+            })
+            ->where(function (Builder $query) {
+                $query->where('is_active', true)->orWhereNull('is_active');
+            });
     }
 }

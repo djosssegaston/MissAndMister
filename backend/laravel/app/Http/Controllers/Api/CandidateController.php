@@ -37,15 +37,17 @@ class CandidateController extends Controller
      * Display a listing of the resource.
      */
     // Public listing (active only)
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return response()->json($this->candidates->paginatePublic());
+        $perPage = max(1, min((int) $request->integer('per_page', 500), 500));
+        return response()->json($this->candidates->paginatePublic($perPage));
     }
 
     // Admin listing (all statuses)
-    public function adminIndex(): JsonResponse
+    public function adminIndex(Request $request): JsonResponse
     {
-        return response()->json($this->candidates->paginateAll());
+        $perPage = max(1, min((int) $request->integer('per_page', 500), 500));
+        return response()->json($this->candidates->paginateAll($perPage));
     }
 
     /**
@@ -54,7 +56,7 @@ class CandidateController extends Controller
     public function store(StoreCandidateRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $data['slug'] = Str::slug($data['first_name'] . ' ' . $data['last_name'] . '-' . Str::random(4));
+        $data['slug'] = Str::slug($data['first_name'] . ' ' . $data['last_name'] . '-' . Str::lower(Str::random(10)));
         $data['description'] = $data['description'] ?? $data['bio'] ?? null;
         $data['is_active'] = $data['is_active'] ?? ($data['status'] ?? 'active') === 'active';
         $data['status'] = ($data['is_active'] ?? true) ? 'active' : 'inactive';

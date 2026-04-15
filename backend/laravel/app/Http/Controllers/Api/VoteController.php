@@ -4,13 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\VoteRequest;
+use App\Models\Payment;
+use App\Models\Vote;
 use App\Services\VoteService;
 use App\Services\VotingWindowService;
 use App\Repositories\VoteRepository;
 use App\Models\Setting;
-use App\Models\Vote;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class VoteController extends Controller
@@ -30,7 +33,7 @@ class VoteController extends Controller
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
         $filters = request()->only(['status', 'candidate_id', 'from', 'to']);
-        $perPage = max(5, min((int) request()->get('per_page', 20), 100));
+        $perPage = max(5, min((int) request()->get('per_page', 20), 500));
         $list = $this->votes->paginateFiltered($filters, $perPage);
         return response()->json($list);
     }
@@ -57,7 +60,7 @@ class VoteController extends Controller
             ], $statusCode);
         }
 
-        $user = $request->user();
+        $user = $this->resolveOptionalAuthenticatedUser($request);
         $quantity = $request->integer('quantity', 1);
         [$payment, $vote] = $this->voteService->initiateVote(
             $user->id ?? null,
@@ -114,6 +117,12 @@ class VoteController extends Controller
             ], 422);
         }
 
+        if ($this->isProtectedSuccessfulVote($vote) && $data['status'] !== Vote::STATUS_CONFIRMED) {
+            return response()->json([
+                'message' => 'Un vote confirme avec paiement FedaPay reussi ne peut plus etre modifie par l’administration.',
+            ], 422);
+        }
+
         if ($data['status'] === Vote::STATUS_CONFIRMED) {
             $vote = $this->voteService->confirmVote($vote);
         } elseif ($data['status'] === 'failed') {
@@ -132,12 +141,34 @@ class VoteController extends Controller
     public function destroy(int $id): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
-        $vote = \App\Models\Vote::find($id);
+        $vote = Vote::with(['payment.transactions'])->find($id);
         if (!$vote) {
             return response()->json(['message' => 'Vote not found'], 404);
         }
-        $vote->delete();
-        return response()->json(['message' => 'Vote deleted']);
+
+        $actor = request()->user();
+        $paymentSucceeded = $vote->payment?->status === Payment::STATUS_SUCCEEDED;
+
+        if ($paymentSucceeded && ($actor->role ?? null) !== 'superadmin') {
+            return response()->json([
+                'message' => 'Seul le superadmin peut supprimer un vote confirme avec paiement FedaPay reussi.',
+            ], 403);
+        }
+
+        DB::transaction(function () use ($vote, $paymentSucceeded) {
+            if (!$paymentSucceeded && $vote->payment) {
+                $vote->payment->transactions()->withTrashed()->get()->each->forceDelete();
+                $vote->payment->forceDelete();
+            }
+
+            $vote->forceDelete();
+        });
+
+        return response()->json([
+            'message' => $paymentSucceeded
+                ? 'Vote supprime definitivement par le superadmin.'
+                : 'Vote et paiement non confirme supprimes definitivement.',
+        ]);
     }
 
     public function export(): StreamedResponse
@@ -179,5 +210,32 @@ class VoteController extends Controller
             });
             fclose($out);
         }, 200, $headers);
+    }
+
+    private function resolveOptionalAuthenticatedUser(Request $request): mixed
+    {
+        if ($request->user()) {
+            return $request->user();
+        }
+
+        $plainTextToken = trim((string) $request->bearerToken());
+        if ($plainTextToken === '') {
+            return null;
+        }
+
+        $accessToken = PersonalAccessToken::findToken($plainTextToken);
+        $tokenable = $accessToken?->tokenable;
+
+        if (!$tokenable || ($tokenable->role ?? null) !== 'user' || ($tokenable->status ?? 'active') !== 'active') {
+            return null;
+        }
+
+        return $tokenable;
+    }
+
+    private function isProtectedSuccessfulVote(Vote $vote): bool
+    {
+        return $vote->status === Vote::STATUS_CONFIRMED
+            && $vote->payment?->status === Payment::STATUS_SUCCEEDED;
     }
 }

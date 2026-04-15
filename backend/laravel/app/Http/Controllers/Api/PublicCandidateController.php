@@ -17,9 +17,9 @@ class PublicCandidateController extends Controller
         return response()->json($this->candidates->paginatePublic());
     }
 
-    public function show(int $id): JsonResponse
+    public function show(string $identifier): JsonResponse
     {
-        $candidate = $this->candidates->findActive($id);
+        $candidate = $this->candidates->findActiveByIdentifier($identifier);
         if (!$candidate) {
             return response()->json(['message' => 'Candidate not found'], 404);
         }

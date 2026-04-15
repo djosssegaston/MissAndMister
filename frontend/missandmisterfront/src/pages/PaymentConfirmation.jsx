@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { paymentAPI } from '../services/api';
+import { getCandidatePublicPath } from '../utils/candidatePublic';
 import './PaymentConfirmation.css';
 
 const SYNCABLE_STATES = new Set(['success', 'processing', 'pending', 'opening', 'initiated', 'failed']);
@@ -35,20 +36,27 @@ const buildStateFromStatuses = (paymentStatus, voteStatus, fallback = 'processin
 const PaymentConfirmation = () => {
   const [searchParams] = useSearchParams();
   const reference = (searchParams.get('reference') || '').trim();
-  const candidateId = (searchParams.get('candidate') || '').trim();
-  const candidateName = (searchParams.get('candidate_name') || '').trim() || 'ce candidat';
-  const amount = parseAmount(searchParams.get('amount'));
-  const quantity = parseQuantity(searchParams.get('quantity'));
-  const currency = (searchParams.get('currency') || 'XOF').trim() || 'XOF';
   const queryStatus = (searchParams.get('status') || 'processing').trim().toLowerCase();
+  const [paymentDetails, setPaymentDetails] = useState({
+    candidateName: 'ce candidat',
+    candidateSlug: (searchParams.get('candidate') || '').trim(),
+    amount: 0,
+    quantity: 1,
+    currency: 'XOF',
+  });
 
   const [paymentState, setPaymentState] = useState(() => (
     queryStatus === 'success' ? 'success' : (queryStatus === 'failed' ? 'failed' : 'processing')
   ));
   const [message, setMessage] = useState('Nous vérifions la confirmation du paiement auprès du serveur sécurisé.');
   const [isSyncing, setIsSyncing] = useState(SYNCABLE_STATES.has(queryStatus) && reference !== '');
-
-  const candidateLink = candidateId ? `/candidates/${candidateId}` : '/candidates';
+  const candidateName = paymentDetails.candidateName;
+  const amount = paymentDetails.amount;
+  const quantity = paymentDetails.quantity;
+  const currency = paymentDetails.currency;
+  const candidateLink = paymentDetails.candidateSlug
+    ? getCandidatePublicPath({ slug: paymentDetails.candidateSlug })
+    : '/candidates';
 
   const stateCopy = useMemo(() => {
     if (paymentState === 'success') {
@@ -112,6 +120,13 @@ const PaymentConfirmation = () => {
         const paymentStatus = String(payload?.payment_status || '').toLowerCase();
         const voteStatus = String(payload?.vote_status || '').toLowerCase();
         const nextState = buildStateFromStatuses(paymentStatus, voteStatus, 'processing');
+        setPaymentDetails({
+          candidateName: String(payload?.candidate_name || 'ce candidat').trim() || 'ce candidat',
+          candidateSlug: String(payload?.candidate_slug || '').trim(),
+          amount: parseAmount(payload?.amount),
+          quantity: parseQuantity(payload?.quantity),
+          currency: (String(payload?.currency || 'XOF').trim() || 'XOF'),
+        });
 
         if (cancelled) {
           return;
@@ -119,7 +134,7 @@ const PaymentConfirmation = () => {
 
         if (nextState === 'success') {
           setPaymentState('success');
-          setMessage(`Merci pour votre engagement. ${candidateName} vient de recevoir ${quantity} vote${quantity > 1 ? 's' : ''} confirmé${quantity > 1 ? 's' : ''}.`);
+          setMessage(`Merci pour votre engagement. ${payload?.candidate_name || 'Ce candidat'} vient de recevoir ${parseQuantity(payload?.quantity)} vote${parseQuantity(payload?.quantity) > 1 ? 's' : ''} confirmé${parseQuantity(payload?.quantity) > 1 ? 's' : ''}.`);
           setIsSyncing(false);
           stopPolling();
           return;
@@ -165,7 +180,7 @@ const PaymentConfirmation = () => {
       cancelled = true;
       stopPolling();
     };
-  }, [candidateName, queryStatus, quantity, reference]);
+  }, [queryStatus, reference]);
 
   return (
     <div className="payment-confirmation-page">

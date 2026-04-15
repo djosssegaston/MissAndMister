@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import { getCandidateImageSources } from '../../utils/candidateImage';
+import { formatCandidatePublicNumber } from '../../utils/candidatePublic';
 import Loader from '../../components/Loader';
 import { broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
@@ -15,6 +16,7 @@ const RANKS_ICON = [
 
 const emptyForm = {
   name: '',
+  publicNumber: '',
   email: '',
   password: '',
   confirmPassword: '',
@@ -64,6 +66,7 @@ const buildCandidateForm = (candidate) => {
 
   return {
     name: fullName,
+    publicNumber: raw.public_number ?? candidate?.publicNumber ?? '',
     email: raw.email || candidate?.email || raw.user?.email || '',
     password: '',
     confirmPassword: '',
@@ -135,7 +138,8 @@ const AdminCandidates = () => {
 
     return {
       id: c.id,
-      number: String(c.id).padStart(2, '0'),
+      publicNumber: c.public_number ?? null,
+      number: formatCandidatePublicNumber(c.public_number),
       name: `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim() || c.name || '—',
       category: { name: catName, id: catId },
       university: c.university || 'N/A',
@@ -165,7 +169,7 @@ const AdminCandidates = () => {
 
       const [cats, list] = await Promise.all([
         adminAPI.getCategories(),
-        adminAPI.getCandidates(),
+        adminAPI.getCandidates({ per_page: 500 }),
       ]);
 
       const catList = cats?.data || cats || [];
@@ -205,7 +209,11 @@ const AdminCandidates = () => {
 
   const openAdd  = () => {
     const defaultCatId = categories[0]?.id ?? null;
-    setForm({ ...emptyForm, categoryId: defaultCatId });
+    const nextPublicNumber = candidates.reduce((max, candidate) => {
+      const value = Number(candidate.publicNumber || 0);
+      return Number.isFinite(value) && value > max ? value : max;
+    }, 0) + 1;
+    setForm({ ...emptyForm, categoryId: defaultCatId, publicNumber: String(nextPublicNumber) });
     setFormErrors({});
     setError(null);
     setFeedback(null);
@@ -234,6 +242,7 @@ const AdminCandidates = () => {
     const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,}$/;
 
     if (!form.name.trim()) next.name = 'Le nom complet est requis';
+    if (!form.publicNumber || Number(form.publicNumber) < 1) next.publicNumber = "Le numéro d'ordre est requis";
     if (!form.categoryId) next.categoryId = 'La catégorie est requise';
     if (!form.email.trim()) next.email = "L'email est requis";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) next.email = 'Adresse email invalide';
@@ -263,6 +272,7 @@ const AdminCandidates = () => {
       category_id: category?.id,
       first_name: firstName || 'N/A',
       last_name: lastName || 'N/A',
+      public_number: Number(form.publicNumber),
       email: form.email.trim(),
       university: form.university.trim() || null,
       age: form.age ? Number(form.age) : null,
@@ -704,7 +714,7 @@ const AdminCandidates = () => {
             <tbody>
               {filtered.map(c => (
                 <motion.tr key={c.id} initial={{ opacity:0 }} animate={{ opacity:1 }}>
-                  <td data-label="N°"><span className="acand-num">#{c.number}</span></td>
+                  <td data-label="N°"><span className="acand-num">{c.number === '—' ? '—' : `#${c.number}`}</span></td>
                   <td data-label="Candidat">
                     <div className="acand-identity">
                       <div className="acand-avatar">{c.name.charAt(0)}</div>
@@ -852,6 +862,21 @@ const AdminCandidates = () => {
                     <input className="ag-input" value={form.name} onChange={e => updateField('name', e.target.value)} placeholder="Prénom NOM" />
                     {formErrors.name && <span className="acand-field-error">{formErrors.name}</span>}
                   </div>
+                  <div>
+                    <label className="ag-label">Numéro d'ordre public</label>
+                    <input
+                      className="ag-input"
+                      type="number"
+                      min="1"
+                      value={form.publicNumber}
+                      onChange={e => updateField('publicNumber', e.target.value)}
+                      placeholder="Ex: 15"
+                    />
+                    {formErrors.publicNumber && <span className="acand-field-error">{formErrors.publicNumber}</span>}
+                  </div>
+                </div>
+
+                <div className="ag-form-group acand-form-grid">
                   <div>
                     <label className="ag-label">Catégorie</label>
                     <select

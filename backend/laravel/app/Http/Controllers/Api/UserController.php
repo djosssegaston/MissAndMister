@@ -29,22 +29,69 @@ class UserController extends Controller
     public function adminIndex(): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
+        $perPage = max(25, min((int) request()->integer('per_page', 200), 500));
 
         // Utilisateurs inscrits
         $registered = User::query()
             ->where('role', 'user')
-            ->withSum(['votes as votes_count' => function ($q) {
-                $q->successful();
-            }], 'quantity')
             ->withCount(['payments as payments_count' => function ($q) {
                 $q->succeeded();
             }])
             ->select(['id', 'name', 'email', 'phone', 'status', 'created_at'])
             ->addSelect([
+                'votes_count' => function ($q) {
+                    $q->from('votes')
+                        ->selectRaw('COALESCE(SUM(votes.quantity), 0)')
+                        ->where('votes.status', 'confirmed')
+                        ->where(function ($voteQuery) {
+                            $voteQuery
+                                ->whereColumn('votes.user_id', 'users.id')
+                                ->orWhere(function ($fallbackQuery) {
+                                    $fallbackQuery
+                                        ->whereNull('votes.user_id')
+                                        ->whereExists(function ($paymentQuery) {
+                                            $paymentQuery
+                                                ->selectRaw('1')
+                                                ->from('payments')
+                                                ->whereColumn('payments.id', 'votes.payment_id')
+                                                ->whereColumn('payments.user_id', 'users.id')
+                                                ->where('payments.status', 'succeeded');
+                                        });
+                                });
+                        })
+                        ->where(function ($voteQuery) {
+                            $voteQuery
+                                ->whereNull('votes.payment_id')
+                                ->orWhereExists(function ($paymentQuery) {
+                                    $paymentQuery
+                                        ->selectRaw('1')
+                                        ->from('payments')
+                                        ->whereColumn('payments.id', 'votes.payment_id')
+                                        ->where('payments.status', 'succeeded');
+                                });
+                        });
+                },
+            ])
+            ->addSelect([
                 'last_vote_ip' => function ($q) {
                     $q->from('votes')
-                        ->whereColumn('votes.user_id', 'users.id')
                         ->where('votes.status', 'confirmed')
+                        ->where(function ($voteQuery) {
+                            $voteQuery
+                                ->whereColumn('votes.user_id', 'users.id')
+                                ->orWhere(function ($fallbackQuery) {
+                                    $fallbackQuery
+                                        ->whereNull('votes.user_id')
+                                        ->whereExists(function ($paymentQuery) {
+                                            $paymentQuery
+                                                ->selectRaw('1')
+                                                ->from('payments')
+                                                ->whereColumn('payments.id', 'votes.payment_id')
+                                                ->whereColumn('payments.user_id', 'users.id')
+                                                ->where('payments.status', 'succeeded');
+                                        });
+                                });
+                        })
                         ->where(function ($voteQuery) {
                             $voteQuery
                                 ->whereNull('votes.payment_id')
@@ -62,8 +109,23 @@ class UserController extends Controller
                 },
                 'last_vote_at' => function ($q) {
                     $q->from('votes')
-                        ->whereColumn('votes.user_id', 'users.id')
                         ->where('votes.status', 'confirmed')
+                        ->where(function ($voteQuery) {
+                            $voteQuery
+                                ->whereColumn('votes.user_id', 'users.id')
+                                ->orWhere(function ($fallbackQuery) {
+                                    $fallbackQuery
+                                        ->whereNull('votes.user_id')
+                                        ->whereExists(function ($paymentQuery) {
+                                            $paymentQuery
+                                                ->selectRaw('1')
+                                                ->from('payments')
+                                                ->whereColumn('payments.id', 'votes.payment_id')
+                                                ->whereColumn('payments.user_id', 'users.id')
+                                                ->where('payments.status', 'succeeded');
+                                        });
+                                });
+                        })
                         ->where(function ($voteQuery) {
                             $voteQuery
                                 ->whereNull('votes.payment_id')
@@ -81,12 +143,22 @@ class UserController extends Controller
                 },
             ])
             ->orderByDesc('created_at')
-            ->paginate(100);
+            ->paginate($perPage);
 
         // Invités (user_id null)
         $guests = \App\Models\Vote::query()
             ->successful()
             ->whereNull('user_id')
+            ->where(function ($query) {
+                $query->whereNull('payment_id')
+                    ->orWhereExists(function ($paymentQuery) {
+                        $paymentQuery
+                            ->selectRaw('1')
+                            ->from('payments')
+                            ->whereColumn('payments.id', 'votes.payment_id')
+                            ->whereNull('payments.user_id');
+                    });
+            })
             ->selectRaw('ip_address, SUM(quantity) as votes_count, MAX(created_at) as last_vote_at, MIN(created_at) as created_at')
             ->groupBy('ip_address')
             ->orderByDesc('last_vote_at')

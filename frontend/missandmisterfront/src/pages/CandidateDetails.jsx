@@ -5,6 +5,7 @@ import { candidatesAPI, votesAPI } from '../services/api';
 import { useToast } from '../components/Toast';
 import Loader from '../components/Loader';
 import { getCandidateImageSources } from '../utils/candidateImage';
+import { formatCandidatePublicNumber } from '../utils/candidatePublic';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 import { useAutoRefresh } from '../utils/liveUpdates';
 import './CandidateDetails.css';
@@ -12,7 +13,7 @@ import './CandidateDetails.css';
 const DEFAULT_PRICE_PER_VOTE = 100;
 
 const CandidateDetails = () => {
-  const { id } = useParams();
+  const { identifier } = useParams();
   const { showToast } = useToast();
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,7 +36,7 @@ const CandidateDetails = () => {
     : DEFAULT_PRICE_PER_VOTE;
 
   const fetchCandidate = async () => {
-    if (!id) return;
+    if (!identifier) return;
 
     const isInitialLoad = !hasLoadedRef.current;
 
@@ -46,7 +47,7 @@ const CandidateDetails = () => {
         setVideoFailed(false);
       }
 
-      const data = await candidatesAPI.getById(id);
+      const data = await candidatesAPI.getById(identifier);
       setPhotoFailed(false);
       setVideoFailed(false);
       setCandidate(data);
@@ -65,7 +66,7 @@ const CandidateDetails = () => {
     }
   };
 
-  useAutoRefresh(fetchCandidate, { enabled: Boolean(id) });
+  useAutoRefresh(fetchCandidate, { enabled: Boolean(identifier) });
 
   const retryFetchCandidate = async () => {
     hasLoadedRef.current = false;
@@ -206,7 +207,7 @@ const CandidateDetails = () => {
                 </div>
               )}
               <div className="cdet-photo-badges">
-                <span className="cdet-badge-num">N°{(candidate.public_number ?? candidate.id).toString().padStart(2, '0')}</span>
+                <span className="cdet-badge-num">N°{formatCandidatePublicNumber(candidate.public_number)}</span>
                 <span className={`cdet-badge-cat ${candidate.category?.name?.toLowerCase() || 'unknown'}`}>{candidate.category?.name || 'Unknown'}</span>
               </div>
             </div>
@@ -280,7 +281,7 @@ const CandidateDetails = () => {
                 // candidate.age && { label:'Âge', value:`${candidate.age} ans` },
                 // candidate.city && { label:'Ville', value: candidate.city },
                 { label:'Catégorie', value: candidate.category?.name || 'Unknown' },
-                { label:'Numéro', value:`N°${(candidate.public_number ?? candidate.id).toString().padStart(2, '0')}` },
+                { label:'Numéro', value:`N°${formatCandidatePublicNumber(candidate.public_number)}` },
               ].filter(Boolean).map((info, i) => (
                 <div key={i} className="cdet-info-item">
                   <span className="cdet-info-label">{info.label}</span>

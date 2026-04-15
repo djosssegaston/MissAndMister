@@ -27,6 +27,7 @@ class StoreCandidateRequest extends FormRequest
             'category_id' => ['required', 'exists:categories,id'],
             'first_name' => ['required', 'string', 'max:120'],
             'last_name' => ['required', 'string', 'max:120'],
+            'public_number' => ['nullable', 'integer', 'min:1', 'unique:candidates,public_number'],
             'email' => ['required', 'email', 'unique:candidates,email', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:20', 'unique:candidates,phone', 'unique:users,phone'],
             'password' => ['required', 'string', 'confirmed', Password::min(10)->letters()->mixedCase()->numbers()->symbols()],

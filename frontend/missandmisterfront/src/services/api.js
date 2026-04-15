@@ -445,13 +445,13 @@ export const authAPI = {
 export const candidatesAPI = {
   // Récupérer tous les candidats
   getAll: async (filters = {}) => {
-    const queryParams = new URLSearchParams(filters).toString();
+    const queryParams = new URLSearchParams({ per_page: 500, ...filters }).toString();
     return fetchPublicAPI(`/public/candidates${queryParams ? `?${queryParams}` : ''}`);
   },
 
-  // Récupérer un candidat par ID
-  getById: async (id) => {
-    return fetchPublicAPI(`/public/candidates/${id}`);
+  // Récupérer un candidat par identifiant public (slug / numero public)
+  getById: async (identifier) => {
+    return fetchPublicAPI(`/public/candidates/${encodeURIComponent(identifier)}`);
   },
 
   // Récupérer les candidats par catégorie
@@ -480,7 +480,7 @@ export const candidateAPI = {
 export const votesAPI = {
   // Voter pour un candidat (public - sans auth)
   vote: async (candidateId, voteData) => {
-    return fetchPublicAPI('/votes', {
+    return fetchAPI('/votes', {
       method: 'POST',
       body: JSON.stringify({
         candidate_id: candidateId,
@@ -595,7 +595,7 @@ export const adminAPI = {
 
   // Candidats (admin)
   getCandidates: async (params = {}) => {
-    const query = buildQueryString(params);
+    const query = buildQueryString({ per_page: 500, ...params });
     return fetchAPI(`/admin/candidates${query}`);
   },
 

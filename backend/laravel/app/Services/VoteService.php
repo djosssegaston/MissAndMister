@@ -62,7 +62,22 @@ class VoteService
         }
 
         return DB::transaction(function () use ($vote) {
-            $vote->update(['status' => 'confirmed']);
+            $vote->loadMissing('payment');
+
+            $updates = ['status' => 'confirmed'];
+
+            if (!$vote->user_id && $vote->payment?->user_id) {
+                $updates['user_id'] = $vote->payment->user_id;
+            }
+
+            if (!$vote->ip_address) {
+                $paymentIp = data_get($vote->payment?->meta, 'ip');
+                if (filled($paymentIp)) {
+                    $updates['ip_address'] = (string) $paymentIp;
+                }
+            }
+
+            $vote->update($updates);
 
             ActivityLog::create([
                 'causer_id' => $vote->user_id,

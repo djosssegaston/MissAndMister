@@ -31,15 +31,17 @@ class PaymentPageController extends Controller
 
         $frontendUrl = rtrim((string) (config('app.frontend_url') ?: config('app.frontend-url') ?: env('FRONTEND_URL', '')), '/');
         $candidateId = (int) (Arr::get($payment->meta, 'candidate_id') ?: $payment->vote?->candidate_id ?: 0);
+        $candidateSlug = trim((string) ($payment->vote?->candidate?->slug ?? ''));
         $candidateName = trim((string) Arr::get($payment->meta, 'candidate_name', ''));
 
-        if ($candidateName === '' && $candidateId > 0) {
+        if (($candidateName === '' || $candidateSlug === '') && $candidateId > 0) {
             $candidate = Candidate::query()
-                ->select(['id', 'first_name', 'last_name'])
+                ->select(['id', 'slug', 'first_name', 'last_name'])
                 ->find($candidateId);
 
             if ($candidate) {
                 $candidateName = trim(($candidate->first_name ?? '') . ' ' . ($candidate->last_name ?? ''));
+                $candidateSlug = $candidateSlug !== '' ? $candidateSlug : (string) ($candidate->slug ?? '');
             }
         }
 
@@ -47,8 +49,9 @@ class PaymentPageController extends Controller
             $candidateName = 'Candidat inconnu';
         }
 
-        $candidateLink = $candidateId > 0
-            ? "{$frontendUrl}/candidates/{$candidateId}"
+        $candidateIdentifier = $candidateSlug !== '' ? $candidateSlug : null;
+        $candidateLink = $candidateIdentifier
+            ? "{$frontendUrl}/candidates/{$candidateIdentifier}"
             : "{$frontendUrl}/candidates";
 
         if ($candidateLink === '/candidates') {
@@ -77,10 +80,7 @@ class PaymentPageController extends Controller
             : 'Paiement sécurisé Miss & Mister University Bénin 2026';
         $confirmationUrls = $this->buildConfirmationUrls(
             $payment,
-            $frontendUrl,
-            $candidateId,
-            $candidateName,
-            max(1, $quantity)
+            $frontendUrl
         );
 
         return view('payments.show', [
@@ -111,14 +111,15 @@ class PaymentPageController extends Controller
 
         $frontendUrl = rtrim((string) (config('app.frontend_url') ?: config('app.frontend-url') ?: env('FRONTEND_URL', '')), '/');
         $candidateId = (int) (Arr::get($payment->meta, 'candidate_id') ?: $payment->vote?->candidate_id ?: 0);
-        $candidateName = trim((string) Arr::get($payment->meta, 'candidate_name', ''));
-        $quantity = (int) ($payment->vote?->quantity ?: Arr::get($payment->meta, 'quantity', 1));
+        $candidateIdentifier = trim((string) ($payment->vote?->candidate?->slug ?? ''));
+        if ($candidateIdentifier === '' && $candidateId > 0) {
+            $candidateIdentifier = (string) Candidate::query()
+                ->whereKey($candidateId)
+                ->value('slug');
+        }
         $urls = $this->buildConfirmationUrls(
             $payment,
-            $frontendUrl,
-            $candidateId,
-            $candidateName,
-            max(1, $quantity)
+            $frontendUrl
         );
 
         $voteStatus = (string) ($payment->vote?->status ?? '');
@@ -207,18 +208,10 @@ class PaymentPageController extends Controller
     private function buildConfirmationUrls(
         Payment $payment,
         string $frontendUrl,
-        int $candidateId,
-        string $candidateName,
-        int $quantity,
     ): array {
         $basePath = ($frontendUrl !== '' ? $frontendUrl : '') . '/payment/confirmation';
         $baseParams = array_filter([
             'reference' => $payment->reference,
-            'candidate' => $candidateId > 0 ? $candidateId : null,
-            'candidate_name' => $candidateName !== '' ? $candidateName : null,
-            'quantity' => $quantity,
-            'amount' => (int) round((float) $payment->amount),
-            'currency' => $payment->currency,
         ], static fn ($value) => $value !== null && $value !== '');
 
         $build = function (string $status) use ($basePath, $baseParams): string {

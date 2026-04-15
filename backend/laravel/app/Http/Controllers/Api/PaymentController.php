@@ -293,13 +293,22 @@ class PaymentController extends Controller
 
     private function syncResponsePayload(Payment $payment, ?array $remoteTransaction = null): array
     {
-        $payment->loadMissing('vote');
+        $payment->loadMissing('vote.candidate');
 
         return [
             'reference' => $payment->reference,
             'payment_status' => $payment->status,
             'vote_status' => $payment->vote?->status,
             'transaction_id' => $payment->transaction_id,
+            'amount' => (float) $payment->amount,
+            'currency' => $payment->currency,
+            'quantity' => (int) ($payment->vote?->quantity ?? data_get($payment->meta, 'quantity', 1)),
+            'candidate_name' => trim((string) (
+                data_get($payment->meta, 'candidate_name')
+                ?: trim(($payment->vote?->candidate?->first_name ?? '') . ' ' . ($payment->vote?->candidate?->last_name ?? ''))
+            )),
+            'candidate_slug' => $payment->vote?->candidate?->slug,
+            'candidate_public_number' => $payment->vote?->candidate?->public_number,
             'remote_status' => $remoteTransaction ? strtolower((string) Arr::get($remoteTransaction, 'status', '')) : null,
         ];
     }

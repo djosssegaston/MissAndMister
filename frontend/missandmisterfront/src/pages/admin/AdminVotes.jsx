@@ -62,26 +62,46 @@ const AdminVotes = () => {
   const [selected, setSelected] = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const hasLoadedRef = useRef(false);
+  const adminRole = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('adminUser') || 'null')?.role || 'admin';
+    } catch {
+      return 'admin';
+    }
+  })();
 
   const mapVote = (v) => {
     const candidateName = v.candidate ? `${v.candidate.first_name} ${v.candidate.last_name}`.trim() : '—';
     const categoryName = v.candidate?.category?.name || '—';
-    const qty = Number.isFinite(v.quantity) ? v.quantity : (v.amount ? Math.max(1, Math.round(v.amount / 100)) : v.qty || 1);
+    const quantity = Number(v.quantity ?? v.qty);
+    const qty = Number.isFinite(quantity) && quantity > 0
+      ? Math.round(quantity)
+      : (v.amount ? Math.max(1, Math.round(v.amount / 100)) : 1);
     const paymentStatus = v.payment?.status || '';
     const isCountable = v.status === 'confirmed' && (!paymentStatus || paymentStatus === 'succeeded');
+    const voterPhone = v.user?.phone
+      || v.payment?.meta?.voter_phone
+      || v.payment?.payload?.customer?.phone_number
+      || v.payment?.payload?.fedapay?.customer?.phone_number
+      || '—';
+    const voterIdentity = v.user?.email || v.user?.name || v.payment?.meta?.voter_email || '—';
+    const protectedSuccessfulVote = v.status === 'confirmed' && paymentStatus === 'succeeded';
+
     return {
       id: v.id,
       candidate: candidateName,
       category: categoryName,
-      voter: v.user?.email || v.user?.name || '—',
+      voter: voterIdentity,
+      voterPhone,
       qty,
       amount: v.amount || 0,
       operator: v.payment?.provider || v.operator || 'fedapay',
       paymentStatus,
       isCountable,
+      protectedSuccessfulVote,
       status: v.status || 'pending',
       date: v.created_at,
-      ip: v.ip_address || '—',
+      ip: v.ip_address || v.payment?.meta?.ip || '—',
       raw: v,
     };
   };
@@ -94,7 +114,7 @@ const AdminVotes = () => {
         setLoading(true);
       }
 
-      const res = await adminAPI.getVotes({ per_page: 200 });
+      const res = await adminAPI.getVotes({ per_page: 500 });
       const data = res?.data || res || [];
       setVotes(data.map(mapVote));
       setError(null);
@@ -125,7 +145,10 @@ const AdminVotes = () => {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return votes.filter(v => {
-      const matchSearch = v.candidate.toLowerCase().includes(q) || v.voter.toLowerCase().includes(q) || String(v.id).toLowerCase().includes(q);
+      const matchSearch = v.candidate.toLowerCase().includes(q)
+        || v.voter.toLowerCase().includes(q)
+        || String(v.voterPhone || '').toLowerCase().includes(q)
+        || String(v.id).toLowerCase().includes(q);
       const matchStatus = statusFilter === 'Tous' || v.status === statusFilter;
       const matchCat = catFilter === 'Tous' || v.category === catFilter;
       const matchOp = operatorFilter === 'Tous' || v.operator === operatorFilter;
@@ -151,6 +174,11 @@ const AdminVotes = () => {
   }, [filtered, sortBy]);
 
   const askStatusChange = (vote, newStatus, label) => {
+    if (vote.protectedSuccessfulVote && newStatus !== 'confirmed') {
+      setError('Un vote confirme avec paiement FedaPay reussi ne peut plus etre modifie.');
+      return;
+    }
+
     setConfirm({
       message: `${label} le vote ${vote.id} ?`,
       onConfirm: async () => {
@@ -171,8 +199,36 @@ const AdminVotes = () => {
   };
 
   const handleDelete = (vote) => {
-    // Pas de suppression physique : on annule le vote
-    askStatusChange(vote, 'cancelled', 'Annuler');
+    const isAllowed = !vote.protectedSuccessfulVote || adminRole === 'superadmin';
+    if (!isAllowed) {
+      setError('Seul le superadmin peut supprimer un vote confirme avec paiement reussi.');
+      return;
+    }
+
+    setConfirm({
+      message: vote.protectedSuccessfulVote
+        ? `Supprimer definitivement le vote ${vote.id} ? Cette action est reservee au superadmin.`
+        : `Supprimer definitivement le vote ${vote.id} et ses traces de paiement non confirme ?`,
+      onConfirm: async () => {
+        try {
+          await adminAPI.deleteVote(vote.id);
+          setVotes((previousVotes) => previousVotes.filter((currentVote) => currentVote.id !== vote.id));
+          setSelected((previousSelection) => {
+            const next = new Set(previousSelection);
+            next.delete(vote.id);
+            return next;
+          });
+          broadcastLiveUpdate('votes');
+        } catch (err) {
+          if (err?.isSessionExpired) {
+            return;
+          }
+          setError(err.message || 'Échec de la suppression du vote');
+        } finally {
+          setConfirm(null);
+        }
+      },
+    });
   };
 
   const exportCSV = () => {
@@ -209,7 +265,14 @@ const AdminVotes = () => {
 
   const bulkUpdate = async (status, label) => {
     if (selected.size === 0) return;
-    const ids = Array.from(selected);
+    const ids = Array.from(selected).filter((id) => {
+      const vote = votes.find((currentVote) => currentVote.id === id);
+      return !(vote?.protectedSuccessfulVote && status !== 'confirmed');
+    });
+    if (ids.length === 0) {
+      setError('La sélection contient uniquement des votes déjà protégés par un paiement FedaPay confirmé.');
+      return;
+    }
     if (!window.confirm(`${label} ${ids.length} vote(s) ?`)) return;
     setBulkLoading(true);
     try {
@@ -368,7 +431,13 @@ const AdminVotes = () => {
                       <span className={`ag-badge ${v.category === 'Miss' ? 'adash-miss' : 'adash-mister'}`} style={{ fontSize:'0.6rem' }}>{v.category}</span>
                     </div>
                   </td>
-                  <td data-label="Votant"><span className="avotes-voter">{v.voter}</span></td>
+                  <td data-label="Votant">
+                    <div>
+                      <span className="avotes-voter">{v.voter}</span>
+                      <br />
+                      <span className="avotes-ip">{v.voterPhone}</span>
+                    </div>
+                  </td>
                   <td data-label="Votes"><span className="avotes-qty">{v.qty}</span></td>
                   <td data-label="Montant"><span className="avotes-amount">{v.amount} F</span></td>
                   <td data-label="Opérateur">
@@ -389,17 +458,17 @@ const AdminVotes = () => {
                   <td data-label="IP"><span className="avotes-ip">{v.ip}</span></td>
                   <td data-label="Actions">
                     <div className="avotes-actions">
-                      {v.status !== 'confirmed' && (
+                      {!v.protectedSuccessfulVote && v.status !== 'confirmed' && (
                         <button className="ag-btn ag-btn-ghost" title="Valider" onClick={() => askStatusChange(v, 'confirmed', 'Valider')}>
                           ✓
                         </button>
                       )}
-                      {v.status !== 'cancelled' && (
+                      {!v.protectedSuccessfulVote && v.status !== 'cancelled' && (
                         <button className="ag-btn ag-btn-outline" title="Suspect" onClick={() => askStatusChange(v, 'suspect', 'Marquer suspect')}>
                           !
                         </button>
                       )}
-                      {v.status !== 'confirmed' && v.status !== 'cancelled' && (
+                      {((!v.protectedSuccessfulVote) || adminRole === 'superadmin') && (
                         <button className="ag-btn ag-btn-danger" title="Annuler" onClick={() => handleDelete(v)}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
                         </button>

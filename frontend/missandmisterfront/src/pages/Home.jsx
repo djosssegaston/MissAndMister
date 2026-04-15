@@ -9,6 +9,7 @@ import sessionHero from '../assets/session_hero.png';
 import sessionMobile from '../assets/session_mobil.png';
 import sessionMobileAlt from '../assets/session_mobil1.png';
 import initiatorVisual from '../assets/logo1.jpeg';
+import { getCandidatePublicPath } from '../utils/candidatePublic';
 import { useAutoRefresh } from '../utils/liveUpdates';
 import { PARTNER_WHATSAPP_URL, PROJECT_PHONE_DISPLAY } from '../utils/siteContact';
 import './Home.css';
@@ -790,7 +791,7 @@ const Home = () => {
                 {votingBlocked ? (
                   <span className="tc-vote-btn tc-vote-btn-disabled">Vote bloqué</span>
                 ) : (
-                  <Link to={`/candidates/${c.id}`} className="tc-vote-btn">Voter</Link>
+                  <Link to={getCandidatePublicPath(c)} className="tc-vote-btn">Voter</Link>
                 )}
               </motion.div>
             ))}

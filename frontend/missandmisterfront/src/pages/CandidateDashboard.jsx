@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authAPI, candidateAPI } from '../services/api';
+import { formatCandidatePublicNumber } from '../utils/candidatePublic';
 import { useAutoRefresh } from '../utils/liveUpdates';
 import './CandidateDashboard.css';
 
@@ -167,7 +168,7 @@ const CandidateDashboard = () => {
               <div className="cdb-meta">
                 <span className={`cdb-cat ${(candidate.category || 'candidat').toLowerCase()}`}>{candidate.category}</span>
                 <span className="cdb-univ">{candidate.university || 'Université non renseignée'}</span>
-                <span className="cdb-num">N°{candidate.public_number ?? candidate.id}</span>
+                <span className="cdb-num">N°{formatCandidatePublicNumber(candidate.public_number)}</span>
               </div>
             </div>
           </div>

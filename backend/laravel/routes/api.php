@@ -35,7 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
 // Public data
 Route::prefix('public')->group(function () {
     Route::get('candidates', [PublicCandidateController::class, 'index']);
-    Route::get('candidates/{id}', [PublicCandidateController::class, 'show']);
+    Route::get('candidates/{identifier}', [PublicCandidateController::class, 'show']);
     Route::get('stats', [StatsController::class, 'publicStats']);
     Route::get('gallery', [GalleryController::class, 'publicIndex']);
     Route::get('partners', [PartnerController::class, 'publicIndex']);

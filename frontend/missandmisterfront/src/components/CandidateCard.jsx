@@ -2,20 +2,21 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getCandidateImageSources } from '../utils/candidateImage';
+import { formatCandidatePublicNumber, getCandidatePublicPath } from '../utils/candidatePublic';
 import './CandidateCard.css';
 
 const CandidateCard = ({ candidate, votingBlocked = false }) => {
   // Transform backend data to frontend format
   const transformedCandidate = {
-    id: candidate.id,
+    publicPath: getCandidatePublicPath(candidate),
     name: `${candidate.first_name} ${candidate.last_name}`,
     category: candidate.category?.name || 'Unknown',
     university: candidate.university || 'Non spécifiée',
     votes: candidate.votes_count || 0,
-    number: (candidate.public_number ?? candidate.id).toString().padStart(2, '0'), // Public visible number
+    number: formatCandidatePublicNumber(candidate.public_number),
   };
 
-  const { id, number, name, category, university, votes } = transformedCandidate;
+  const { publicPath, number, name, category, university, votes } = transformedCandidate;
   const [photoFailed, setPhotoFailed] = useState(false);
   const photo = getCandidateImageSources(candidate, 'portrait');
   const backdrop = photo.backdrop || photo.src;
@@ -104,7 +105,7 @@ const CandidateCard = ({ candidate, votingBlocked = false }) => {
             Vote bloqué
           </button>
         ) : (
-          <Link to={`/candidates/${id}`} className="cc-btn-vote">
+          <Link to={publicPath} className="cc-btn-vote">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="11" width="18" height="10" rx="2" stroke="currentColor" strokeWidth="2"/>
               <path d="M9 11V7a3 3 0 016 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -113,7 +114,7 @@ const CandidateCard = ({ candidate, votingBlocked = false }) => {
             Voter
           </Link>
         )}
-        <Link to={`/candidates/${id}`} className="cc-btn-profile">
+        <Link to={publicPath} className="cc-btn-profile">
           Profil
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
             <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

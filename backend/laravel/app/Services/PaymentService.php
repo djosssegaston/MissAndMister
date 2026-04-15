@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Payment;
 use App\Models\ActivityLog;
+use App\Models\User;
 use App\Repositories\PaymentRepository;
 use App\Repositories\TransactionRepository;
 use Illuminate\Support\Arr;
@@ -24,10 +25,17 @@ class PaymentService
         $currency = strtoupper($currency);
         $reference = Str::upper(Str::random(12));
         $candidateName = trim((string) Arr::get($metadata, 'candidate_name', ''));
+        $voter = $userId ? User::query()->select(['id', 'name', 'email', 'phone'])->find($userId) : null;
         $description = $candidateName !== ''
             ? 'Vote pour ' . $candidateName
             : 'Paiement sécurisé Miss & Mister';
         $callbackUrl = route('payments.callback', ['reference' => $reference]);
+        $customer = $this->buildCustomerPayload($voter);
+        $enrichedMetadata = array_merge($metadata, array_filter([
+            'voter_name' => $voter?->name,
+            'voter_email' => $voter?->email,
+            'voter_phone' => $voter?->phone,
+        ], static fn ($value) => filled($value)));
 
         $transaction = $this->fedapay->createTransaction(
             $amount,
@@ -35,12 +43,13 @@ class PaymentService
             $description,
             $callbackUrl,
             $reference,
-            array_merge($metadata, [
+            array_merge($enrichedMetadata, [
                 'payment_reference' => $reference,
                 'amount' => $amount,
                 'currency' => strtoupper($currency),
                 'provider' => 'fedapay',
-            ])
+            ]),
+            $customer,
         );
 
         $transactionId = (string) Arr::get($transaction, 'id', '');
@@ -91,7 +100,7 @@ class PaymentService
                 'fedapay_status' => $transactionStatus,
                 'fedapay_environment' => $this->fedapay->environment(),
                 'fedapay_token' => Arr::get($tokenPayload, 'token'),
-            ]),
+            ], $enrichedMetadata),
             'paid_at' => null,
         ]);
 
@@ -186,5 +195,26 @@ class PaymentService
         }
 
         return null;
+    }
+
+    private function buildCustomerPayload(?User $voter): ?array
+    {
+        if (!$voter) {
+            return null;
+        }
+
+        $name = trim((string) ($voter->name ?? ''));
+        $parts = preg_split('/\s+/', $name) ?: [];
+        $firstname = trim((string) ($parts[0] ?? ''));
+        $lastname = trim((string) implode(' ', array_slice($parts, 1)));
+
+        $customer = array_filter([
+            'email' => $voter->email,
+            'firstname' => $firstname !== '' ? $firstname : null,
+            'lastname' => $lastname !== '' ? $lastname : null,
+            'phone_number' => $voter->phone,
+        ], static fn ($value) => filled($value));
+
+        return $customer !== [] ? $customer : null;
     }
 }
