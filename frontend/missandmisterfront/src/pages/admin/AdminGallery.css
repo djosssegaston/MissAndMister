@@ -237,6 +237,8 @@
 .agal-confirm-overlay {
   position: fixed;
   inset: 0;
+  width: 100vw;
+  min-height: 100dvh;
   background: rgba(0,0,0,0.72);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -247,7 +249,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: max(0.85rem, env(safe-area-inset-top)) max(0.85rem, env(safe-area-inset-right)) max(0.85rem, env(safe-area-inset-bottom)) max(0.85rem, env(safe-area-inset-left));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .agal-panel {
@@ -382,7 +386,8 @@
 }
 
 .agal-confirm-modal {
-  width: min(100%, 460px);
+  box-sizing: border-box;
+  width: min(460px, calc(100vw - 1rem));
   max-height: min(88vh, 680px);
   overflow-y: auto;
   background:
@@ -458,7 +463,7 @@
 
 @media (max-width: 520px) {
   .agal-confirm-modal {
-    width: min(100%, 94vw);
+    width: min(460px, calc(100vw - 1rem));
     padding: 1.3rem 1rem 1rem;
   }
 

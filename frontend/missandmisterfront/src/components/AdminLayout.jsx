@@ -276,14 +276,13 @@ const AdminLayout = ({ children }) => {
 
       <AnimatePresence>
         {logoutConfirmOpen && (
-          <>
-            <motion.div
-              className="admin-confirm-overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => !logoutPending && setLogoutConfirmOpen(false)}
-            />
+          <motion.div
+            className="admin-confirm-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !logoutPending && setLogoutConfirmOpen(false)}
+          >
             <motion.div
               className="admin-confirm-modal"
               initial={{ opacity: 0, y: 18, scale: 0.96 }}
@@ -293,6 +292,7 @@ const AdminLayout = ({ children }) => {
               role="dialog"
               aria-modal="true"
               aria-labelledby="admin-logout-title"
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="admin-confirm-icon">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -322,7 +322,7 @@ const AdminLayout = ({ children }) => {
                 </button>
               </div>
             </motion.div>
-          </>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

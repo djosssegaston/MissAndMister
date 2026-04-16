@@ -28,6 +28,7 @@ class Payment extends Model
     ];
 
     protected $casts = [
+        'amount' => 'float',
         'payload' => 'array',
         'meta' => 'array',
         'paid_at' => 'datetime',

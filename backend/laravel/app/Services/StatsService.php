@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Candidate;
-use App\Models\Payment;
 use App\Models\Vote;
 use App\Models\User;
 
@@ -21,11 +20,11 @@ class StatsService
         $top->load(['candidate.category']);
 
         return [
-            'candidates' => Candidate::count(),
-            'votes' => Vote::successful()->sum('quantity'),
-            'payments' => Payment::count(),
-            'users' => User::count(),
-            'revenue' => Payment::succeeded()->sum('amount'),
+            'candidates' => (int) Candidate::count(),
+            'votes' => (int) Vote::successful()->sum('quantity'),
+            'payments' => (int) Vote::successful()->count(),
+            'users' => (int) User::count(),
+            'revenue' => (float) Vote::successful()->sum('amount'),
             'top_candidates' => $top->map(function ($row) {
                 return [
                     'candidate_id' => $row->candidate_id,

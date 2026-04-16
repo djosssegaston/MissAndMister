@@ -27,6 +27,7 @@ class Vote extends Model
     ];
 
     protected $casts = [
+        'amount' => 'float',
         'meta' => 'array',
         'quantity' => 'integer',
     ];

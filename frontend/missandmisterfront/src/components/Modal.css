@@ -5,6 +5,8 @@
   left: 0;
   right: 0;
   bottom: 0;
+  width: 100vw;
+  min-height: 100dvh;
   background:
     radial-gradient(circle at top, rgba(212, 175, 55, 0.14), transparent 34%),
     rgba(0, 0, 0, 0.62);
@@ -13,11 +15,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: max(0.85rem, env(safe-area-inset-top)) max(0.85rem, env(safe-area-inset-right)) max(0.85rem, env(safe-area-inset-bottom)) max(0.85rem, env(safe-area-inset-left));
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .modal-container {
+  box-sizing: border-box;
   background: linear-gradient(180deg, #fffdf6 0%, #ffffff 100%);
   border: 1px solid rgba(212, 175, 55, 0.18);
   border-radius: 18px;
@@ -212,6 +216,7 @@
   }
 
   .modal-container {
+    width: min(100%, calc(100vw - 1rem));
     max-height: min(92vh, 720px);
     border-radius: 16px;
   }

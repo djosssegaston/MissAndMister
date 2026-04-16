@@ -28,6 +28,15 @@ const formatProviderLabel = (provider = '') => {
   return provider || '—';
 };
 
+const formatCurrencyAmount = (value) => {
+  const numericValue = Number(value || 0);
+  const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+  return safeValue.toLocaleString('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
 const ConfirmModal = ({ message, onConfirm, onCancel }) => (
   <div className="agc-overlay" onClick={onCancel}>
     <div className="agc-modal" onClick={e => e.stopPropagation()}>
@@ -78,6 +87,8 @@ const AdminVotes = () => {
       ? Math.round(quantity)
       : (v.amount ? Math.max(1, Math.round(v.amount / 100)) : 1);
     const paymentStatus = v.payment?.status || '';
+    const rawAmount = Number(v.amount ?? v.payment?.amount ?? 0);
+    const amount = Number.isFinite(rawAmount) ? rawAmount : 0;
     const isCountable = v.status === 'confirmed' && (!paymentStatus || paymentStatus === 'succeeded');
     const voterPhone = v.user?.phone
       || v.payment?.meta?.voter_phone
@@ -98,7 +109,7 @@ const AdminVotes = () => {
       voter: voterIdentity,
       voterPhone,
       qty,
-      amount: v.amount || 0,
+      amount,
       operator: v.payment?.provider || v.operator || 'fedapay',
       paymentStatus,
       isCountable,
@@ -331,7 +342,7 @@ const AdminVotes = () => {
           { label:'Valides',      value: valid,                   color:'#4ADE80' },
           { label:'Suspects',     value: suspect,                 color:'#FBBF24' },
           { label:'Annulés',      value: cancelled,               color:'#F87171' },
-          { label:'Revenus FCFA', value: revenue.toLocaleString('fr-FR'), color:'#D4AF37' },
+          { label:'Revenus FCFA', value: formatCurrencyAmount(revenue), color:'#D4AF37' },
         ].map((s, i) => (
           <motion.div key={i} className="avotes-stat" initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay: i * 0.07 }}>
             <span className="avotes-stat-val" style={{ color: s.color }}>{s.value}</span>
@@ -443,7 +454,7 @@ const AdminVotes = () => {
                     </div>
                   </td>
                   <td data-label="Votes"><span className="avotes-qty">{v.qty}</span></td>
-                  <td data-label="Montant"><span className="avotes-amount">{v.amount} F</span></td>
+                  <td data-label="Montant"><span className="avotes-amount">{formatCurrencyAmount(v.amount)} F</span></td>
                   <td data-label="Opérateur">
                     <span className="avotes-op" style={{ color: OP_COLOR[v.operator] || '#D4AF37', borderColor: (OP_COLOR[v.operator] || '#D4AF37') + '44' }}>
                       {formatProviderLabel(v.operator)}

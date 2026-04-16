@@ -64,6 +64,15 @@ const RECENT_STATUS_LABELS = {
   failed: { label: 'Échoué', color: '#ef4444', title: 'Échoué' },
 };
 
+const formatCurrencyAmount = (value) => {
+  const numericValue = Number(value || 0);
+  const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+  return safeValue.toLocaleString('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [recentVotes, setRecentVotes] = useState([]);
@@ -166,7 +175,7 @@ const AdminDashboard = () => {
           { label: 'Total votes', value: stats.votes || 0, suffix: '', color: '#D4AF37' },
           { label: 'Candidats', value: stats.candidates || 0, suffix: '', color: '#F4D03F' },
           { label: 'Utilisateurs', value: stats.users || 0, suffix: '', color: '#C17F24' },
-          { label: 'Revenus (FCFA)', value: stats.revenue || 0, suffix: '', color: '#B8960C' },
+          { label: 'Revenus (FCFA)', value: formatCurrencyAmount(stats.revenue || 0), suffix: '', color: '#B8960C' },
         ].map((s, i) => (
           <motion.div key={i} className="adash-stat-card" {...fadeUp(0.08 * i)} whileHover={{ y: -4 }}>
             <div className="adash-stat-top">
@@ -176,7 +185,7 @@ const AdminDashboard = () => {
               </div>
             </div>
             <div className="adash-stat-value" style={{ color: s.color }}>
-              {s.value.toLocaleString('fr-FR')}{s.suffix}
+              {typeof s.value === 'number' ? s.value.toLocaleString('fr-FR') : s.value}{s.suffix}
             </div>
             <div className="adash-stat-delta neutral">
               {/* Delta calculation could be added later */}
