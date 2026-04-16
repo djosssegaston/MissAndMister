@@ -17,3 +17,14 @@ composer dev
 ```
 
 Details: `backend/laravel/docs/upload-limits.md`
+
+## Deploiement Vercel + LWS
+
+Une feuille de route de deploiement pour :
+
+- `Vercel` cote frontend
+- `LWS` cote backend Laravel + MySQL + medias locaux
+
+est disponible dans :
+
+`DEPLOY_VERCEL_LWS.md`

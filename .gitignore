@@ -18,8 +18,13 @@ backend/laravel/public/hot
 backend/laravel/storage/logs/*.log
 
 frontend/missandmisterfront/.env
+frontend/missandmisterfront/.vercel
 frontend/missandmisterfront/node_modules
 frontend/missandmisterfront/dist
 frontend/missandmisterfront/src.zip
 
 missandmister_bd.sql
+backend/laravel/recharge.php
+backend/laravel/recharge_callback.php
+frontend/missandmisterfront/src/assets/ChatGPT Image 14 avr. 2026, 23_53_29.png
+information du projet\ 
