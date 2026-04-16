@@ -39,6 +39,14 @@ const AdminSettings = () => {
   const [feats,   setFeats]   = useState({ votingOpen: false, galleryPublic: false, resultsPublic: false });
   const [notifs,  setNotifs]  = useState({ emailConfirm: false, smsConfirm: false });
   const [security,setSecurity]= useState({ captcha: false, ipTracking: false, maintenance: false, maintenanceEnd: '' });
+  const adminRole = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('adminUser') || 'null')?.role || 'admin';
+    } catch {
+      return 'admin';
+    }
+  })();
+  const canManageMaintenance = adminRole === 'superadmin';
 
   // Load settings on mount
   useEffect(() => {
@@ -108,9 +116,12 @@ const AdminSettings = () => {
       sms_confirm: notifs.smsConfirm,
       captcha_enabled: security.captcha,
       ip_tracking_enabled: security.ipTracking,
-      maintenance_mode: security.maintenance,
-      maintenance_end_at: security.maintenanceEnd ? new Date(security.maintenanceEnd).toISOString() : '',
     };
+
+    if (canManageMaintenance) {
+      payload.maintenance_mode = security.maintenance;
+      payload.maintenance_end_at = security.maintenanceEnd ? new Date(security.maintenanceEnd).toISOString() : '';
+    }
 
     setSaving(true);
     setError(null);
@@ -256,20 +267,24 @@ const AdminSettings = () => {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="var(--ag-gold-1)" strokeWidth="1.8" strokeLinejoin="round"/></svg>
           </div>
           <div className="ag-card-body">
-            <div className="ag-form-group">
-              <label className="ag-label">Fin de maintenance</label>
-              <input
-                type="datetime-local"
-                className="ag-input"
-                value={security.maintenanceEnd}
-                onChange={e => setSecurity(s => ({ ...s, maintenanceEnd: e.target.value }))}
-                disabled={loading}
-              />
-            </div>
+            {canManageMaintenance && (
+              <div className="ag-form-group">
+                <label className="ag-label">Fin de maintenance</label>
+                <input
+                  type="datetime-local"
+                  className="ag-input"
+                  value={security.maintenanceEnd}
+                  onChange={e => setSecurity(s => ({ ...s, maintenanceEnd: e.target.value }))}
+                  disabled={loading}
+                />
+              </div>
+            )}
             {[
               { key:'captcha',     label:'CAPTCHA',           sub:'Protection anti-bot', danger:false },
               { key:'ipTracking',  label:'Suivi IP',          sub:'Limiter par adresse IP', danger:false },
-              { key:'maintenance', label:'Mode maintenance',  sub:'Suspendre toute la plateforme', danger:true },
+              ...(canManageMaintenance ? [
+                { key:'maintenance', label:'Mode maintenance',  sub:'Suspendre toute la plateforme', danger:true },
+              ] : []),
             ].map(item => (
               <div key={item.key} className={`asetts-toggle-row ${item.danger ? 'danger-row' : ''}`}>
                 <div>

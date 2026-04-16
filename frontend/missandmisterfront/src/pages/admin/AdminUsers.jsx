@@ -34,8 +34,17 @@ const AdminUsers = () => {
   const [page, setPage]         = useState(1);
   const [perPage]               = useState(25);
   const hasLoadedRef = useRef(false);
+  const adminRole = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('adminUser') || 'null')?.role || 'admin';
+    } catch {
+      return 'admin';
+    }
+  })();
+  const canDeleteRecords = adminRole === 'superadmin';
 
   const isGuestUser = (user) => user?.registered === false || user?.status === 'guest' || String(user?.id || '').startsWith('guest-');
+  const isAdminAccount = (user) => user?.kind === 'admin' || user?.role === 'admin' || user?.role === 'superadmin';
 
   const fetchUsers = async () => {
     const isInitialLoad = !hasLoadedRef.current;
@@ -97,6 +106,11 @@ const AdminUsers = () => {
       return;
     }
 
+    if (isAdminAccount(user) && adminRole !== 'superadmin') {
+      setError('Seul le superadmin peut gerer un compte administrateur.');
+      return;
+    }
+
     const msg = user.status === 'active' ? `Suspendre ${user.name} ?` : `Réactiver ${user.name} ?`;
     setConfirm({
       message: msg,
@@ -118,6 +132,11 @@ const AdminUsers = () => {
   };
 
   const handleDelete = (user) => {
+    if (!canDeleteRecords) {
+      setError('Seul le superadmin peut désactiver un compte.');
+      return;
+    }
+
     if (isGuestUser(user)) {
       setError('Les comptes invites ne peuvent pas etre desactives.');
       return;
@@ -224,7 +243,10 @@ const AdminUsers = () => {
                       <div className="ausers-avatar">{u.name.charAt(0)}</div>
                       <div>
                         <p className="ausers-name">{u.name}</p>
-                        <p className="ausers-email">{u.email || (isGuestUser(u) ? 'Compte invité' : '—')}</p>
+                        <p className="ausers-email">
+                          {u.email || (isGuestUser(u) ? 'Compte invité' : '—')}
+                          {isAdminAccount(u) ? ' • Administrateur' : ''}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -238,20 +260,24 @@ const AdminUsers = () => {
                   <td data-label="Statut">
                     <span className={`ausers-status ${isGuestUser(u) ? 'guest' : (u.status === 'active' ? 'active' : 'suspended')}`}>
                       <span className="ausers-status-dot" />
-                      {isGuestUser(u) ? 'Invité' : (u.status === 'active' ? 'Actif' : 'Inactif')}
+                      {isGuestUser(u) ? 'Invité' : isAdminAccount(u) ? `Admin ${u.status === 'active' ? 'actif' : 'inactif'}` : (u.status === 'active' ? 'Actif' : 'Inactif')}
                     </span>
                   </td>
                   <td data-label="Actions">
                     {isGuestUser(u) ? (
                       <span className="ausers-readonly">Lecture seule</span>
+                    ) : (isAdminAccount(u) && adminRole !== 'superadmin') ? (
+                      <span className="ausers-readonly">Superadmin requis</span>
                     ) : (
                       <div className="ausers-actions">
                         <button className={`ag-btn ${u.status === 'active' ? 'ag-btn-ghost' : 'ag-btn-outline'} ausers-action-btn`} onClick={() => handleToggle(u)}>
                           {u.status === 'active' ? 'Suspendre' : 'Réactiver'}
                         </button>
-                        <button className="ag-btn ag-btn-danger ausers-del-btn" onClick={() => handleDelete(u)}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </button>
+                        {canDeleteRecords && (
+                          <button className="ag-btn ag-btn-danger ausers-del-btn" onClick={() => handleDelete(u)}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>

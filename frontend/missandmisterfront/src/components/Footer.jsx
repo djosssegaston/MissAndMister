@@ -26,9 +26,9 @@ const Footer = () => (
           <div className="footer-socials">
             {[
               { label: 'Facebook', href: PROJECT_SOCIAL_LINKS.facebook, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/></svg> },
-              { label: 'Instagram', href: PROJECT_SOCIAL_LINKS.instagram, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg> },
               { label: 'TikTok', href: PROJECT_SOCIAL_LINKS.tiktok, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 3c.38 2.28 1.92 4.04 4 4.6v3.02a7.14 7.14 0 01-4-1.25v5.26a5.63 5.63 0 11-5.63-5.63c.3 0 .6.03.88.08v3.15a2.57 2.57 0 00-.88-.15 2.55 2.55 0 102.55 2.55V3H14z" fill="currentColor"/></svg> },
               { label: 'YouTube', href: PROJECT_SOCIAL_LINKS.youtube, icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22 12s0-3.26-.42-4.83a2.68 2.68 0 00-1.89-1.9C18.12 4.85 12 4.85 12 4.85s-6.12 0-7.69.42a2.68 2.68 0 00-1.89 1.9C2 8.74 2 12 2 12s0 3.26.42 4.83a2.68 2.68 0 001.89 1.9c1.57.42 7.69.42 7.69.42s6.12 0 7.69-.42a2.68 2.68 0 001.89-1.9C22 15.26 22 12 22 12z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M10 9.5v5l4.5-2.5L10 9.5z" fill="currentColor"/></svg> },
+              { label: 'Chaîne WhatsApp', href: PROJECT_SOCIAL_LINKS.whatsappChannel, icon: <WhatsAppIcon width={16} height={16} /> },
               { label: 'WhatsApp', href: PROJECT_SOCIAL_LINKS.whatsapp, icon: <WhatsAppIcon width={16} height={16} /> },
             ].map((s, i) => (
               <a key={i} href={s.href} className="footer-social-btn" aria-label={s.label} target="_blank" rel="noreferrer">{s.icon}</a>

@@ -31,6 +31,10 @@ class SettingsController extends Controller
         'vote_end_at',
         'maintenance_end_at',
     ];
+    private array $superadminOnlyKeys = [
+        'maintenance_mode',
+        'maintenance_end_at',
+    ];
 
     private array $runtimeKeys = [];
 
@@ -49,9 +53,10 @@ class SettingsController extends Controller
     public function index(): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
+        $writableKeys = $this->writableKeysForCurrentUser();
 
         return response()->json($this->formatCollection(
-            Setting::whereIn('key', array_merge($this->writableKeys, $this->runtimeKeys))->get()
+            Setting::whereIn('key', array_merge($writableKeys, $this->runtimeKeys))->get()
         ));
     }
 
@@ -68,16 +73,17 @@ class SettingsController extends Controller
         Validator::make(['settings' => $payload], [
             'settings' => ['required', 'array'],
         ])->validate();
+        $writableKeys = $this->writableKeysForCurrentUser();
 
         $currentSettings = $this->formatCollection(
-            Setting::whereIn('key', array_merge($this->writableKeys, $this->runtimeKeys))->get()
+            Setting::whereIn('key', array_merge($writableKeys, $this->runtimeKeys))->get()
         );
 
         $nextSettings = $currentSettings;
         $validatedSettings = [];
 
         foreach ($payload as $key => $value) {
-            if (!in_array($key, $this->writableKeys, true)) {
+            if (!in_array($key, $writableKeys, true)) {
                 continue;
             }
 
@@ -110,7 +116,7 @@ class SettingsController extends Controller
     public function update(Setting $setting): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
-        abort_unless(in_array($setting->key, $this->writableKeys, true), 404);
+        abort_unless(in_array($setting->key, $this->writableKeysForCurrentUser(), true), 404);
         $data = Validator::make(request()->all(), [
             'value' => ['sometimes', 'nullable', 'string'],
             'status' => ['sometimes', 'in:active,inactive'],
@@ -180,6 +186,17 @@ class SettingsController extends Controller
         }
 
         return (string) $value;
+    }
+
+    private function writableKeysForCurrentUser(): array
+    {
+        $role = request()->user()?->role ?? null;
+
+        if ($role === 'superadmin') {
+            return $this->writableKeys;
+        }
+
+        return array_values(array_diff($this->writableKeys, $this->superadminOnlyKeys));
     }
 
     private function castValue(string $key, ?string $value)

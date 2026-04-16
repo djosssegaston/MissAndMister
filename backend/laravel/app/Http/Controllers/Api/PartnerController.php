@@ -167,6 +167,7 @@ class PartnerController extends Controller
 
     public function destroy(PartnerLogo $partnerLogo): JsonResponse
     {
+        abort_unless((request()->user()?->role ?? null) === 'superadmin', 403);
         $this->deleteLogo($partnerLogo->logo_path, (array) ($partnerLogo->logo_meta ?? []));
         $partnerLogo->delete();
 

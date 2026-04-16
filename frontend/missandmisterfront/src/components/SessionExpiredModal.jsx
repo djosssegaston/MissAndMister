@@ -42,20 +42,17 @@ const SessionExpiredModal = () => {
   const handleReconnect = () => {
     const scope = modalState.scope || fallbackScope;
     const loginPath = modalState.loginPath || getSessionLoginPath(scope, location.pathname);
+    const absoluteLoginPath = new URL(loginPath, window.location.origin).toString();
 
     clearStoredSession(scope);
     setModalState((prev) => ({ ...prev, isOpen: false }));
 
-    try {
-      navigate(loginPath, { replace: true });
-      window.setTimeout(() => {
-        if (window.location.pathname !== loginPath) {
-          window.location.assign(loginPath);
-        }
-      }, 120);
-    } catch {
-      window.location.assign(loginPath);
-    }
+    navigate(loginPath, { replace: true });
+    window.setTimeout(() => {
+      if (window.location.pathname !== loginPath) {
+        window.location.replace(absoluteLoginPath);
+      }
+    }, 40);
   };
 
   return (

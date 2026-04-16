@@ -5,7 +5,10 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background:
+    radial-gradient(circle at top, rgba(212, 175, 55, 0.14), transparent 34%),
+    rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(6px);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -15,9 +18,10 @@
 }
 
 .modal-container {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  background: linear-gradient(180deg, #fffdf6 0%, #ffffff 100%);
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  border-radius: 18px;
+  box-shadow: 0 26px 64px rgba(15, 23, 42, 0.2);
   max-height: 90vh;
   overflow: hidden;
   display: flex;
@@ -51,8 +55,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #E5E7EB;
+  padding: 1.35rem 1.5rem;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.12);
 }
 
 .modal-title {
@@ -73,7 +77,7 @@
 }
 
 .modal-close-btn:hover {
-  background: #F3F4F6;
+  background: rgba(212, 175, 55, 0.12);
   color: #374151;
 }
 
@@ -104,6 +108,7 @@
 
 .session-expired-modal {
   text-align: center;
+  max-width: 100%;
 }
 
 .session-expired-icon {
@@ -126,6 +131,8 @@
 
 .session-expired-button {
   min-width: 100%;
+  min-height: 46px;
+  border-radius: 999px;
 }
 
 .btn {
@@ -182,24 +189,26 @@
 
 /* ===== ANIMATIONS ===== */
 .modal-container {
-  animation: modalSlideIn 0.3s ease-out;
+  animation: modalSlideIn 0.36s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes modalSlideIn {
   from {
     opacity: 0;
-    transform: scale(0.9) translateY(-20px);
+    transform: scale(0.92) translateY(28px);
+    filter: blur(8px);
   }
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
+    filter: blur(0);
   }
 }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .modal-overlay {
-    padding: 0.5rem;
+    padding: 0.75rem;
   }
 
   .modal-container {
@@ -230,7 +239,8 @@
 
 @media (max-width: 480px) {
   .modal-container {
-    width: calc(100vw - 1rem);
+    width: calc(100vw - 0.9rem);
+    border-radius: 15px;
   }
 
   .modal-header {

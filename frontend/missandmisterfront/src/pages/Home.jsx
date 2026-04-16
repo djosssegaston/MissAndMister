@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { candidatesAPI } from '../services/api';
 import PartnerShowcase from '../components/PartnerShowcase';
 import Loader from '../components/Loader';
@@ -24,18 +24,18 @@ const fadeUp = (delay = 0) => ({
 const buildRevealProps = (index = 0, distance = 38) => {
   const variant = index % 3;
   const initial = variant === 0
-    ? { opacity: 0, x: -distance, y: 18 }
+    ? { opacity: 0, x: -distance, y: 26, scale: 0.94, filter: 'blur(10px)' }
     : variant === 1
-      ? { opacity: 0, y: distance }
-      : { opacity: 0, x: distance, y: 18 };
+      ? { opacity: 0, y: distance, scale: 0.94, filter: 'blur(10px)' }
+      : { opacity: 0, x: distance, y: 26, scale: 0.94, filter: 'blur(10px)' };
 
   return {
     initial,
-    whileInView: { opacity: 1, x: 0, y: 0 },
-    viewport: { once: true, amount: 0.2 },
+    whileInView: { opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' },
+    viewport: { once: false, amount: 0.16 },
     transition: {
-      duration: 0.68,
-      delay: Math.min(index * 0.08, 0.32),
+      duration: 0.78,
+      delay: Math.min(index * 0.06, 0.24),
       ease: [0.22, 1, 0.36, 1],
     },
   };
@@ -284,6 +284,7 @@ const Home = () => {
     days: 0, hours: 0, minutes: 0, seconds: 0, percentLeft: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [showIntro, setShowIntro] = useState(true);
   const hasLoadedRef = useRef(false);
   const {
     publicSettings = null,
@@ -317,6 +318,15 @@ const Home = () => {
   };
 
   useAutoRefresh(fetchAll);
+  useAutoRefresh(fetchAll);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setShowIntro(false);
+    }, 1800);
+
+    return () => window.clearTimeout(timerId);
+  }, []);
 
   useEffect(() => {
     if (!publicSettings?.vote_end_at) {
@@ -391,6 +401,25 @@ const Home = () => {
 
   return (
   <div className="home-page">
+    <AnimatePresence>
+      {showIntro && (
+        <motion.div
+          className="home-intro-loader"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.35 }}
+        >
+          <Loader
+            size="medium"
+            color="secondary"
+            text="MISS & MISTER UNIVERSITY BENIN 2026"
+            subtext="Veuillez patienter..."
+            fullScreen
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
 
     {/* ══════════════════════════════════════════ HERO */}
     <section className="hero-section">
@@ -613,7 +642,7 @@ const Home = () => {
           className="section-header text-center"
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={{ once: false, amount: 0.2 }}
         >
           <span className="section-eyebrow">Extrait du projet</span>
           <h2>Le concours <span className="text-gold">en quelques repères</span></h2>
@@ -653,7 +682,7 @@ const Home = () => {
             className="initiator-copy"
             initial={{ opacity: 0, x: -42, y: 18 }}
             whileInView={{ opacity: 1, x: 0, y: 0 }}
-            viewport={{ once: true, amount: 0.25 }}
+            viewport={{ once: false, amount: 0.2 }}
             transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}
           >
             <span className="section-eyebrow">Vision de l’initiateur</span>
@@ -687,15 +716,18 @@ const Home = () => {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
                 </svg>
-               
+                Contact direct de l’équipe
+              </span>
+              <strong>{PROJECT_PHONE_DISPLAY}</strong>
             </div>
+
           </motion.div>
 
           <motion.div
             className="initiator-visual"
             initial={{ opacity: 0, x: 42, y: 18 }}
             whileInView={{ opacity: 1, x: 0, y: 0 }}
-            viewport={{ once: true, amount: 0.25 }}
+            viewport={{ once: false, amount: 0.2 }}
             transition={{ duration: 0.72, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="initiator-visual-card">
@@ -730,7 +762,7 @@ const Home = () => {
           className="section-header text-center"
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          viewport={{ once: false, amount: 0.2 }}
         >
           <span className="section-eyebrow">Repères officiels</span>
           <h2>Une plateforme pensée pour <span className="text-gold">présenter le projet</span></h2>
@@ -749,8 +781,8 @@ const Home = () => {
               whileHover={{ y: -6 }}>
               <div className="stat-icon">{stat.icon}</div>
               <div className="stat-value stat-value-text">
-                <span className="stat-value-main">{stat.value}</span>
-                <span className="stat-value-accent">{stat.accent}</span>
+                <span className="stat-value-part">{stat.value}</span>
+                <span className="stat-value-part">{stat.accent}</span>
               </div>
               <p className="stat-label">{stat.label}</p>
               <p className="stat-detail">{stat.detail}</p>
@@ -766,7 +798,7 @@ const Home = () => {
           className="home-discover-card"
           initial={{ opacity: 0, y: 32, scale: 0.97 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
-          viewport={{ once: true, amount: 0.2 }}
+          viewport={{ once: false, amount: 0.18 }}
           transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="home-discover-copy">
@@ -806,7 +838,7 @@ const Home = () => {
       <section className="home-top-candidates section">
         <div className="container">
           <motion.div className="section-header text-center"
-            initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+            initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false, amount: 0.2 }}>
             <span className="section-eyebrow">Classement en direct</span>
             <h2>Top <span className="text-gold">Candidats</span></h2>
             <div className="section-divider centered" />
@@ -861,7 +893,7 @@ const Home = () => {
     <section className="home-how section">
       <div className="container">
         <motion.div className="section-header text-center"
-          initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false, amount: 0.2 }}>
           <span className="section-eyebrow">Simple et rapide</span>
           <h2>Le <span className="text-gold">parcours</span> du concours <span className="text-gold">(phase de pré-sélection)</span></h2>
           <div className="section-divider centered" />
@@ -887,7 +919,7 @@ const Home = () => {
     <section className="home-mm section">
       <div className="container">
         <motion.div className="mm-box"
-          initial={{ opacity: 0, y: 30, scale: 0.98 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.72 }}>
+          initial={{ opacity: 0, y: 30, scale: 0.98 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} viewport={{ once: false, amount: 0.18 }} transition={{ duration: 0.72 }}>
           <div className="mm-left">
             <span className="section-eyebrow">Paiement sécurisé</span>
             <h2>Payez via <span className="text-gold">Mobile Money</span></h2>
@@ -946,7 +978,7 @@ const Home = () => {
     <section className="home-cta section">
       <div className="container">
         <motion.div className="cta-final"
-          initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false, amount: 0.18 }}>
           <div className="cta-final-orb" aria-hidden="true" />
           <span className="section-eyebrow">Première édition 2026</span>
           <h2>Rejoignez<br /><span className="text-gold">l’aventure</span></h2>

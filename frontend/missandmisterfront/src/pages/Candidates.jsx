@@ -211,7 +211,13 @@ const Candidates = () => {
       {/* ── CTA VOTE ── */}
       <section className="candidates-cta">
         <div className="container">
-          <motion.div className="cand-cta-box" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <motion.div
+            className="cand-cta-box"
+            initial={{ opacity: 0, y: 34, scale: 0.97, filter: 'blur(8px)' }}
+            whileInView={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+            viewport={{ once: false, amount: 0.18 }}
+            transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}
+          >
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="11" width="18" height="10" rx="2" stroke="#D4AF37" strokeWidth="1.8"/>
               <path d="M9 11V7a3 3 0 016 0v4" stroke="#D4AF37" strokeWidth="1.8" strokeLinecap="round"/>

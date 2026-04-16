@@ -29,7 +29,7 @@ class CandidatePolicy
 
     public function delete($user, Candidate $candidate): bool
     {
-        return $user?->tokenCan('admin') === true;
+        return $user?->tokenCan('admin') === true && ($user?->role ?? null) === 'superadmin';
     }
 
     public function restore($user, Candidate $candidate): bool

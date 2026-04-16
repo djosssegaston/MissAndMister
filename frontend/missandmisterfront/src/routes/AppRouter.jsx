@@ -236,8 +236,8 @@ const PublicLayout = () => {
       <Navbar votingBlocked={votingState.votingBlocked} />
       {maintenancePreviewActive && (
         <div className="maintenance-preview-banner" role="status" aria-live="polite">
-          <span className="maintenance-preview-pill">Aperçu administrateur</span>
-          <p>Le mode maintenance est actif. Vous visualisez le site avec vos droits d’administration.</p>
+          <span className="maintenance-preview-pill">Aperçu superadmin</span>
+          <p>Le mode maintenance est actif. Vous visualisez le site avec les droits complets du superadmin.</p>
         </div>
       )}
       <main className="main-content">

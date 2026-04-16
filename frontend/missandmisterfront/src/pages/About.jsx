@@ -15,18 +15,18 @@ const fadeUp = {
 const buildRevealProps = (index = 0, distance = 42) => {
   const variant = index % 3;
   const hidden = variant === 0
-    ? { opacity: 0, x: -distance, y: 16 }
+    ? { opacity: 0, x: -distance, y: 22, scale: 0.94, filter: 'blur(10px)' }
     : variant === 1
-      ? { opacity: 0, y: distance }
-      : { opacity: 0, x: distance, y: 16 };
+      ? { opacity: 0, y: distance, scale: 0.94, filter: 'blur(10px)' }
+      : { opacity: 0, x: distance, y: 22, scale: 0.94, filter: 'blur(10px)' };
 
   return {
     initial: hidden,
-    whileInView: { opacity: 1, x: 0, y: 0 },
-    viewport: { once: true, amount: 0.2 },
+    whileInView: { opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' },
+    viewport: { once: false, amount: 0.18 },
     transition: {
-      duration: 0.68,
-      delay: Math.min(index * 0.08, 0.32),
+      duration: 0.78,
+      delay: Math.min(index * 0.06, 0.24),
       ease: [0.22, 1, 0.36, 1],
     },
   };
@@ -200,7 +200,7 @@ const About = () => (
     <section className="about-mission section">
       <div className="container">
         <div className="mission-grid">
-          <motion.div className="mission-text" initial={{ opacity: 0, x: -42, y: 18 }} whileInView={{ opacity: 1, x: 0, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}>
+          <motion.div className="mission-text" initial={{ opacity: 0, x: -42, y: 18, scale: 0.95, filter: 'blur(10px)' }} whileInView={{ opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' }} viewport={{ once: false, amount: 0.18 }} transition={{ duration: 0.78, ease: [0.22, 1, 0.36, 1] }}>
             <span className="section-eyebrow">Présentation générale</span>
             <h2>Une plateforme pour révéler les talents <span className="text-gold">universitaires</span></h2>
             <div className="section-divider" />
@@ -231,7 +231,7 @@ const About = () => (
             </Link>
           </motion.div>
 
-          <motion.div className="mission-visual" initial={{ opacity: 0, x: 42, y: 18 }} whileInView={{ opacity: 1, x: 0, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.72, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}>
+          <motion.div className="mission-visual" initial={{ opacity: 0, x: 42, y: 18, scale: 0.95, filter: 'blur(10px)' }} whileInView={{ opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' }} viewport={{ once: false, amount: 0.18 }} transition={{ duration: 0.78, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}>
             <div className="card-stack">
               <div className="stack-card sc-3" />
               <div className="stack-card sc-2" />
@@ -260,7 +260,7 @@ const About = () => (
 
     <section className="about-values section">
       <div className="container">
-        <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+        <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }}>
           <span className="section-eyebrow">Nos fondations</span>
             <h2>Les <span className="text-gold">piliers</span> qui façonnent <span translate="no">MISS &amp; MISTER UNIVERSITY BENIN</span></h2>
             <div className="section-divider centered" />
@@ -284,7 +284,7 @@ const About = () => (
 
     <section className="about-history section">
       <div className="container">
-        <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+        <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }}>
           <span className="section-eyebrow">Parcours du concours</span>
           <h2>Les grandes <span className="text-gold">phases</span></h2>
           <div className="section-divider centered" />
@@ -311,7 +311,7 @@ const About = () => (
 
     <section className="about-training section">
       <div className="container">
-        <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+        <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }}>
           <span className="section-eyebrow">Formation et épreuves</span>
           <h2>Un processus <span className="text-gold">complet</span> et encadré</h2>
           <div className="section-divider centered" />
@@ -338,7 +338,7 @@ const About = () => (
 
     <section className="about-impact section">
       <div className="container">
-        <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+        <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }}>
           <span className="section-eyebrow">Impact et durabilité</span>
           <h2>Pourquoi le concours <span className="text-gold">compte</span></h2>
           <div className="section-divider centered" />
@@ -376,7 +376,7 @@ const About = () => (
 
     <section className="about-cta section">
       <div className="container">
-        <motion.div className="cta-box" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+        <motion.div className="cta-box" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }}>
           <span className="section-eyebrow">Prêt à participer ?</span>
           <h2>Rejoignez <span className="text-gold">l’aventure</span></h2>
           <p>

@@ -308,24 +308,29 @@
 .apartners-confirm-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.68);
-  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 220;
 }
 
 .apartners-confirm-modal {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(92vw, 380px);
-  background: var(--ag-bg-card);
-  border: 1px solid var(--ag-border);
-  border-radius: var(--ag-r-xl);
-  padding: 2rem 1.6rem 1.5rem;
+  position: relative;
+  width: min(100%, 460px);
+  max-height: min(88vh, 680px);
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at top, rgba(212,175,55,0.12), transparent 42%),
+    linear-gradient(160deg, rgba(17,17,17,0.98), rgba(8,8,8,0.96));
+  border: 1px solid rgba(212,175,55,0.18);
+  border-radius: 24px;
+  padding: 1.7rem 1.35rem 1.3rem;
   text-align: center;
-  box-shadow: var(--ag-shadow-lg);
-  z-index: 221;
+  box-shadow: 0 28px 60px rgba(0,0,0,0.42);
 }
 
 .apartners-confirm-icon {
@@ -551,8 +556,8 @@
   }
 
   .apartners-confirm-modal {
-    width: calc(100vw - 1rem);
-    padding: 1.2rem 1rem 1rem;
+    width: min(100%, 94vw);
+    padding: 1.3rem 1rem 1rem;
   }
 
   .apartners-confirm-actions .ag-btn {

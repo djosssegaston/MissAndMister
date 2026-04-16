@@ -95,6 +95,14 @@ const AdminGallery = () => {
   const [errors, setErrors] = useState({});
   const [confirm, setConfirm] = useState(null);
   const hasLoadedRef = useRef(false);
+  const adminRole = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('adminUser') || 'null')?.role || 'admin';
+    } catch {
+      return 'admin';
+    }
+  })();
+  const canDeleteGalleryItems = adminRole === 'superadmin';
 
   useEffect(() => () => {
     if (previewUrl?.startsWith('blob:')) {
@@ -351,6 +359,11 @@ const AdminGallery = () => {
   };
 
   const handleDelete = (item) => {
+    if (!canDeleteGalleryItems) {
+      setFeedback({ type: 'error', message: 'Seul le superadmin peut supprimer une photo de galerie.' });
+      return;
+    }
+
     setConfirm({
       message: `Supprimer définitivement "${item.title}" ?`,
       onConfirm: async () => {
@@ -477,7 +490,9 @@ const AdminGallery = () => {
                 <button type="button" className="ag-btn ag-btn-ghost" onClick={() => handleTogglePublish(item)}>
                   {item.isPublished ? 'Masquer' : 'Publier'}
                 </button>
-                <button type="button" className="ag-btn ag-btn-danger" onClick={() => handleDelete(item)}>Supprimer</button>
+                {canDeleteGalleryItems && (
+                  <button type="button" className="ag-btn ag-btn-danger" onClick={() => handleDelete(item)}>Supprimer</button>
+                )}
               </div>
             </motion.article>
           ))}

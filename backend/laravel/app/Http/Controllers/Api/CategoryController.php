@@ -73,7 +73,7 @@ class CategoryController extends Controller
      */
     public function destroy(Category $category): JsonResponse
     {
-        abort_unless(request()->user()?->tokenCan('admin'), 403);
+        abort_unless((request()->user()?->role ?? null) === 'superadmin', 403);
         $category->delete();
         return response()->json(['message' => 'Category deleted']);
     }

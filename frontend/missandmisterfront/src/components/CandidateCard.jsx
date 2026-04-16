@@ -22,7 +22,14 @@ const CandidateCard = ({ candidate, votingBlocked = false }) => {
   const backdrop = photo.backdrop || photo.src;
 
   return (
-    <motion.div className="candidate-card" whileHover={{ y: -8 }} transition={{ duration: 0.25 }}>
+    <motion.div
+      className="candidate-card"
+      initial={{ opacity: 0, y: 30, scale: 0.96, filter: 'blur(10px)' }}
+      whileInView={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+      viewport={{ once: false, amount: 0.16 }}
+      whileHover={{ y: -8 }}
+      transition={{ duration: 0.62, ease: [0.22, 1, 0.36, 1] }}
+    >
       {/* Photo */}
       <div className="cc-photo-wrap">
         {!photoFailed && photo.src
@@ -91,7 +98,7 @@ const CandidateCard = ({ candidate, votingBlocked = false }) => {
               className="cc-votes-bar"
               initial={{ width: 0 }}
               whileInView={{ width: `${Math.min((votes / 2000) * 100, 100)}%` }}
-              viewport={{ once: true }}
+              viewport={{ once: false, amount: 0.3 }}
               transition={{ duration: 0.8, ease: 'easeOut' }}
             />
           </div>

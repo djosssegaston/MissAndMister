@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import { getCandidateImageSources } from '../../utils/candidateImage';
@@ -142,7 +142,17 @@ const AdminCandidates = () => {
   const [feedback,   setFeedback]   = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const [categories, setCategories] = useState([]);
+  const [page, setPage] = useState(1);
   const hasLoadedRef = useRef(false);
+  const perPage = 10;
+  const adminRole = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('adminUser') || 'null')?.role || 'admin';
+    } catch {
+      return 'admin';
+    }
+  })();
+  const canDeleteCandidates = adminRole === 'superadmin';
 
   const mapCandidate = (c, idx = 0, catList = categories) => {
     const catId = c.category?.id ?? c.category_id;
@@ -217,11 +227,21 @@ const AdminCandidates = () => {
     await fetchAll();
   };
 
-  const filtered = candidates.filter(c => {
+  const filtered = useMemo(() => candidates.filter(c => {
     const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.university.toLowerCase().includes(search.toLowerCase());
     const matchCat    = catFilter === 'Tous' || c.category?.name === catFilter;
     return matchSearch && matchCat;
-  });
+  }), [candidates, search, catFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, catFilter, candidates.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const paginatedCandidates = useMemo(() => {
+    const start = (page - 1) * perPage;
+    return filtered.slice(start, start + perPage);
+  }, [filtered, page]);
 
   const openAdd  = () => {
     const defaultCatId = categories[0]?.id ?? null;
@@ -330,6 +350,14 @@ const AdminCandidates = () => {
   };
 
   const handleDelete = (cand) => {
+    if (!canDeleteCandidates) {
+      setFeedback({
+        type: 'error',
+        message: 'Seul le superadmin peut désactiver ou supprimer un candidat.',
+      });
+      return;
+    }
+
     setConfirm({
       message: `Supprimer ${cand.name} ? Cette action est irréversible.`,
       onConfirm: async () => {
@@ -728,7 +756,7 @@ const AdminCandidates = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(c => (
+              {paginatedCandidates.map(c => (
                 <motion.tr key={c.id} initial={{ opacity:0 }} animate={{ opacity:1 }}>
                   <td data-label="N°"><span className="acand-num">{c.number === '—' ? '—' : `#${c.number}`}</span></td>
                   <td data-label="Candidat">
@@ -769,9 +797,11 @@ const AdminCandidates = () => {
                       <button className="ag-btn ag-btn-ghost acand-edit-btn" onClick={() => openEdit(c)}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       </button>
-                      <button className="ag-btn ag-btn-danger acand-del-btn" onClick={() => handleDelete(c)}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                      </button>
+                      {canDeleteCandidates && (
+                        <button className="ag-btn ag-btn-danger acand-del-btn" onClick={() => handleDelete(c)}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                        </button>
+                      )}
                     </div>
                   </td>
                 </motion.tr>
@@ -781,6 +811,27 @@ const AdminCandidates = () => {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="acand-pagination">
+          <button
+            className="ag-btn ag-btn-ghost"
+            type="button"
+            onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
+            disabled={page <= 1}
+          >
+            En arrière
+          </button>
+          <span className="acand-page-indicator">
+            Page {Math.min(page, totalPages)} / {totalPages}
+          </span>
+          <button
+            className="ag-btn ag-btn-outline"
+            type="button"
+            onClick={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))}
+            disabled={page >= totalPages}
+          >
+            En suivant
+          </button>
         </div>
       </motion.div>
 

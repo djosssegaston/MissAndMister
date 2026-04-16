@@ -96,6 +96,14 @@ const AdminPartners = () => {
   const [confirm, setConfirm] = useState(null);
   const [error, setError] = useState(null);
   const hasLoadedRef = useRef(false);
+  const adminRole = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('adminUser') || 'null')?.role || 'admin';
+    } catch {
+      return 'admin';
+    }
+  })();
+  const canDeletePartners = adminRole === 'superadmin';
 
   useEffect(() => () => {
     if (previewUrl?.startsWith('blob:')) {
@@ -354,6 +362,14 @@ const AdminPartners = () => {
   };
 
   const askDelete = (partner) => {
+    if (!canDeletePartners) {
+      setFeedback({
+        type: 'error',
+        message: 'Seul le superadmin peut supprimer un partenaire.',
+      });
+      return;
+    }
+
     setConfirm({
       message: `Supprimer le logo de ${partner.name} ?`,
       onConfirm: async () => {
@@ -414,9 +430,10 @@ const AdminPartners = () => {
     <motion.article
       key={partner.id}
       className="apartners-card"
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
+      initial={{ opacity: 0, y: 22, scale: 0.96, filter: 'blur(8px)' }}
+      whileInView={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+      viewport={{ once: false, amount: 0.18 }}
+      transition={{ duration: 0.66, ease: [0.22, 1, 0.36, 1] }}
       whileHover={{ y: -6 }}
     >
       <div className="apartners-card-media">
@@ -459,9 +476,11 @@ const AdminPartners = () => {
           <button type="button" className="ag-btn ag-btn-outline" onClick={() => openEdit(partner)} disabled={saving}>
             Modifier
           </button>
-          <button type="button" className="ag-btn ag-btn-danger" onClick={() => askDelete(partner)} disabled={saving}>
-            Supprimer
-          </button>
+          {canDeletePartners && (
+            <button type="button" className="ag-btn ag-btn-danger" onClick={() => askDelete(partner)} disabled={saving}>
+              Supprimer
+            </button>
+          )}
         </div>
       </div>
     </motion.article>

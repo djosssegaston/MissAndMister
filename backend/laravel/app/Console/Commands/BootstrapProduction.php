@@ -67,22 +67,30 @@ class BootstrapProduction extends Command
             ['value', 'group', 'status', 'deleted_at', 'updated_at']
         );
 
-        $email = trim((string) env('PROD_ADMIN_EMAIL', ''));
-        $password = (string) env('PROD_ADMIN_PASSWORD', '');
-
-        if ($email !== '' && $password !== '') {
-            $admin = Admin::withTrashed()->firstOrNew(['email' => $email]);
-            $admin->name = trim((string) env('PROD_ADMIN_NAME', 'Admin')) ?: 'Admin';
-            $admin->phone = trim((string) env('PROD_ADMIN_PHONE', '0000000000')) ?: '0000000000';
-            $admin->password = Hash::make($password);
-            $admin->role = trim((string) env('PROD_ADMIN_ROLE', 'superadmin')) ?: 'superadmin';
-            $admin->status = trim((string) env('PROD_ADMIN_STATUS', 'active')) ?: 'active';
-            $admin->deleted_at = null;
-            $admin->save();
-        }
+        $this->upsertAdminFromEnv('PROD_ADMIN', 'superadmin');
+        $this->upsertAdminFromEnv('STAFF_ADMIN', 'admin');
 
         $this->info('Production bootstrap completed.');
 
         return self::SUCCESS;
+    }
+
+    private function upsertAdminFromEnv(string $prefix, string $defaultRole): void
+    {
+        $email = trim((string) env("{$prefix}_EMAIL", ''));
+        $password = (string) env("{$prefix}_PASSWORD", '');
+
+        if ($email === '' || $password === '') {
+            return;
+        }
+
+        $admin = Admin::withTrashed()->firstOrNew(['email' => $email]);
+        $admin->name = trim((string) env("{$prefix}_NAME", 'Admin')) ?: 'Admin';
+        $admin->phone = trim((string) env("{$prefix}_PHONE", '0000000000')) ?: '0000000000';
+        $admin->password = Hash::make($password);
+        $admin->role = trim((string) env("{$prefix}_ROLE", $defaultRole)) ?: $defaultRole;
+        $admin->status = trim((string) env("{$prefix}_STATUS", 'active')) ?: 'active';
+        $admin->deleted_at = null;
+        $admin->save();
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin;
 use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
 use App\Models\User;
@@ -38,6 +39,7 @@ class UserController extends Controller
         abort_unless(request()->user()?->tokenCan('admin'), 403);
         $this->payments->reconcileSuccessfulAssociations();
         $perPage = max(25, min((int) request()->integer('per_page', 200), 500));
+        $actor = request()->user();
 
         // Utilisateurs inscrits
         $registered = User::query()
@@ -184,6 +186,8 @@ class UserController extends Controller
                     'last_vote_ip' => $v->ip_address,
                     'last_vote_at' => $v->last_vote_at,
                     'registered' => false,
+                    'kind' => 'guest',
+                    'role' => 'guest',
                 ];
             });
 
@@ -200,10 +204,38 @@ class UserController extends Controller
                 'last_vote_ip' => $u->last_vote_ip,
                 'last_vote_at' => $u->last_vote_at,
                 'registered' => true,
+                'kind' => 'user',
+                'role' => 'user',
             ];
         });
 
-        $data = $registeredItems->merge($guests)->values();
+        $adminItems = collect();
+        if (($actor?->role ?? null) === 'superadmin') {
+            $adminItems = Admin::query()
+                ->where('id', '!=', $actor->id)
+                ->orderBy('role')
+                ->orderBy('name')
+                ->get(['id', 'name', 'email', 'phone', 'role', 'status', 'created_at'])
+                ->map(function (Admin $admin) {
+                    return [
+                        'id' => 'admin-' . $admin->id,
+                        'name' => $admin->name,
+                        'email' => $admin->email,
+                        'phone' => $admin->phone,
+                        'status' => $admin->status ?? 'active',
+                        'created_at' => $admin->created_at,
+                        'votes_count' => 0,
+                        'payments_count' => 0,
+                        'last_vote_ip' => null,
+                        'last_vote_at' => null,
+                        'registered' => true,
+                        'kind' => 'admin',
+                        'role' => $admin->role ?? 'admin',
+                    ];
+                });
+        }
+
+        $data = $registeredItems->merge($adminItems)->merge($guests)->values();
 
         return response()->json([
             'data' => $data,
@@ -215,49 +247,65 @@ class UserController extends Controller
     public function updateStatus(string $user): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
-        $user = $this->resolveManageableUser($user);
-        if ($user instanceof JsonResponse) {
-            return $user;
+        $account = $this->resolveManageableAccount($user);
+        if ($account instanceof JsonResponse) {
+            return $account;
         }
 
         $validated = request()->validate([
             'status' => ['nullable', 'in:active,inactive'],
         ]);
 
-        $user->status = $validated['status']
-            ?? ($user->status === 'active' ? 'inactive' : 'active');
-        $user->save();
+        $account->status = $validated['status']
+            ?? ($account->status === 'active' ? 'inactive' : 'active');
+        $account->save();
 
-        return response()->json($user);
+        return response()->json($account);
     }
 
     public function destroy(string $user): JsonResponse
     {
-        abort_unless(request()->user()?->tokenCan('admin'), 403);
-        $user = $this->resolveManageableUser($user);
-        if ($user instanceof JsonResponse) {
-            return $user;
+        abort_unless((request()->user()?->role ?? null) === 'superadmin', 403);
+        $account = $this->resolveManageableAccount($user);
+        if ($account instanceof JsonResponse) {
+            return $account;
         }
 
-        // Soft deactivate instead of hard delete
-        $user->status = 'inactive';
-        $user->save();
+        $account->status = 'inactive';
+        $account->save();
 
-        // Revoke all tokens so the account can't access anymore
-        $user->tokens()->delete();
+        $account->tokens()->delete();
 
         return response()->json([
-            'message' => 'User deactivated',
-            'user' => $user,
+            'message' => 'Account deactivated',
+            'user' => $account,
         ]);
     }
 
-    private function resolveManageableUser(string $userId): User|JsonResponse
+    private function resolveManageableAccount(string $userId): User|Admin|JsonResponse
     {
         if (str_starts_with($userId, 'guest-')) {
             return response()->json([
                 'message' => 'Les utilisateurs invites sont en lecture seule et ne peuvent pas etre modifies.',
             ], 422);
+        }
+
+        if (str_starts_with($userId, 'admin-')) {
+            if ((request()->user()?->role ?? null) !== 'superadmin') {
+                return response()->json([
+                    'message' => 'Seul le superadmin peut gerer un compte administrateur.',
+                ], 403);
+            }
+
+            $adminId = (int) str_replace('admin-', '', $userId);
+            $admin = Admin::find($adminId);
+            if (!$admin) {
+                return response()->json([
+                    'message' => 'Administrateur introuvable.',
+                ], 404);
+            }
+
+            return $admin;
         }
 
         $user = User::where('role', 'user')->find($userId);

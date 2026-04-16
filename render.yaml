@@ -58,7 +58,7 @@ services:
       - key: MAIL_MAILER
         value: log
       - key: MAIL_FROM_ADDRESS
-        value: djossegaston7@gmail.com
+        value: missmisteruniversitybenin@gmail.com
       - key: MAIL_FROM_NAME
         value: MissAndMister
       - key: CORS_ALLOWED_ORIGINS
@@ -84,6 +84,18 @@ services:
       - key: PROD_ADMIN_ROLE
         value: superadmin
       - key: PROD_ADMIN_STATUS
+        value: active
+      - key: STAFF_ADMIN_NAME
+        value: Administrateur MMUB
+      - key: STAFF_ADMIN_EMAIL
+        value: missmisteruniversitybenin@gmail.com
+      - key: STAFF_ADMIN_PHONE
+        value: "+22955748787"
+      - key: STAFF_ADMIN_PASSWORD
+        sync: false
+      - key: STAFF_ADMIN_ROLE
+        value: admin
+      - key: STAFF_ADMIN_STATUS
         value: active
       - key: FEDAPAY_PUBLIC_KEY
         sync: false

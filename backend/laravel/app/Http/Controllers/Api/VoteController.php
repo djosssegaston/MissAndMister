@@ -162,20 +162,13 @@ class VoteController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
-        abort_unless(request()->user()?->tokenCan('admin'), 403);
+        abort_unless((request()->user()?->role ?? null) === 'superadmin', 403);
         $vote = Vote::with(['payment.transactions'])->find($id);
         if (!$vote) {
             return response()->json(['message' => 'Vote not found'], 404);
         }
 
-        $actor = request()->user();
         $paymentSucceeded = $vote->payment?->status === Payment::STATUS_SUCCEEDED;
-
-        if ($paymentSucceeded && ($actor->role ?? null) !== 'superadmin') {
-            return response()->json([
-                'message' => 'Seul le superadmin peut supprimer un vote confirme avec paiement FedaPay reussi.',
-            ], 403);
-        }
 
         DB::transaction(function () use ($vote, $paymentSucceeded) {
             if (!$paymentSucceeded && $vote->payment) {

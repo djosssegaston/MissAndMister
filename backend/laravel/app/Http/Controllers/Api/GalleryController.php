@@ -209,6 +209,7 @@ class GalleryController extends Controller
 
     public function destroy(GalleryItem $galleryItem): JsonResponse
     {
+        abort_unless((request()->user()?->role ?? null) === 'superadmin', 403);
         $this->deleteImage($galleryItem->image_path, (array) ($galleryItem->image_meta ?? []));
         $galleryItem->delete();
 
