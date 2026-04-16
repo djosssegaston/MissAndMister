@@ -14,6 +14,7 @@ const FILTERS = [
 ];
 
 const SORTS = [
+  { key: 'votes_desc', label: 'Votes décroissants' },
   { key: 'order', label: "Numéro d'ordre" },
   { key: 'name', label: 'Nom A→Z' },
 ];
@@ -23,7 +24,7 @@ const Candidates = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('order');
+  const [sortBy, setSortBy] = useState('votes_desc');
   const [searchQuery, setSearchQuery] = useState('');
   const hasLoadedRef = useRef(false);
   const { votingBlocked = false } = useOutletContext() || {};
@@ -72,6 +73,21 @@ const Candidates = () => {
       return matchCat && matchSearch;
     })
     .sort((a, b) => {
+      if (sortBy === 'votes_desc') {
+        const voteGap = Number(b.votes_count || 0) - Number(a.votes_count || 0);
+
+        if (voteGap !== 0) {
+          return voteGap;
+        }
+
+        const leftNumber = Number(a.public_number || Number.MAX_SAFE_INTEGER);
+        const rightNumber = Number(b.public_number || Number.MAX_SAFE_INTEGER);
+
+        if (leftNumber !== rightNumber) {
+          return leftNumber - rightNumber;
+        }
+      }
+
       if (sortBy === 'order') {
         const left = Number(a.public_number || Number.MAX_SAFE_INTEGER);
         const right = Number(b.public_number || Number.MAX_SAFE_INTEGER);
@@ -93,7 +109,6 @@ const Candidates = () => {
         </div>
         <div className="container">
           <div className="cand-hero-content">
-            <span className="page-eyebrow">Concours 2026</span>
             <h1>Nos <span className="text-gold">Candidats</span></h1>
             <p>Découvrez les {candidates.length} candidats en compétition et votez pour vos favoris.</p>
             <div className="cand-hero-counts">

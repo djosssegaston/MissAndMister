@@ -644,7 +644,7 @@ const Home = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: false, amount: 0.2 }}
         >
-          <span className="section-eyebrow">Extrait du projet</span>
+        
           <h2>Le concours <span className="text-gold">en quelques repères</span></h2>
           <div className="section-divider centered" />
           <p className="section-lead">
@@ -711,16 +711,7 @@ const Home = () => {
               ))}
             </div>
 
-            <div className="initiator-contact-chip">
-              <span className="initiator-contact-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
-                </svg>
-                Contact direct de l’équipe
-              </span>
-              <strong>{PROJECT_PHONE_DISPLAY}</strong>
-            </div>
-
+           
           </motion.div>
 
           <motion.div
@@ -765,7 +756,7 @@ const Home = () => {
           viewport={{ once: false, amount: 0.2 }}
         >
           <span className="section-eyebrow">Repères officiels</span>
-          <h2>Une plateforme pensée pour <span className="text-gold">présenter le projet</span></h2>
+          <h2>Une plateforme qui présenter le <span className="text-gold"> Miss & Mister</span></h2>
           <div className="section-divider centered" />
           <p className="section-lead">
             MISS &amp; MISTER UNIVERSITY BENIN n’est pas uniquement un espace de vote :
@@ -808,11 +799,8 @@ const Home = () => {
               Consultez les profils officiels, les universités représentées et les parcours
               des candidats qualifiés pour cette édition inaugurale.
             </p>
-            <div className="home-discover-points" aria-label="Points clés de la page candidats">
-              <span>Profils officiels</span>
-              <span>Universités béninoises</span>
-              <span>Parcours et votes</span>
-            </div>
+           
+         
           </div>
 
           <Link to="/candidates" className="home-discover-action">
@@ -894,7 +882,6 @@ const Home = () => {
       <div className="container">
         <motion.div className="section-header text-center"
           initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false, amount: 0.2 }}>
-          <span className="section-eyebrow">Simple et rapide</span>
           <h2>Le <span className="text-gold">parcours</span> du concours <span className="text-gold">(phase de pré-sélection)</span></h2>
           <div className="section-divider centered" />
         </motion.div>
@@ -920,7 +907,7 @@ const Home = () => {
       <div className="container">
         <motion.div className="mm-box"
           initial={{ opacity: 0, y: 30, scale: 0.98 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} viewport={{ once: false, amount: 0.18 }} transition={{ duration: 0.72 }}>
-          <div className="mm-left">
+          {/* <div className="mm-left">
             <span className="section-eyebrow">Paiement sécurisé</span>
             <h2>Payez via <span className="text-gold">Mobile Money</span></h2>
             <p>Tous les opérateurs Mobile Money du Bénin, du Togo, du Sénégal et de la Côte d&apos;Ivoire sont acceptés. Les transactions sont sécurisées, rapides et suivies en temps réel.</p>
@@ -936,7 +923,7 @@ const Home = () => {
                 </div>
               ))}
             </div>
-          </div>
+          </div> */}
           <div className="mm-right">
             <div className="mm-phone-card">
               <div className="mm-phone-header">
@@ -964,7 +951,7 @@ const Home = () => {
     </section>
 
       <PartnerShowcase
-      eyebrow="Partenaires officiels"
+  
       title="Nos partenaires"
       description="Découvrez les institutions, entreprises et médias qui accompagnent cette édition de MISS & MISTER University Bénin."
       contactTitle="Vous souhaitez devenir partenaire ?"

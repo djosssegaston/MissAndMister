@@ -211,14 +211,7 @@ const Gallery = () => {
         </div>
         <div className="container">
           <motion.div className="gallery-hero-content" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
-            <span className="page-eyebrow">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
-                <path d="M21 15l-5-5L5 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-              Galerie officielle
-            </span>
+            
             <h1>Galerie <span className="text-gold">Photos</span></h1>
             <p>Revivez les meilleurs moments du concours Miss &amp; Mister University Bénin 2026.</p>
             <div className="gallery-count-pill">{photos.length} photo{photos.length > 1 ? 's' : ''}</div>

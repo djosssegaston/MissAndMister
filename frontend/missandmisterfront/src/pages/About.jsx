@@ -165,12 +165,7 @@ const About = () => (
       </div>
       <div className="container">
         <motion.div className="about-hero-content" variants={fadeUp} initial="hidden" animate="visible">
-          <span className="page-eyebrow" translate="no">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-            </svg>
-            MISS &amp; MISTER UNIVERSITY BENIN 2026
-          </span>
+          
           <h1>À propos du <span className="text-gold" translate="no">concours</span></h1>
           <p className="about-hero-subtitle">
             Une plateforme officielle, première édition 2026, dédiée à l’excellence académique,
@@ -201,7 +196,7 @@ const About = () => (
       <div className="container">
         <div className="mission-grid">
           <motion.div className="mission-text" initial={{ opacity: 0, x: -42, y: 18, scale: 0.95, filter: 'blur(10px)' }} whileInView={{ opacity: 1, x: 0, y: 0, scale: 1, filter: 'blur(0px)' }} viewport={{ once: false, amount: 0.18 }} transition={{ duration: 0.78, ease: [0.22, 1, 0.36, 1] }}>
-            <span className="section-eyebrow">Présentation générale</span>
+        
             <h2>Une plateforme pour révéler les talents <span className="text-gold">universitaires</span></h2>
             <div className="section-divider" />
             <p>
@@ -261,7 +256,7 @@ const About = () => (
     <section className="about-values section">
       <div className="container">
         <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }}>
-          <span className="section-eyebrow">Nos fondations</span>
+    
             <h2>Les <span className="text-gold">piliers</span> qui façonnent <span translate="no">MISS &amp; MISTER UNIVERSITY BENIN</span></h2>
             <div className="section-divider centered" />
           </motion.div>
@@ -339,7 +334,7 @@ const About = () => (
     <section className="about-impact section">
       <div className="container">
         <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: false, amount: 0.2 }}>
-          <span className="section-eyebrow">Impact et durabilité</span>
+          
           <h2>Pourquoi le concours <span className="text-gold">compte</span></h2>
           <div className="section-divider centered" />
         </motion.div>
@@ -365,8 +360,8 @@ const About = () => (
     </section>
 
     <PartnerShowcase
-      eyebrow="Partenaires & collaboration"
-      title="Une aventure ouverte aux institutions"
+      
+      title="Nos partenaires"
       description="Le concours accueille les partenaires qui souhaitent soutenir la jeunesse béninoise tout en gagnant en visibilité et en crédibilité."
       contactTitle="Rejoindre le projet"
       contactDescription="Une entreprise, une école ou une institution peut prendre contact directement avec l’équipe organisatrice sur WhatsApp."
