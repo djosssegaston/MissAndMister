@@ -328,6 +328,8 @@ const fetchPublicAPI = async (endpoint, options = {}) => {
   const hasFormData = isFormDataBody(requestOptions.body);
   const defaultHeaders = {
     'Accept': 'application/json',
+    'Cache-Control': 'no-store',
+    'Pragma': 'no-cache',
     ...(!hasFormData ? { 'Content-Type': 'application/json' } : {}),
   };
 
@@ -357,6 +359,8 @@ const fetchAPI = async (endpoint, options = {}) => {
   
   const defaultHeaders = {
     'Accept': 'application/json',
+    'Cache-Control': 'no-store',
+    'Pragma': 'no-cache',
     ...(!hasFormData ? { 'Content-Type': 'application/json' } : {}),
     ...(token && { Authorization: `Bearer ${token}` }),
     'X-Client-Timezone': getTimezone(),

@@ -14,6 +14,20 @@ const Toggle = ({ checked, onChange, danger }) => (
   </button>
 );
 
+const toDateTimeLocalValue = (value) => {
+  if (!value) {
+    return '';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return '';
+  }
+
+  const offsetMs = parsed.getTimezoneOffset() * 60 * 1000;
+  return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 16);
+};
+
 const AdminSettings = () => {
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
@@ -53,7 +67,7 @@ const AdminSettings = () => {
           captcha: !!data?.captcha_enabled,
           ipTracking: !!data?.ip_tracking_enabled,
           maintenance: !!data?.maintenance_mode,
-          maintenanceEnd: data?.maintenance_end_at || '',
+          maintenanceEnd: toDateTimeLocalValue(data?.maintenance_end_at || data?.maintenance_end_at_iso),
         });
       } catch (err) {
         if (err?.isSessionExpired) {
@@ -95,7 +109,7 @@ const AdminSettings = () => {
       captcha_enabled: security.captcha,
       ip_tracking_enabled: security.ipTracking,
       maintenance_mode: security.maintenance,
-      maintenance_end_at: security.maintenanceEnd,
+      maintenance_end_at: security.maintenanceEnd ? new Date(security.maintenanceEnd).toISOString() : '',
     };
 
     setSaving(true);

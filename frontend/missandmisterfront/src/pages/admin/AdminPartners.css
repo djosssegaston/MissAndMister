@@ -350,6 +350,7 @@
   display: flex;
   gap: 0.8rem;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .apartners-panel {
@@ -547,6 +548,15 @@
 @media (max-width: 520px) {
   .apartners-stats {
     grid-template-columns: 1fr;
+  }
+
+  .apartners-confirm-modal {
+    width: calc(100vw - 1rem);
+    padding: 1.2rem 1rem 1rem;
+  }
+
+  .apartners-confirm-actions .ag-btn {
+    width: 100%;
   }
 
   .apartners-card-actions .ag-btn {

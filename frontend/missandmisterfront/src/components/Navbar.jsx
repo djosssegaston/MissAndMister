@@ -61,7 +61,7 @@ const Navbar = ({ votingBlocked = false }) => {
       <div className="navbar-inner">
 
         {/* ── Logo ── */}
-        <Link to="/" className="navbar-logo">
+        <Link to="/" className="navbar-logo" translate="no">
           <div className="logo-icon">
             <img src={logoSrc} alt="Miss & Mister logo" className="navbar-logo-image" height="150" width="150" />
           </div>

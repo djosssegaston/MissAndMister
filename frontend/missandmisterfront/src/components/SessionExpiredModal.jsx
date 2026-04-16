@@ -45,7 +45,17 @@ const SessionExpiredModal = () => {
 
     clearStoredSession(scope);
     setModalState((prev) => ({ ...prev, isOpen: false }));
-    navigate(loginPath, { replace: true });
+
+    try {
+      navigate(loginPath, { replace: true });
+      window.setTimeout(() => {
+        if (window.location.pathname !== loginPath) {
+          window.location.assign(loginPath);
+        }
+      }, 120);
+    } catch {
+      window.location.assign(loginPath);
+    }
   };
 
   return (

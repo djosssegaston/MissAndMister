@@ -405,6 +405,7 @@
   display: flex;
   justify-content: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 1100px) {
@@ -443,6 +444,17 @@
   .agal-panel-footer,
   .agal-confirm-actions {
     display: flex;
+  }
+}
+
+@media (max-width: 520px) {
+  .agal-confirm-modal {
+    width: calc(100vw - 1rem);
+    padding: 1.05rem;
+  }
+
+  .agal-confirm-actions .ag-btn {
+    width: 100%;
   }
 }
 

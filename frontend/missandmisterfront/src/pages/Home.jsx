@@ -12,6 +12,7 @@ import initiatorVisual from '../assets/logo1.jpeg';
 import { getCandidatePublicPath } from '../utils/candidatePublic';
 import { useAutoRefresh } from '../utils/liveUpdates';
 import { PARTNER_WHATSAPP_URL, PROJECT_PHONE_DISPLAY } from '../utils/siteContact';
+import { getVotingWindowSnapshot } from '../utils/publicSettings';
 import './Home.css';
 
 const fadeUp = (delay = 0) => ({
@@ -19,6 +20,26 @@ const fadeUp = (delay = 0) => ({
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.6, delay, ease: 'easeOut' },
 });
+
+const buildRevealProps = (index = 0, distance = 38) => {
+  const variant = index % 3;
+  const initial = variant === 0
+    ? { opacity: 0, x: -distance, y: 18 }
+    : variant === 1
+      ? { opacity: 0, y: distance }
+      : { opacity: 0, x: distance, y: 18 };
+
+  return {
+    initial,
+    whileInView: { opacity: 1, x: 0, y: 0 },
+    viewport: { once: true, amount: 0.2 },
+    transition: {
+      duration: 0.68,
+      delay: Math.min(index * 0.08, 0.32),
+      ease: [0.22, 1, 0.36, 1],
+    },
+  };
+};
 
 const heroVisualMotion = {
   initial: { opacity: 0, y: 40 },
@@ -65,7 +86,7 @@ const OFFICIAL_MARKERS = [
     ),
   },
   {
-    value: '16-25',
+    value: '16-26',
     accent: 'ans',
     label: 'Public universitaire ciblé',
     detail: 'Étudiants régulièrement inscrits dans les universités publiques et privées du Bénin.',
@@ -105,7 +126,7 @@ const OFFICIAL_MARKERS = [
 const HOME_OVERVIEW = [
   {
     title: 'Concours national universitaire',
-    description: 'Un événement éducatif, culturel et social ouvert aux universités publiques et privées du Bénin.',
+    description: 'Un événement éducatif, culturel et citoyen qui rassemble les étudiants des universités publiques et privées autour de l’excellence, du leadership et de l’engagement.',
     badge: 'Édition inaugurale',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -116,7 +137,7 @@ const HOME_OVERVIEW = [
   },
   {
     title: 'Jeunesse universitaire',
-    description: 'Des étudiants de 16 à 25 ans, issus des universités publiques et privées du territoire national.',
+    description: 'Destiné aux étudiants âgés de 16 à 26 ans, issus des universités publiques et privées du Bénin, désireux de se démarquer et d’impacter positivement la société.',
     badge: 'Public cible',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -126,8 +147,8 @@ const HOME_OVERVIEW = [
     ),
   },
   {
-    title: 'Excellence et leadership',
-    description: 'Le concours valorise l’éloquence, la culture, la responsabilité et les projets sociaux utiles à la société.',
+    title: 'Former des leaders, révéler des talents',
+    description: 'Le concours met en avant l’intelligence, l’éloquence, la discipline, la culture et l’engagement social à travers des profils complets, cohérents et inspirants.',
     badge: 'Valeurs fortes',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -137,8 +158,8 @@ const HOME_OVERVIEW = [
   },
   {
     title: 'Universités et partenaires',
-    description: 'Une plateforme de collaboration entre établissements, entreprises, médias et institutions autour de la jeunesse.',
-    badge: 'Réseau national',
+    description: 'Une plateforme nationale de collaboration qui connecte étudiants, universités, entreprises et institutions pour accompagner la jeunesse dans son développement et son impact social.',
+    badge: 'Réseau d\'opportunités',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path d="M8.5 14.5l-1.2 1.2a3.5 3.5 0 01-4.95-4.95l3-3a3.5 3.5 0 014.95 0l1.1 1.1" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/>
@@ -157,33 +178,57 @@ const PROGRAM_STEPS = [
   },
   {
     step: '02',
-    title: 'Inscriptions gratuites',
-    desc: 'Les candidats éligibles déposent leurs dossiers selon les modalités définies par le comité.',
+    title: 'Sensibilisation & communication',
+    desc: 'Campagne d’information dans les universités et sur les réseaux sociaux pour mobiliser un maximum de participants.',
     icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="currentColor" strokeWidth="1.8"/><path d="M8 12h8M12 8v8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
   },
   {
     step: '03',
-    title: 'Validation administrative',
-    desc: 'Chaque dossier est vérifié avant l’annonce des candidats retenus.',
+    title: 'Inscriptions des candidats',
+    desc: 'Les étudiants intéressés soumettent leur candidature en ligne ou via les canaux officiels du concours.',
     icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 11l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 22a10 10 0 100-20 10 10 0 000 20z" stroke="currentColor" strokeWidth="1.8"/></svg>,
   },
   {
     step: '04',
-    title: 'Présélection et formation',
-    desc: 'Leadership, communication, civisme, image et préparation des projets sociaux.',
+    title: 'Étude et sélection des dossiers',
+    desc: 'Analyse rigoureuse des candidatures selon des critères d’éligibilité, de qualité du profil et de motivation.',
     icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M7 7v12m10-12v12M9 11h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><path d="M9 15h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
   },
   {
     step: '05',
-    title: 'Votes et communication',
-    desc: 'Les candidats qualifiés lancent leur campagne digitale et mobilisent le public en ligne.',
+    title: 'Publication des candidats retenus',
+    desc: 'Annonce officielle des candidats sélectionnés pour la phase de pré-sélection.',
     icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><path d="M12 4v16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8"/></svg>,
   },
   {
     step: '06',
-    title: 'Grande finale nationale',
-    desc: 'Épreuves finales, résultats du jury et couronnement des lauréats.',
+    title: 'Présentation des candidats',
+    desc: 'Publication progressive des visuels des candidats par université sur les plateformes digitales du concours.',
     icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>,
+  },
+  {
+    step: '07',
+    title: 'Vote de pré-sélection en ligne',
+    desc: 'Mobilisation des candidats pour obtenir des votes du public, comptant dans l’évaluation globale.',
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>,
+  },
+  {
+    step: '08',
+    title: 'Épreuves de pré-sélection',
+    desc: 'Épreuves de culture générale, prises de parole et présentation scénique pour mesurer l’aisance, la connaissance et la prestance des candidats.',
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><path d="M12 4v16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8"/></svg>,
+  },
+  {
+    step: '09',
+    title: 'Évaluation globale',
+    desc: 'Notation basée sur le vote en ligne (40 %), la culture générale (30 %) et la parade individuelle (30 %).',
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M7 7v12m10-12v12M9 11h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><path d="M9 15h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  },
+  {
+    step: '10',
+    title: 'Publication des résultats de pré-sélection',
+    desc: 'Annonce officielle des candidats retenus pour la phase finale.',
+    icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="currentColor" strokeWidth="1.8"/><path d="M8 12h8M12 8v8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
   },
 ];
 
@@ -279,13 +324,12 @@ const Home = () => {
       return;
     }
 
-    const serverRemaining = Number(publicSettings?.countdown_remaining_seconds);
-    const serverTotal = Number(publicSettings?.countdown_total_seconds);
+    const { remainingMs, totalMs } = getVotingWindowSnapshot(publicSettings || {});
     const countdownPaused = Boolean(publicSettings?.countdown_paused);
 
-    if (Number.isFinite(serverRemaining) && Number.isFinite(serverTotal)) {
-      const initialRemaining = Math.max(0, serverRemaining * 1000);
-      const total = Math.max(0, serverTotal * 1000);
+    if (Number.isFinite(remainingMs) && Number.isFinite(totalMs) && totalMs > 0) {
+      const initialRemaining = Math.max(0, remainingMs);
+      const total = Math.max(0, totalMs);
 
       setCountdown(getCountdownState(initialRemaining, total));
 
@@ -304,10 +348,16 @@ const Home = () => {
       return () => clearInterval(id);
     }
 
-    const start = publicSettings?.vote_start_at
-      ? new Date(`${publicSettings.vote_start_at}T00:00:00`)
-      : new Date();
-    const end = new Date(`${publicSettings.vote_end_at}T23:59:59`);
+    const start = publicSettings?.vote_start_at_iso
+      ? new Date(publicSettings.vote_start_at_iso)
+      : publicSettings?.vote_start_at
+        ? new Date(`${publicSettings.vote_start_at}T00:00:00`)
+        : new Date();
+    const end = publicSettings?.vote_end_at_effective_iso
+      ? new Date(publicSettings.vote_end_at_effective_iso)
+      : publicSettings?.vote_end_at_iso
+        ? new Date(publicSettings.vote_end_at_iso)
+        : new Date(`${publicSettings.vote_end_at}T23:59:59`);
 
     const compute = () => {
       const now = new Date();
@@ -327,13 +377,7 @@ const Home = () => {
     compute();
     const id = setInterval(compute, 1000);
     return () => clearInterval(id);
-  }, [
-    publicSettings?.vote_end_at,
-    publicSettings?.vote_start_at,
-    publicSettings?.countdown_remaining_seconds,
-    publicSettings?.countdown_total_seconds,
-    publicSettings?.countdown_paused,
-  ]);
+  }, [publicSettings]);
 
   const hasCountdown = Boolean(publicSettings?.vote_end_at);
   const paddedHours = String(countdown.hours).padStart(2, '0');
@@ -388,7 +432,9 @@ const Home = () => {
         <motion.div className="hero-text" {...fadeUp(0)}>
           
 
-          <AnimatedHeroTitle />
+          <div translate="no" className="notranslate">
+            <AnimatedHeroTitle />
+          </div>
 
           <p className="hero-subtitle">
             Plateforme officielle du concours universitaire national, première édition 2026,
@@ -447,7 +493,7 @@ const Home = () => {
                 size="small"
                 color="secondary"
                 text="MISS & MISTER UNIVERSITY BENIN 2026"
-                subtext="Veuillez vous patientez ........"
+                subtext="Veuillez patienter..."
               />
             </div>
           ) : (
@@ -465,7 +511,9 @@ const Home = () => {
                     {`${c.first_name} ${c.last_name}`.charAt(0)}
                   </div>
                 ))}
-                <span className="hcm-more">+{Math.max(0, stats.totalCandidates - 3)} candidats</span>
+                {candidateList.length > 3 && (
+                  <span className="hcm-more">+{Math.max(0, candidateList.length - 3)} candidats</span>
+                )}
               </div>
               <div className="hcm-stats-row">
                 <div className="hcm-stat">
@@ -571,10 +619,10 @@ const Home = () => {
           <h2>Le concours <span className="text-gold">en quelques repères</span></h2>
           <div className="section-divider centered" />
           <p className="section-lead">
-            MISS &amp; MISTER UNIVERSITY BENIN met en lumière les étudiants les plus
-            méritants, au-delà de l’apparence physique, en valorisant leurs
-            compétences intellectuelles, leur éloquence et leur capacité à porter
-            des projets utiles à la société.
+            MISS &amp; MISTER UNIVERSITY BENIN met en lumière les étudiants les plus méritants, bien au-delà de l’apparence physique, en valorisant leur intelligence, leur leadership, leur éloquence et leur engagement social.
+            Ce concours national offre une plateforme unique permettant aux jeunes universitaires de révéler leur potentiel, de développer leurs compétences et de porter des projets à impact au service de la société.
+
+            À travers un processus structuré et équitable, il vise à former et promouvoir une nouvelle génération de leaders responsables, capables de représenter dignement leur université et de contribuer au développement du Bénin.
           </p>
         </motion.div>
 
@@ -583,10 +631,7 @@ const Home = () => {
             <motion.article
               key={card.title}
               className="home-overview-card"
-              initial={{ opacity: 0, y: 28 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.08 }}
+              {...buildRevealProps(i)}
               whileHover={{ y: -6 }}
             >
               <div className="home-overview-top">
@@ -606,9 +651,10 @@ const Home = () => {
         <div className="initiator-grid">
           <motion.div
             className="initiator-copy"
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            initial={{ opacity: 0, x: -42, y: 18 }}
+            whileInView={{ opacity: 1, x: 0, y: 0 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}
           >
             <span className="section-eyebrow">Vision de l’initiateur</span>
             <h2>Une initiative pensée pour <span className="text-gold">faire rayonner la jeunesse universitaire</span></h2>
@@ -620,9 +666,7 @@ const Home = () => {
               à porter des actions utiles à la société.
             </p>
             <p>
-              L’ambition n’est pas seulement d’organiser un concours, mais de construire une
-              plateforme officielle qui rassemble universités, institutions, médias, entreprises
-              et partenaires autour d’une même cause : investir dans les talents universitaires.
+              Au-delà d’un simple concours, cette initiative vise à bâtir une véritable plateforme nationale de valorisation du capital humain universitaire, capable de connecter les universités, les institutions, les entreprises, les médias et les partenaires autour d’un objectif commun : investir durablement dans les talents de la jeunesse béninoise.
             </p>
 
             <div className="initiator-points" aria-label="Axes portés par l’initiateur du projet">
@@ -639,17 +683,22 @@ const Home = () => {
             </div>
 
             <div className="initiator-contact-chip">
-              <span>Contact direct de l’équipe</span>
+              <span className="initiator-contact-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+                </svg>
+                Contact direct de l’équipe
+              </span>
               <strong>{PROJECT_PHONE_DISPLAY}</strong>
             </div>
           </motion.div>
 
           <motion.div
             className="initiator-visual"
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.08 }}
+            initial={{ opacity: 0, x: 42, y: 18 }}
+            whileInView={{ opacity: 1, x: 0, y: 0 }}
+            viewport={{ once: true, amount: 0.25 }}
+            transition={{ duration: 0.72, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="initiator-visual-card">
               <div className="initiator-visual-orb" aria-hidden="true" />
@@ -698,8 +747,7 @@ const Home = () => {
         <div className="stats-grid">
           {OFFICIAL_MARKERS.map((stat, i) => (
             <motion.div key={i} className="stat-card"
-              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }} transition={{ delay: i * 0.1 }}
+              {...buildRevealProps(i)}
               whileHover={{ y: -6 }}>
               <div className="stat-icon">{stat.icon}</div>
               <div className="stat-value stat-value-text">
@@ -718,9 +766,10 @@ const Home = () => {
       <div className="container">
         <motion.div
           className="home-discover-card"
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          initial={{ opacity: 0, y: 32, scale: 0.97 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="home-discover-copy">
             <span className="section-eyebrow">Candidats retenus</span>
@@ -768,8 +817,7 @@ const Home = () => {
           <div className="top-cand-grid">
             {topCandidates.map((c, i) => (
               <motion.div key={c.public_uid || c.slug || c.public_number || i} className={`top-cand-card ${i === 0 ? 'featured' : ''}`}
-                initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }} transition={{ delay: i * 0.12 }}
+                {...buildRevealProps(i)}
                 whileHover={{ y: -8 }}>
                 <div className="tc-rank">
                   {i === 0
@@ -817,15 +865,14 @@ const Home = () => {
         <motion.div className="section-header text-center"
           initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
           <span className="section-eyebrow">Simple et rapide</span>
-          <h2>Le <span className="text-gold">parcours</span> du concours</h2>
+          <h2>Le <span className="text-gold">parcours</span> du concours <span className="text-gold">(phase de pré-sélection)</span></h2>
           <div className="section-divider centered" />
         </motion.div>
 
         <div className="steps-grid">
           {PROGRAM_STEPS.map((s, i) => (
             <motion.div key={i} className="step-card"
-              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }} transition={{ delay: i * 0.1 }}
+              {...buildRevealProps(i)}
               whileHover={{ y: -6 }}>
               <div className="step-num">{s.step}</div>
               <div className="step-icon">{s.icon}</div>
@@ -842,16 +889,16 @@ const Home = () => {
     <section className="home-mm section">
       <div className="container">
         <motion.div className="mm-box"
-          initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          initial={{ opacity: 0, y: 30, scale: 0.98 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.72 }}>
           <div className="mm-left">
             <span className="section-eyebrow">Paiement sécurisé</span>
             <h2>Payez via <span className="text-gold">Mobile Money</span></h2>
-            <p>Tous les opérateurs Mobile Money du Bénin sont acceptés. Vos transactions sont sécurisées et instantanées.</p>
+            <p>Tous les opérateurs Mobile Money du Bénin, du Togo, du Sénégal et de la Côte d&apos;Ivoire sont acceptés. Les transactions sont sécurisées, rapides et suivies en temps réel.</p>
             <div className="mm-operators">
               {[
                 { name: 'MTN MoMo', color: '#FFD700', letter: 'M' },
                 { name: 'Moov Money', color: '#0066CC', letter: 'Mo' },
-                { name: 'Flooz', color: '#FF6B00', letter: 'F' },
+                { name: 'Orange', color: '#FF6B00', letter: 'F' },
               ].map((op, i) => (
                 <div key={i} className="mm-op">
                   <div className="mm-op-icon" style={{ background: op.color + '22', border: `1.5px solid ${op.color}44`, color: op.color }}>{op.letter}</div>
@@ -888,7 +935,7 @@ const Home = () => {
 
       <PartnerShowcase
       eyebrow="Partenaires officiels"
-      title="Ils soutiennent l’aventure"
+      title="Nos partenaires"
       description="Découvrez les institutions, entreprises et médias qui accompagnent cette édition de MISS & MISTER University Bénin."
       contactTitle="Vous souhaitez devenir partenaire ?"
       contactDescription="Envoyez un message WhatsApp au comité organisateur pour proposer votre collaboration et faire apparaître votre logo dans le carrousel public."

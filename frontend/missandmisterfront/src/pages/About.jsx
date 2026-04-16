@@ -12,10 +12,30 @@ const fadeUp = {
   }),
 };
 
+const buildRevealProps = (index = 0, distance = 42) => {
+  const variant = index % 3;
+  const hidden = variant === 0
+    ? { opacity: 0, x: -distance, y: 16 }
+    : variant === 1
+      ? { opacity: 0, y: distance }
+      : { opacity: 0, x: distance, y: 16 };
+
+  return {
+    initial: hidden,
+    whileInView: { opacity: 1, x: 0, y: 0 },
+    viewport: { once: true, amount: 0.2 },
+    transition: {
+      duration: 0.68,
+      delay: Math.min(index * 0.08, 0.32),
+      ease: [0.22, 1, 0.36, 1],
+    },
+  };
+};
+
 const heroStats = [
-  { value: '16-25 ans', label: 'Public cible' },
-  { value: 'Gratuite', label: 'Inscription' },
-  { value: '10 phases', label: 'Déroulement' },
+  { value: '1ère', label: 'Édition officielle', icon: '★' },
+  { value: '16-26', label: 'Âge des participants', icon: '◎' },
+  { value: 'Nationale', label: 'Portée du concours', icon: '▲' },
 ];
 
 const pillars = [
@@ -26,7 +46,7 @@ const pillars = [
       </svg>
     ),
     title: 'Excellence',
-    description: 'Mettre en lumière l’excellence académique et la qualité du parcours étudiant.',
+    description: 'Mettre en lumière des étudiants brillants, engagés et méritants, capables de se distinguer par la qualité de leur parcours et leur rigueur.',
   },
   {
     icon: (
@@ -36,8 +56,8 @@ const pillars = [
         <path d="M16 5h6M19 2v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
       </svg>
     ),
-    title: 'Leadership',
-    description: 'Identifier des étudiants capables d’inspirer, de parler et de porter des projets utiles.',
+    title: 'Leadership et impact',
+    description: 'Révéler des jeunes leaders capables d’inspirer, de s’exprimer avec assurance et de porter des projets concrets au service de la société.',
   },
   {
     icon: (
@@ -46,7 +66,7 @@ const pillars = [
       </svg>
     ),
     title: 'Culture béninoise',
-    description: 'Valoriser la danse traditionnelle, la culture générale et l’identité béninoise.',
+    description: 'Promouvoir la richesse culturelle du Bénin à travers la connaissance, la valorisation des traditions et l’affirmation de l’identité nationale.',
   },
   {
     icon: (
@@ -55,18 +75,47 @@ const pillars = [
         <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
-    title: 'Transparence',
-    description: 'Sécuriser le vote, clarifier la notation et protéger le concours contre la fraude.',
+    title: 'Transparence et crédibilité',
+    description: 'Garantir un processus juste, fondé sur des critères clairs, un système de vote sécurisé et une évaluation équitable de tous les candidats.',
   },
 ];
 
 const programSteps = [
-  { step: '01', event: 'Lancement officiel et communication nationale' },
-  { step: '02', event: 'Inscriptions gratuites et sensibilisation dans les universités' },
-  { step: '03', event: 'Validation administrative des candidatures' },
-  { step: '04', event: 'Présélection, formation et épreuves officielles' },
-  { step: '05', event: 'Communication des candidats et votes en ligne' },
-  { step: '06', event: 'Grande finale nationale et couronnement' },
+  {
+    step: '01',
+    event: 'Lancement officiel et mobilisation des universités',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>,
+  },
+  {
+    step: '02',
+    event: 'Inscriptions des candidats et campagne de communication',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="currentColor" strokeWidth="1.8"/><path d="M8 12h8M12 8v8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  },
+  {
+    step: '03',
+    event: 'Analyse des candidatures et validation des profils',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 11l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 22a10 10 0 100-20 10 10 0 000 20z" stroke="currentColor" strokeWidth="1.8"/></svg>,
+  },
+  {
+    step: '04',
+    event: 'Pré-sélection et premières évaluations publiques',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 5h18v14H3z" stroke="currentColor" strokeWidth="1.8"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  },
+  {
+    step: '05',
+    event: 'Évaluation globale et désignation des finalistes',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><path d="M12 4v16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8"/></svg>,
+  },
+  {
+    step: '06',
+    event: 'Formation, coaching et préparation de la grande finale',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M7 4h10l1 5-6 4-6-4 1-5z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M12 13v7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  },
+  {
+    step: '07',
+    event: 'Grande finale nationale, distinctions et couronnement',
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M7 4h10l1 4a5 5 0 01-5 5 5 5 0 01-5-5l-1-4z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
 ];
 
 const evaluationCards = [
@@ -116,13 +165,13 @@ const About = () => (
       </div>
       <div className="container">
         <motion.div className="about-hero-content" variants={fadeUp} initial="hidden" animate="visible">
-          <span className="page-eyebrow">
+          <span className="page-eyebrow" translate="no">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
             MISS &amp; MISTER UNIVERSITY BENIN 2026
           </span>
-          <h1>À propos du <span className="text-gold">concours</span></h1>
+          <h1>À propos du <span className="text-gold" translate="no">concours</span></h1>
           <p className="about-hero-subtitle">
             Une plateforme officielle, première édition 2026, dédiée à l’excellence académique,
             au leadership, à la culture, à l’éloquence et à l’engagement social de la jeunesse béninoise.
@@ -138,6 +187,7 @@ const About = () => (
                 initial="hidden"
                 animate="visible"
               >
+                <span className="hero-stat-icon" aria-hidden="true">{stat.icon}</span>
                 <strong>{stat.value}</strong>
                 <span>{stat.label}</span>
               </motion.div>
@@ -150,7 +200,7 @@ const About = () => (
     <section className="about-mission section">
       <div className="container">
         <div className="mission-grid">
-          <motion.div className="mission-text" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+          <motion.div className="mission-text" initial={{ opacity: 0, x: -42, y: 18 }} whileInView={{ opacity: 1, x: 0, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}>
             <span className="section-eyebrow">Présentation générale</span>
             <h2>Une plateforme pour révéler les talents <span className="text-gold">universitaires</span></h2>
             <div className="section-divider" />
@@ -181,7 +231,7 @@ const About = () => (
             </Link>
           </motion.div>
 
-          <motion.div className="mission-visual" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }} custom={1}>
+          <motion.div className="mission-visual" initial={{ opacity: 0, x: 42, y: 18 }} whileInView={{ opacity: 1, x: 0, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.72, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}>
             <div className="card-stack">
               <div className="stack-card sc-3" />
               <div className="stack-card sc-2" />
@@ -212,19 +262,15 @@ const About = () => (
       <div className="container">
         <motion.div className="section-header" variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
           <span className="section-eyebrow">Nos fondations</span>
-          <h2>Les <span className="text-gold">valeurs</span> qui structurent le concours</h2>
-          <div className="section-divider centered" />
-        </motion.div>
+            <h2>Les <span className="text-gold">piliers</span> qui façonnent <span translate="no">MISS &amp; MISTER UNIVERSITY BENIN</span></h2>
+            <div className="section-divider centered" />
+          </motion.div>
         <div className="values-grid">
           {pillars.map((pillar, i) => (
             <motion.div
               key={pillar.title}
               className="value-card"
-              custom={i}
-              variants={fadeUp}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
+              {...buildRevealProps(i)}
               whileHover={{ y: -8 }}
             >
               <div className="value-icon">{pillar.icon}</div>
@@ -249,15 +295,12 @@ const About = () => (
             <motion.div
               key={item.step}
               className={`timeline-item ${i % 2 === 0 ? 'tl-left' : 'tl-right'}`}
-              custom={i}
-              variants={fadeUp}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
+              {...buildRevealProps(i)}
             >
               <div className="timeline-dot" />
               <div className="timeline-content">
                 <span className="timeline-year">{item.step}</span>
+                <span className="timeline-icon" aria-hidden="true">{item.icon}</span>
                 <p>{item.event}</p>
               </div>
             </motion.div>
@@ -278,11 +321,7 @@ const About = () => (
             <motion.div
               key={card.title}
               className="value-card"
-              custom={i}
-              variants={fadeUp}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
+              {...buildRevealProps(i)}
             >
               <div className="value-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -309,11 +348,7 @@ const About = () => (
             <motion.div
               key={card.title}
               className="value-card"
-              custom={i}
-              variants={fadeUp}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
+              {...buildRevealProps(i)}
               whileHover={{ y: -8 }}
             >
               <div className="value-icon">

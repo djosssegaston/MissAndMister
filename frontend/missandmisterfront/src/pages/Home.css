@@ -393,6 +393,12 @@
   color: rgba(255,255,255,0.68);
 }
 
+.initiator-contact-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .initiator-contact-chip strong {
   color: var(--primary-gold);
   font-size: 0.96rem;

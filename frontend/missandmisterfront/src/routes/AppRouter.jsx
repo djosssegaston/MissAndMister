@@ -26,15 +26,16 @@ import AdminVotes from '../pages/admin/AdminVotes';
 import AdminSettings from '../pages/admin/AdminSettings';
 import AdminLayout from '../components/AdminLayout';
 import SessionExpiredModal from '../components/SessionExpiredModal';
+import Loader from '../components/Loader';
 import { settingsAPI } from '../services/api';
 import { useAutoRefresh } from '../utils/liveUpdates';
-
-const parseDateBoundary = (value, endOfDay = false) => {
-  if (!value || typeof value !== 'string') return null;
-  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
-  const date = new Date(isDateOnly ? `${value}T${endOfDay ? '23:59:59' : '00:00:00'}` : value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
+import {
+  computePublicVotingState,
+  getMaintenanceSnapshot,
+  hasAdminPreviewSession,
+  readCachedPublicSettings,
+  writeCachedPublicSettings,
+} from '../utils/publicSettings';
 
 const getCountdownState = (remainingMs = 0, totalMs = 0) => {
   const remaining = Math.max(0, Number.isFinite(remainingMs) ? remainingMs : 0);
@@ -50,74 +51,19 @@ const getCountdownState = (remainingMs = 0, totalMs = 0) => {
 };
 
 const computeVotingState = (settings) => {
-  const now = settings?.server_time ? new Date(settings.server_time) : new Date();
-  const safeNow = Number.isNaN(now.getTime()) ? new Date() : now;
-
-  if (typeof settings?.voting_blocked === 'boolean') {
-    return {
-      maintenanceMode: settings?.voting_block_reason === 'maintenance',
-      votingBlocked: settings.voting_blocked,
-      votingBlockReason: settings?.voting_block_reason || 'open',
-      votingBlockMessage: settings?.voting_block_message || (settings.voting_blocked ? 'Vote bloqué' : 'Vote ouvert'),
-    };
-  }
-
-  const maintenanceMode = Boolean(settings?.maintenance_mode);
-  if (maintenanceMode) {
-    return {
-      maintenanceMode: true,
-      votingBlocked: true,
-      votingBlockReason: 'maintenance',
-      votingBlockMessage: 'Plateforme en maintenance',
-    };
-  }
-
-  const startAt = parseDateBoundary(settings?.vote_start_at, false);
-  const endAt = parseDateBoundary(settings?.vote_end_at, true);
-  const votingOpen = settings?.voting_open !== false;
-
-  if (!votingOpen) {
-    return {
-      maintenanceMode: false,
-      votingBlocked: true,
-      votingBlockReason: 'toggle_off',
-      votingBlockMessage: 'Vote bloqué',
-    };
-  }
-
-  if (startAt && safeNow < startAt) {
-    return {
-      maintenanceMode: false,
-      votingBlocked: true,
-      votingBlockReason: 'not_started',
-      votingBlockMessage: 'Les votes ne sont pas encore ouverts',
-    };
-  }
-
-  if (endAt && safeNow > endAt) {
-    return {
-      maintenanceMode: false,
-      votingBlocked: true,
-      votingBlockReason: 'ended',
-      votingBlockMessage: 'Vote bloqué',
-    };
-  }
-
-  return {
-    maintenanceMode: false,
-    votingBlocked: false,
-    votingBlockReason: 'open',
-    votingBlockMessage: 'Vote ouvert',
-  };
+  return computePublicVotingState(settings);
 };
 
 const MaintenanceScreen = ({ publicSettings, onCountdownComplete }) => {
-  const serverRemaining = Number(publicSettings?.maintenance_remaining_seconds);
-  const hasSchedule = Number.isFinite(serverRemaining) && serverRemaining > 0;
-  const [countdown, setCountdown] = useState(() => getCountdownState(
-    hasSchedule ? serverRemaining * 1000 : 0,
-    hasSchedule ? serverRemaining * 1000 : 0,
-  ));
+  const [countdown, setCountdown] = useState(() => {
+    const { maintenanceRemainingMs } = getMaintenanceSnapshot(publicSettings || {}, Date.now());
+    return getCountdownState(maintenanceRemainingMs, maintenanceRemainingMs);
+  });
+  const maintenanceEnd = publicSettings?.maintenance_end_at_iso
+    ? new Date(publicSettings.maintenance_end_at_iso)
+    : null;
+  const hasSchedule = Boolean(maintenanceEnd && !Number.isNaN(maintenanceEnd.getTime()));
+  const maintenanceEndsAt = hasSchedule ? maintenanceEnd.getTime() : null;
 
   useEffect(() => {
     if (!hasSchedule) {
@@ -125,14 +71,15 @@ const MaintenanceScreen = ({ publicSettings, onCountdownComplete }) => {
       return;
     }
 
-    const initialRemaining = Math.max(0, serverRemaining * 1000);
+    const initialRemaining = Math.max(0, (maintenanceEndsAt ?? 0) - Date.now());
     const total = initialRemaining;
     setCountdown(getCountdownState(initialRemaining, total));
 
     let intervalId = null;
+    const startedAt = Date.now();
     const tick = () => {
-      const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
-      const remaining = Math.max(0, initialRemaining - (elapsedSeconds * 1000));
+      const elapsedMs = Date.now() - startedAt;
+      const remaining = Math.max(0, initialRemaining - elapsedMs);
       setCountdown(getCountdownState(remaining, total));
 
       if (remaining <= 0) {
@@ -141,16 +88,15 @@ const MaintenanceScreen = ({ publicSettings, onCountdownComplete }) => {
       }
     };
 
-    const startedAt = Date.now();
     intervalId = window.setInterval(tick, 1000);
     return () => clearInterval(intervalId);
-  }, [hasSchedule, onCountdownComplete, serverRemaining]);
+  }, [hasSchedule, maintenanceEndsAt, onCountdownComplete]);
 
   const paddedHours = String(countdown.hours).padStart(2, '0');
   const paddedMinutes = String(countdown.minutes).padStart(2, '0');
   const paddedSeconds = String(countdown.seconds).padStart(2, '0');
-  const maintenanceEndLabel = publicSettings?.maintenance_end_at_iso
-    ? new Date(publicSettings.maintenance_end_at_iso).toLocaleString('fr-FR', {
+  const maintenanceEndLabel = maintenanceEnd
+    ? maintenanceEnd.toLocaleString('fr-FR', {
         dateStyle: 'full',
         timeStyle: 'short',
       })
@@ -162,8 +108,8 @@ const MaintenanceScreen = ({ publicSettings, onCountdownComplete }) => {
         <span className="maintenance-pill">Maintenance en cours</span>
         <h1>Plateforme temporairement indisponible</h1>
         <p>
-          Les votes et l&apos;accès public sont momentanement suspendus.
-          Le site redeviendra accessible automatiquement des la fin de cette maintenance.
+          Les votes et l&apos;accès public sont momentanément suspendus.
+          Le site redeviendra accessible automatiquement dès la fin de cette maintenance.
         </p>
 
         <div className="maintenance-countdown-shell">
@@ -206,8 +152,8 @@ const MaintenanceScreen = ({ publicSettings, onCountdownComplete }) => {
 
         <p className="maintenance-meta">
           {maintenanceEndLabel
-            ? `Reprise prevue le ${maintenanceEndLabel}.`
-            : 'La date de reprise n’a pas encore ete renseignee.'}
+            ? `Reprise prévue le ${maintenanceEndLabel}.`
+            : 'La date de reprise n’a pas encore été renseignée.'}
         </p>
       </div>
     </div>
@@ -239,13 +185,16 @@ const ScrollToTop = () => {
 };
 
 const PublicLayout = () => {
-  const [publicSettings, setPublicSettings] = useState(null);
-  const [settingsLoading, setSettingsLoading] = useState(true);
+  const cachedSettings = readCachedPublicSettings();
+  const [publicSettings, setPublicSettings] = useState(cachedSettings);
+  const [settingsLoading, setSettingsLoading] = useState(!cachedSettings);
 
   const fetchPublicSettings = useCallback(async () => {
     try {
       const data = await settingsAPI.getPublic();
-      setPublicSettings(data || {});
+      const nextSettings = data || {};
+      setPublicSettings(nextSettings);
+      writeCachedPublicSettings(nextSettings);
     } catch (error) {
       console.error('Erreur chargement settings publics:', error);
     } finally {
@@ -256,18 +205,41 @@ const PublicLayout = () => {
   useAutoRefresh(fetchPublicSettings);
 
   const votingState = useMemo(() => computeVotingState(publicSettings || {}), [publicSettings]);
+  const adminPreviewEnabled = hasAdminPreviewSession();
+  const maintenancePreviewActive = votingState.maintenanceMode && adminPreviewEnabled;
   const outletContext = useMemo(
-    () => ({ publicSettings, settingsLoading, ...votingState }),
-    [publicSettings, settingsLoading, votingState],
+    () => ({ publicSettings, settingsLoading, maintenancePreviewActive, ...votingState }),
+    [publicSettings, settingsLoading, maintenancePreviewActive, votingState],
   );
 
-  if (votingState.maintenanceMode) {
+  if (settingsLoading && !publicSettings) {
+    return (
+      <div className="maintenance-page">
+        <div className="maintenance-box">
+          <Loader
+            size="small"
+            color="secondary"
+            text="Chargement de la plateforme"
+            subtext="Préparation de l’expérience officielle..."
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (votingState.maintenanceMode && !adminPreviewEnabled) {
     return <MaintenanceScreen publicSettings={publicSettings} onCountdownComplete={fetchPublicSettings} />;
   }
 
   return (
     <div className="app-wrapper">
       <Navbar votingBlocked={votingState.votingBlocked} />
+      {maintenancePreviewActive && (
+        <div className="maintenance-preview-banner" role="status" aria-live="polite">
+          <span className="maintenance-preview-pill">Aperçu administrateur</span>
+          <p>Le mode maintenance est actif. Vous visualisez le site avec vos droits d’administration.</p>
+        </div>
+      )}
       <main className="main-content">
         <Outlet context={outletContext} />
       </main>

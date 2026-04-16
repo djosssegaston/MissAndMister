@@ -9,6 +9,12 @@ const updateBrandIcons = () => {
     return;
   }
 
+  document.documentElement.lang = 'fr';
+  document.documentElement.setAttribute('translate', 'no');
+  document.documentElement.classList.add('notranslate');
+  document.body?.setAttribute('translate', 'no');
+  document.body?.classList.add('notranslate');
+
   const ensureLink = (rel) => {
     const existing = document.querySelector(`link[rel="${rel}"]`);
     if (existing) {

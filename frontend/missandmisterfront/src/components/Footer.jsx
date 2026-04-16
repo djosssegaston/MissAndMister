@@ -11,7 +11,7 @@ const Footer = () => (
       <div className="footer-grid">
         {/* Brand */}
         <div className="footer-brand">
-          <div className="footer-logo">
+          <div className="footer-logo" translate="no">
             <div className="footer-logo-icon">
               <img src={logo} alt="Miss & Mister logo" className="footer-logo-image" />
             </div>
