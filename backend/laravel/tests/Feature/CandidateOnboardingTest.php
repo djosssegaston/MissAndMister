@@ -149,6 +149,111 @@ class CandidateOnboardingTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_create_candidate_without_access_credentials(): void
+    {
+        Mail::fake();
+
+        $admin = Admin::create([
+            'name' => 'Admin',
+            'email' => 'admin@example.com',
+            'phone' => '97000000',
+            'password' => Hash::make('AdminPass!123'),
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+        $category = Category::create([
+            'name' => 'Miss',
+            'slug' => 'miss',
+            'description' => 'Miss',
+            'status' => 'active',
+            'position' => 1,
+        ]);
+
+        Sanctum::actingAs($admin, ['admin']);
+
+        $response = $this->postJson('/api/admin/candidates', [
+            'category_id' => $category->id,
+            'first_name' => 'Aicha',
+            'last_name' => 'Kouassi',
+            'email' => null,
+            'phone' => '96000001',
+            'description' => 'Candidate officielle',
+            'city' => 'Cotonou',
+            'university' => 'UAC',
+            'age' => 23,
+            'status' => 'active',
+            'is_active' => true,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('success', true);
+
+        $candidate = Candidate::where('phone', '96000001')->first();
+
+        $this->assertNotNull($candidate);
+        $this->assertNull($candidate->email);
+        $this->assertDatabaseMissing('users', [
+            'candidate_id' => $candidate->id,
+        ]);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_admin_can_add_candidate_access_later(): void
+    {
+        Mail::fake();
+
+        $admin = Admin::create([
+            'name' => 'Admin',
+            'email' => 'admin@example.com',
+            'phone' => '97000000',
+            'password' => Hash::make('AdminPass!123'),
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+        $category = Category::create([
+            'name' => 'Miss',
+            'slug' => 'miss',
+            'description' => 'Miss',
+            'status' => 'active',
+            'position' => 1,
+        ]);
+        $candidate = Candidate::factory()->create([
+            'category_id' => $category->id,
+            'first_name' => 'Aicha',
+            'last_name' => 'Kouassi',
+            'email' => null,
+            'phone' => '96000002',
+            'city' => 'Cotonou',
+            'status' => 'active',
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($admin, ['admin']);
+
+        $response = $this->putJson("/api/admin/candidates/{$candidate->id}", [
+            'email' => 'candidate.access@example.com',
+            'password' => 'Candidate!123',
+            'password_confirmation' => 'Candidate!123',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('candidate.email', 'candidate.access@example.com');
+
+        $this->assertDatabaseHas('users', [
+            'candidate_id' => $candidate->id,
+            'email' => 'candidate.access@example.com',
+            'role' => 'candidate',
+            'must_change_password' => true,
+        ]);
+
+        Mail::assertSent(CandidateInvitationMail::class, function (CandidateInvitationMail $mail) {
+            return $mail->user->email === 'candidate.access@example.com'
+                && $mail->temporaryPassword === 'Candidate!123';
+        });
+    }
+
     public function test_candidate_must_change_password_before_dashboard_and_receives_confirmation_email(): void
     {
         Mail::fake();

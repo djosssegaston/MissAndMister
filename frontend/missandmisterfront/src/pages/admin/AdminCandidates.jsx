@@ -280,12 +280,11 @@ const AdminCandidates = () => {
     if (!form.name.trim()) next.name = 'Le nom complet est requis';
     if (!form.publicNumber || Number(form.publicNumber) < 1) next.publicNumber = "Le numéro d'ordre est requis";
     if (!form.categoryId) next.categoryId = 'La catégorie est requise';
-    if (!form.email.trim()) next.email = "L'email est requis";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) next.email = 'Adresse email invalide';
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) next.email = 'Adresse email invalide';
     if (!form.city.trim()) next.city = 'La ville est requise';
 
-    if (!editing && !form.password) {
-      next.password = 'Le mot de passe temporaire est requis';
+    if (form.password && !form.email.trim()) {
+      next.email = "Renseignez un email avant de définir un mot de passe d'accès";
     }
 
     if (form.password && !passwordPattern.test(form.password)) {
@@ -309,7 +308,7 @@ const AdminCandidates = () => {
       first_name: firstName || 'N/A',
       last_name: lastName || 'N/A',
       public_number: Number(form.publicNumber),
-      email: form.email.trim(),
+      email: form.email.trim() || null,
       university: form.university.trim() || null,
       age: form.age ? Number(form.age) : null,
       city: form.city.trim(),
@@ -963,12 +962,12 @@ const AdminCandidates = () => {
                 <div className="ag-form-group acand-form-grid">
                   <div>
                     <label className="ag-label">Email de connexion</label>
-                    <input className="ag-input" type="email" value={form.email} onChange={e => updateField('email', e.target.value)} placeholder="candidat@email.com" />
+                    <input className="ag-input" type="email" value={form.email} onChange={e => updateField('email', e.target.value)} placeholder="Optionnel pour l'instant" />
                     {formErrors.email && <span className="acand-field-error">{formErrors.email}</span>}
                   </div>
                   <div className="acand-account-note">
-                    <span className="acand-account-pill">{editing ? 'Reset acces' : 'Acces candidat'}</span>
-                    <p>{editing ? "Laissez le mot de passe vide si vous ne voulez pas reinitialiser l'acces." : "Un email d'invitation sera envoye automatiquement au candidat."}</p>
+                    <span className="acand-account-pill">{editing ? 'Accès candidat' : 'Création simple'}</span>
+                    <p>{editing ? "Ajoutez l'email et un mot de passe plus tard pour créer ou réinitialiser l'accès candidat." : "Vous pouvez créer le candidat sans accès. L'email et le mot de passe pourront être ajoutés plus tard."}</p>
                   </div>
                 </div>
 
@@ -989,18 +988,20 @@ const AdminCandidates = () => {
                   </div>
                 </div>
 
-                <div className="ag-form-group acand-form-grid">
-                  <div>
-                    <label className="ag-label">Mot de passe temporaire</label>
-                    <input className="ag-input" type="password" value={form.password} onChange={e => updateField('password', e.target.value)} placeholder={editing ? 'Renseigner pour reinitialiser' : 'Mot de passe temporaire'} autoComplete="new-password" />
-                    {formErrors.password && <span className="acand-field-error">{formErrors.password}</span>}
+                {editing ? (
+                  <div className="ag-form-group acand-form-grid">
+                    <div>
+                      <label className="ag-label">Mot de passe temporaire</label>
+                      <input className="ag-input" type="password" value={form.password} onChange={e => updateField('password', e.target.value)} placeholder="Renseigner pour créer ou réinitialiser l'accès" autoComplete="new-password" />
+                      {formErrors.password && <span className="acand-field-error">{formErrors.password}</span>}
+                    </div>
+                    <div>
+                      <label className="ag-label">Confirmer le mot de passe</label>
+                      <input className="ag-input" type="password" value={form.confirmPassword} onChange={e => updateField('confirmPassword', e.target.value)} placeholder="Confirmer le mot de passe" autoComplete="new-password" />
+                      {formErrors.confirmPassword && <span className="acand-field-error">{formErrors.confirmPassword}</span>}
+                    </div>
                   </div>
-                  <div>
-                    <label className="ag-label">Confirmer le mot de passe</label>
-                    <input className="ag-input" type="password" value={form.confirmPassword} onChange={e => updateField('confirmPassword', e.target.value)} placeholder="Confirmer le mot de passe" autoComplete="new-password" />
-                    {formErrors.confirmPassword && <span className="acand-field-error">{formErrors.confirmPassword}</span>}
-                  </div>
-                </div>
+                ) : null}
 
                 <div className="ag-form-group">
                   <label className="ag-label">Biographie</label>
