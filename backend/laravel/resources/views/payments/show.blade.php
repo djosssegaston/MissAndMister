@@ -276,6 +276,45 @@
             text-align: center;
         }
 
+        .fedapay-embed-shell {
+            display: none;
+        }
+
+        .fedapay-embed-shell[hidden] {
+            display: none !important;
+        }
+
+        .fedapay-embed-frame {
+            width: 100%;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(212,175,55,0.14);
+            background: rgba(0,0,0,0.2);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+
+        #fedapay-embed {
+            width: 100%;
+            min-height: 660px;
+        }
+
+        #fedapay-embed > *,
+        #fedapay-embed iframe {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: 660px;
+            border: 0;
+            display: block;
+        }
+
+        .fedapay-embed-help {
+            margin: 0.85rem 0 0;
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
         .badge-row {
             display: flex;
             gap: 10px;
@@ -306,12 +345,70 @@
         }
 
         @media (max-width: 780px) {
+            body {
+                display: block;
+                padding: 0;
+            }
+
+            .shell {
+                width: 100%;
+                min-height: 100vh;
+                border-radius: 0;
+                border-left: 0;
+                border-right: 0;
+                box-shadow: none;
+                padding: 20px 16px 28px;
+            }
+
+            .hero {
+                align-items: flex-start;
+            }
+
+            .brand {
+                font-size: 0.72rem;
+            }
+
+            .status-pill {
+                width: 100%;
+                justify-content: center;
+            }
+
             .grid {
                 grid-template-columns: 1fr;
             }
 
             h1 {
                 max-width: none;
+            }
+
+            .lead,
+            .status-text {
+                font-size: 0.94rem;
+                line-height: 1.7;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .button,
+            .link {
+                width: 100%;
+            }
+
+            .fedapay-embed-shell {
+                display: block;
+                margin-top: 1rem;
+            }
+
+            .fedapay-embed-frame {
+                border-radius: 18px;
+            }
+
+            #fedapay-embed,
+            #fedapay-embed > *,
+            #fedapay-embed iframe {
+                min-height: 72vh;
             }
         }
     </style>
@@ -404,6 +501,17 @@
                     <a class="link" href="{{ $candidateLink }}">Retour au candidat</a>
                 </div>
 
+                @if($payment->status !== 'succeeded' && $payment->status !== 'failed' && $payment->vote?->status !== 'failed')
+                    <div class="fedapay-embed-shell" id="fedapay-embed-shell" hidden>
+                        <div class="fedapay-embed-frame">
+                            <div id="fedapay-embed"></div>
+                        </div>
+                        <p class="fedapay-embed-help">
+                            Sur mobile, le formulaire FedaPay s’affiche directement ici pour une lecture et une saisie plus confortables.
+                        </p>
+                    </div>
+                @endif
+
                 <div class="badge-row" aria-hidden="true">
                     <span class="badge">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2l8 5v5c0 5.5-3.8 9.9-8 10-4.2-.1-8-4.5-8-10V7l8-5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
@@ -439,6 +547,9 @@
             const title = document.querySelector('[data-status-title]');
             const message = document.querySelector('[data-status-text]');
             const button = document.getElementById('fedapay-pay-btn');
+            const embedShell = document.getElementById('fedapay-embed-shell');
+            const embedContainer = document.getElementById('fedapay-embed');
+            const mobileMediaQuery = window.matchMedia('(max-width: 780px)');
             const urlState = new URLSearchParams(window.location.search);
             let initialized = false;
             let syncTimer = null;
@@ -474,6 +585,18 @@
                 }
             };
 
+            const shouldEmbedCheckout = () => Boolean(embedContainer && mobileMediaQuery.matches);
+
+            const toggleEmbedMode = (enabled) => {
+                if (embedShell) {
+                    embedShell.hidden = !enabled;
+                }
+
+                if (button) {
+                    button.style.display = enabled ? 'none' : '';
+                }
+            };
+
             const updateUrlState = (value) => {
                 const nextUrl = new URL(window.location.href);
                 nextUrl.searchParams.set('payment', value);
@@ -506,6 +629,8 @@
                 if (button) {
                     button.remove();
                 }
+
+                toggleEmbedMode(false);
             };
 
             const markFailed = (payload = {}) => {
@@ -522,6 +647,7 @@
                 );
 
                 initialized = false;
+                toggleEmbedMode(shouldEmbedCheckout());
                 setButtonState(false, 'Payer');
             };
 
@@ -546,6 +672,7 @@
                     'Paiement prêt à reprendre',
                     nextMessage
                 );
+                toggleEmbedMode(shouldEmbedCheckout());
                 setButtonState(false, 'Payer');
             };
 
@@ -652,9 +779,20 @@
 
                 try {
                     initialized = true;
-                    setButtonState(true, 'Ouverture...');
+                    const embeddedCheckout = shouldEmbedCheckout();
+                    toggleEmbedMode(embeddedCheckout);
 
-                    const widget = window.FedaPay.init('#fedapay-pay-btn', {
+                    if (embeddedCheckout) {
+                        setState(
+                            'opening',
+                            'Complétez le paiement sécurisé',
+                            'Renseignez vos informations directement dans le formulaire FedaPay ci-dessous pour finaliser votre vote confortablement sur mobile.'
+                        );
+                    }
+
+                    setButtonState(true, embeddedCheckout ? 'Formulaire prêt' : 'Ouverture...');
+
+                    const checkoutConfig = {
                         public_key: fedapayPublicKey,
                         environment: fedapayEnvironment,
                         locale: 'fr',
@@ -695,7 +833,17 @@
                             markProcessing();
                             startSyncLoop();
                         },
-                    });
+                    };
+
+                    if (embeddedCheckout) {
+                        window.FedaPay.init({
+                            ...checkoutConfig,
+                            container: '#fedapay-embed',
+                        });
+                        return;
+                    }
+
+                    const widget = window.FedaPay.init('#fedapay-pay-btn', checkoutConfig);
 
                     if (widget && typeof widget.open === 'function') {
                         widget.open();
@@ -705,6 +853,7 @@
                     button.click();
                 } catch (error) {
                     initialized = false;
+                    toggleEmbedMode(false);
                     markFailed({ message: error?.message || 'Impossible d’ouvrir le widget FedaPay pour le moment.' });
                 }
             };
@@ -728,6 +877,14 @@
             if (urlState.get('payment') === 'failed' || status === 'failed' || initialVoteStatus === 'failed') {
                 markFailed({ message: 'Le paiement associé à cette référence a déjà échoué. Vous pouvez relancer la collecte.' });
                 return;
+            }
+
+            if (typeof mobileMediaQuery.addEventListener === 'function') {
+                mobileMediaQuery.addEventListener('change', () => {
+                    if (!initialized) {
+                        toggleEmbedMode(shouldEmbedCheckout());
+                    }
+                });
             }
 
             if (
