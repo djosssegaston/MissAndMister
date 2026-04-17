@@ -25,8 +25,7 @@ class CandidateAccountService
             unset($data['password'], $data['password_confirmation']);
 
             if (!isset($data['public_number'])) {
-                $next = Candidate::withTrashed()->max('public_number') ?? 0;
-                $data['public_number'] = $next + 1;
+                $data['public_number'] = $this->nextPublicNumberForCategory((int) $data['category_id']);
             }
 
             $candidate = Candidate::create($data);
@@ -74,8 +73,21 @@ class CandidateAccountService
         [$updatedCandidate, $userToNotify, $passwordToSend] = DB::transaction(function () use ($candidate, $data) {
             $plainPassword = $this->normalizePlainPassword($data['password'] ?? null);
             $sendCredentials = false;
+            $targetCategoryId = (int) ($data['category_id'] ?? $candidate->category_id);
 
             unset($data['password'], $data['password_confirmation']);
+
+            if (!array_key_exists('public_number', $data)) {
+                $currentPublicNumber = (int) ($candidate->public_number ?? 0);
+
+                if ($currentPublicNumber < 1 || $this->publicNumberExistsInCategory(
+                    $targetCategoryId,
+                    $currentPublicNumber,
+                    $candidate->id
+                )) {
+                    $data['public_number'] = $this->nextPublicNumberForCategory($targetCategoryId, $candidate->id);
+                }
+            }
 
             $candidate->update($data);
 
@@ -193,5 +205,28 @@ class CandidateAccountService
         $normalized = (string) ($value ?? '');
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    private function nextPublicNumberForCategory(int $categoryId, ?int $ignoreCandidateId = null): int
+    {
+        $next = Candidate::withTrashed()
+            ->when($ignoreCandidateId, fn ($query) => $query->whereKeyNot($ignoreCandidateId))
+            ->where('category_id', $categoryId)
+            ->max('public_number') ?? 0;
+
+        return ((int) $next) + 1;
+    }
+
+    private function publicNumberExistsInCategory(int $categoryId, int $publicNumber, ?int $ignoreCandidateId = null): bool
+    {
+        if ($publicNumber < 1) {
+            return false;
+        }
+
+        return Candidate::withTrashed()
+            ->when($ignoreCandidateId, fn ($query) => $query->whereKeyNot($ignoreCandidateId))
+            ->where('category_id', $categoryId)
+            ->where('public_number', $publicNumber)
+            ->exists();
     }
 }

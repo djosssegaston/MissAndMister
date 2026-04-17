@@ -14,6 +14,7 @@ class CandidateRepository
             ->withSum(['votes as votes_count' => function ($q) {
                 $q->successful();
             }], 'quantity')
+            ->orderBy('category_id')
             ->orderByRaw('CASE WHEN public_number IS NULL THEN 1 ELSE 0 END')
             ->orderBy('public_number')
             ->orderBy('last_name')
@@ -28,6 +29,7 @@ class CandidateRepository
             ->withSum(['votes as votes_count' => function ($q) {
                 $q->successful();
             }], 'quantity')
+            ->orderBy('category_id')
             ->orderByRaw('CASE WHEN public_number IS NULL THEN 1 ELSE 0 END')
             ->orderBy('public_number')
             ->orderBy('last_name')
@@ -53,7 +55,13 @@ class CandidateRepository
                     ->orWhere('slug', $normalized);
 
                 if (ctype_digit($normalized)) {
-                    $query->orWhere('public_number', (int) $normalized);
+                    $matchingCandidateIds = Candidate::query()
+                        ->where('public_number', (int) $normalized)
+                        ->pluck('id');
+
+                    if ($matchingCandidateIds->count() === 1) {
+                        $query->orWhereKey($matchingCandidateIds->all());
+                    }
                 }
             })
             ->first();
@@ -62,8 +70,7 @@ class CandidateRepository
     public function create(array $data): Candidate
     {
         if (!isset($data['public_number'])) {
-            $next = Candidate::withTrashed()->max('public_number') ?? 0;
-            $data['public_number'] = $next + 1;
+            $data['public_number'] = $this->nextPublicNumberForCategory((int) $data['category_id']);
         }
         return Candidate::create($data);
     }
@@ -89,5 +96,14 @@ class CandidateRepository
             ->where(function (Builder $query) {
                 $query->where('is_active', true)->orWhereNull('is_active');
             });
+    }
+
+    private function nextPublicNumberForCategory(int $categoryId): int
+    {
+        $next = Candidate::withTrashed()
+            ->where('category_id', $categoryId)
+            ->max('public_number') ?? 0;
+
+        return ((int) $next) + 1;
     }
 }

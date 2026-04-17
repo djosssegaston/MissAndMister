@@ -74,8 +74,17 @@ class VoteController extends Controller
             $candidateId = Candidate::query()
                 ->where('public_uid', $identifier)
                 ->orWhere('slug', $identifier)
-                ->when(ctype_digit($identifier), fn ($query) => $query->orWhere('public_number', (int) $identifier))
                 ->value('id');
+
+            if (!$candidateId && ctype_digit($identifier)) {
+                $matchingCandidateIds = Candidate::query()
+                    ->where('public_number', (int) $identifier)
+                    ->pluck('id');
+
+                if ($matchingCandidateIds->count() === 1) {
+                    $candidateId = (int) $matchingCandidateIds->first();
+                }
+            }
         }
 
         if (!$candidateId) {

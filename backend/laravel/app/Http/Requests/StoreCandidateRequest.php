@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class StoreCandidateRequest extends FormRequest
@@ -23,11 +24,20 @@ class StoreCandidateRequest extends FormRequest
      */
     public function rules(): array
     {
+        $categoryId = (int) $this->input('category_id');
+
         return [
             'category_id' => ['required', 'exists:categories,id'],
             'first_name' => ['required', 'string', 'max:120'],
             'last_name' => ['required', 'string', 'max:120'],
-            'public_number' => ['nullable', 'integer', 'min:1', 'unique:candidates,public_number'],
+            'public_number' => [
+                'nullable',
+                'integer',
+                'min:1',
+                Rule::unique('candidates', 'public_number')->where(
+                    fn ($query) => $query->where('category_id', $categoryId)
+                ),
+            ],
             'email' => ['nullable', 'email', 'required_with:password', 'unique:candidates,email', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:20', 'unique:candidates,phone', 'unique:users,phone'],
             'password' => ['nullable', 'string', 'confirmed', Password::min(10)->letters()->mixedCase()->numbers()->symbols()],
@@ -40,6 +50,13 @@ class StoreCandidateRequest extends FormRequest
             'university' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', 'in:active,inactive'],
             'is_active' => ['nullable', 'boolean'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'public_number.unique' => "Ce numéro d'ordre est déjà utilisé dans cette catégorie.",
         ];
     }
 }

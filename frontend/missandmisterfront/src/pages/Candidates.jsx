@@ -19,6 +19,32 @@ const SORTS = [
   { key: 'name', label: 'Nom A→Z' },
 ];
 
+const compareCandidatesByCategoryAndNumber = (leftCandidate, rightCandidate) => {
+  const leftCategory = String(leftCandidate.category?.name || '').toLowerCase();
+  const rightCategory = String(rightCandidate.category?.name || '').toLowerCase();
+  const categoryCompare = leftCategory.localeCompare(rightCategory, 'fr', { sensitivity: 'base' });
+
+  if (categoryCompare !== 0) {
+    return categoryCompare;
+  }
+
+  const leftNumber = Number(leftCandidate.public_number ?? Number.MAX_SAFE_INTEGER);
+  const rightNumber = Number(rightCandidate.public_number ?? Number.MAX_SAFE_INTEGER);
+
+  if (leftNumber !== rightNumber) {
+    return leftNumber - rightNumber;
+  }
+
+  return `${leftCandidate.first_name || ''} ${leftCandidate.last_name || ''}`
+    .trim()
+    .toLowerCase()
+    .localeCompare(
+      `${rightCandidate.first_name || ''} ${rightCandidate.last_name || ''}`.trim().toLowerCase(),
+      'fr',
+      { sensitivity: 'base' }
+    );
+};
+
 const Candidates = () => {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,21 +106,11 @@ const Candidates = () => {
           return voteGap;
         }
 
-        const leftNumber = Number(a.public_number || Number.MAX_SAFE_INTEGER);
-        const rightNumber = Number(b.public_number || Number.MAX_SAFE_INTEGER);
-
-        if (leftNumber !== rightNumber) {
-          return leftNumber - rightNumber;
-        }
+        return compareCandidatesByCategoryAndNumber(a, b);
       }
 
       if (sortBy === 'order') {
-        const left = Number(a.public_number || Number.MAX_SAFE_INTEGER);
-        const right = Number(b.public_number || Number.MAX_SAFE_INTEGER);
-
-        if (left !== right) {
-          return left - right;
-        }
+        return compareCandidatesByCategoryAndNumber(a, b);
       }
 
       return buildName(a).toLowerCase().localeCompare(buildName(b).toLowerCase());

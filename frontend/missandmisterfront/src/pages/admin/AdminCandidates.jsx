@@ -91,21 +91,52 @@ const buildCandidatePreview = (candidate) => {
   return sources.src || sources.medium || sources.large || sources.original || null;
 };
 
+const compareCandidatesByCategoryAndNumber = (leftCandidate, rightCandidate) => {
+  const leftCategory = String(leftCandidate.category?.name || '').toLowerCase();
+  const rightCategory = String(rightCandidate.category?.name || '').toLowerCase();
+  const categoryCompare = leftCategory.localeCompare(rightCategory, 'fr', { sensitivity: 'base' });
+
+  if (categoryCompare !== 0) {
+    return categoryCompare;
+  }
+
+  const leftNumber = Number(leftCandidate.publicNumber ?? Number.MAX_SAFE_INTEGER);
+  const rightNumber = Number(rightCandidate.publicNumber ?? Number.MAX_SAFE_INTEGER);
+
+  if (leftNumber !== rightNumber) {
+    return leftNumber - rightNumber;
+  }
+
+  return String(leftCandidate.name || '').localeCompare(String(rightCandidate.name || ''), 'fr', { sensitivity: 'base' });
+};
+
 const sortCandidates = (rows = []) => [...rows]
-  .sort((leftCandidate, rightCandidate) => {
-    const leftNumber = Number(leftCandidate.publicNumber ?? Number.MAX_SAFE_INTEGER);
-    const rightNumber = Number(rightCandidate.publicNumber ?? Number.MAX_SAFE_INTEGER);
-
-    if (leftNumber !== rightNumber) {
-      return leftNumber - rightNumber;
-    }
-
-    return String(leftCandidate.name || '').localeCompare(String(rightCandidate.name || ''), 'fr', { sensitivity: 'base' });
-  })
+  .sort(compareCandidatesByCategoryAndNumber)
   .map((candidate, index) => ({
     ...candidate,
     rank: index + 1,
   }));
+
+const getNextPublicNumberForCategory = (rows = [], categoryId) => rows.reduce((max, candidate) => {
+  if (String(candidate.category?.id ?? '') !== String(categoryId ?? '')) {
+    return max;
+  }
+
+  const value = Number(candidate.publicNumber || 0);
+  return Number.isFinite(value) && value > max ? value : max;
+}, 0) + 1;
+
+const hasCategoryNumberConflict = (rows = [], categoryId, publicNumber, ignoreCandidateId = null) => rows.some((candidate) => {
+  if (String(candidate.category?.id ?? '') !== String(categoryId ?? '')) {
+    return false;
+  }
+
+  if (ignoreCandidateId !== null && Number(candidate.id) === Number(ignoreCandidateId)) {
+    return false;
+  }
+
+  return Number(candidate.publicNumber || 0) === Number(publicNumber || 0);
+});
 
 const ConfirmModal = ({ message, onConfirm, onCancel }) => (
   <AnimatePresence>
@@ -245,10 +276,7 @@ const AdminCandidates = () => {
 
   const openAdd  = () => {
     const defaultCatId = categories[0]?.id ?? null;
-    const nextPublicNumber = candidates.reduce((max, candidate) => {
-      const value = Number(candidate.publicNumber || 0);
-      return Number.isFinite(value) && value > max ? value : max;
-    }, 0) + 1;
+    const nextPublicNumber = getNextPublicNumberForCategory(candidates, defaultCatId);
     setForm({ ...emptyForm, categoryId: defaultCatId, publicNumber: String(nextPublicNumber) });
     setFormErrors({});
     setError(null);
@@ -268,7 +296,23 @@ const AdminCandidates = () => {
   };
 
   const updateField = (name, value) => {
-    setForm(prev => ({ ...prev, [name]: value }));
+    setForm(prev => {
+      if (name === 'categoryId') {
+        const nextPublicNumber = getNextPublicNumberForCategory(candidates, value);
+        const currentPublicNumber = Number(prev.publicNumber || 0);
+        const shouldReplacePublicNumber = !editing
+          || currentPublicNumber < 1
+          || hasCategoryNumberConflict(candidates, value, currentPublicNumber, editing);
+
+        return {
+          ...prev,
+          categoryId: value,
+          publicNumber: shouldReplacePublicNumber ? String(nextPublicNumber) : prev.publicNumber,
+        };
+      }
+
+      return { ...prev, [name]: value };
+    });
     setFormErrors(prev => ({ ...prev, [name]: '' }));
     setFeedback(null);
   };
