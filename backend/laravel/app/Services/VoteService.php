@@ -3,13 +3,17 @@
 namespace App\Services;
 
 use App\Models\Candidate;
+use App\Models\Setting;
 use App\Models\Vote;
 use App\Repositories\VoteRepository;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class VoteService
 {
+    private const DEFAULT_PRICE_PER_VOTE = 500;
+
     public function __construct(
         private VoteRepository $votes,
         private PaymentService $payments,
@@ -17,17 +21,32 @@ class VoteService
     ) {
     }
 
-    public function initiateVote(?int $userId, int $candidateId, float $amount, string $currency, string $ip, array $meta = [], int $quantity = 1): array
+    public function initiateVote(?int $userId, int $candidateId, string $currency, string $ip, array $meta = [], int $quantity = 1): array
     {
         $this->fraudDetection->assertNotFraudulent($userId, $ip, $quantity);
 
         $candidate = Candidate::query()->find($candidateId);
         $candidateName = $candidate ? trim(($candidate->first_name ?? '') . ' ' . ($candidate->last_name ?? '')) : null;
+        $unitPrice = $this->resolvePricePerVote();
+        $amount = $unitPrice * max(1, $quantity);
+        $submittedAmount = data_get($meta, 'submitted_amount');
+
+        if (is_numeric($submittedAmount) && abs(((float) $submittedAmount) - $amount) > 0.01) {
+            Log::warning('Vote amount mismatch detected; server amount applied', [
+                'user_id' => $userId,
+                'candidate_id' => $candidateId,
+                'submitted_amount' => (float) $submittedAmount,
+                'server_amount' => $amount,
+                'quantity' => $quantity,
+                'ip' => $ip,
+            ]);
+        }
 
         $payment = $this->payments->initiate($userId, $amount, $currency, array_merge($meta, [
             'ip' => $ip,
             'candidate_id' => $candidateId,
             'candidate_name' => $candidateName,
+            'unit_price' => $unitPrice,
         ]));
 
         // Create pending vote linked to payment
@@ -53,6 +72,16 @@ class VoteService
         ]);
 
         return [$payment, $vote];
+    }
+
+    private function resolvePricePerVote(): int
+    {
+        $configuredPrice = (int) Setting::query()
+            ->where('key', 'price_per_vote')
+            ->where('status', 'active')
+            ->value('value');
+
+        return $configuredPrice > 0 ? $configuredPrice : self::DEFAULT_PRICE_PER_VOTE;
     }
 
     public function confirmVote(Vote $vote): Vote

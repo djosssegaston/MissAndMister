@@ -67,6 +67,7 @@ class VoteController extends Controller
         $user = $this->resolveOptionalAuthenticatedUser($request);
         $quantity = $request->integer('quantity', 1);
         $candidateId = $request->integer('candidate_id');
+        $submittedAmount = $request->filled('amount') ? $request->float('amount') : null;
 
         if (!$candidateId) {
             $identifier = trim((string) $request->input('candidate_identifier', ''));
@@ -86,10 +87,13 @@ class VoteController extends Controller
         [$payment, $vote] = $this->voteService->initiateVote(
             $user->id ?? null,
             (int) $candidateId,
-            $request->float('amount'),
             $request->input('currency', 'XOF'),
             $request->ip(),
-            ['user_agent' => $request->userAgent(), 'quantity' => $quantity],
+            array_filter([
+                'user_agent' => $request->userAgent(),
+                'quantity' => $quantity,
+                'submitted_amount' => $submittedAmount,
+            ], static fn ($value) => $value !== null && $value !== ''),
             $quantity,
         );
 

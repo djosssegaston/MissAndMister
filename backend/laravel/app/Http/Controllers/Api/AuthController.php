@@ -34,7 +34,7 @@ class AuthController extends Controller
             'must_change_password' => false,
         ]);
 
-        $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+        $token = $this->issueSingleSessionToken($user, 'auth_token', [$user->role]);
         $this->logSecurity($user, 'login_success', ['role' => $user->role]);
 
         return response()->json([
@@ -66,7 +66,7 @@ class AuthController extends Controller
                 return response()->json(['message' => 'Account inactive'], 403);
             }
             $abilities = $admin->role === 'superadmin' ? ['admin', 'superadmin'] : [$admin->role];
-            $token = $admin->createToken('admin_token', $abilities)->plainTextToken;
+            $token = $this->issueSingleSessionToken($admin, 'admin_token', $abilities);
             $this->logSecurity($admin, 'login_success', ['guard' => 'admin']);
 
             return response()->json([
@@ -91,7 +91,7 @@ class AuthController extends Controller
             return response()->json(['message' => 'Account inactive'], 403);
         }
 
-        $token = $user->createToken('auth_token', [$user->role])->plainTextToken;
+        $token = $this->issueSingleSessionToken($user, 'auth_token', [$user->role]);
         $this->logSecurity($user, 'login_success', ['role' => $user->role]);
 
         return response()->json([
@@ -189,5 +189,12 @@ class AuthController extends Controller
             'meta' => $meta,
             'status' => 'active',
         ]);
+    }
+
+    private function issueSingleSessionToken(object $account, string $tokenName, array $abilities): string
+    {
+        $account->tokens()->delete();
+
+        return $account->createToken($tokenName, $abilities)->plainTextToken;
     }
 }

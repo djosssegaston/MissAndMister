@@ -42,6 +42,11 @@ return [
         'environment' => env('FEDAPAY_ENVIRONMENT', 'sandbox'),
     ],
 
+    'fraud' => [
+        'limit_per_user' => (int) env('FRAUD_LIMIT_PER_USER', 100),
+        'limit_per_ip' => (int) env('FRAUD_LIMIT_PER_IP', 200),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

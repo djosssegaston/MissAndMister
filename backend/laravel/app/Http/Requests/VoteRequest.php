@@ -25,8 +25,8 @@ class VoteRequest extends FormRequest
         return [
             'candidate_id' => ['nullable', 'integer', 'exists:candidates,id'],
             'candidate_identifier' => ['nullable', 'string', 'max:64'],
-            'amount' => ['required', 'numeric', 'min:100'],
-            'quantity' => ['sometimes', 'integer', 'min:1'],
+            'amount' => ['nullable', 'numeric', 'min:0'],
+            'quantity' => ['sometimes', 'integer', 'min:1', 'max:1000'],
             'currency' => ['sometimes', 'string', 'max:8'],
         ];
     }
