@@ -53,6 +53,7 @@ class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         $credentials = $request->validated();
+        $credentials['email'] = strtolower(trim((string) ($credentials['email'] ?? '')));
         $scope = $credentials['scope'] ?? 'user';
 
         if ($scope === 'admin') {

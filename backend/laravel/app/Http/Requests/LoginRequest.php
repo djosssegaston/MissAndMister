@@ -23,7 +23,9 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email'],
+            // Login only needs an identifier string; avoiding strict email regex
+            // keeps authentication stable on hosts with inconsistent PCRE behavior.
+            'email' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
             'scope' => ['nullable', 'in:user,admin'],
         ];
