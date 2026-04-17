@@ -1,3 +1,9 @@
+import {
+  getOrderedTransportModes,
+  isProductionProxyHost,
+  rememberTransportMode,
+} from '../utils/apiTransport';
+
 const normalizeApiBaseUrl = (value) => {
   const trimmed = String(value || '').trim();
 
@@ -21,17 +27,12 @@ const normalizeApiBaseUrl = (value) => {
   return `https://${normalizedHost}/api`;
 };
 
-const PRODUCTION_PROXY_HOSTS = new Set([
-  'missmisteruniversitybenin.com',
-  'www.missmisteruniversitybenin.com',
-]);
-
 const getRuntimeProxyApiBaseUrl = () => {
   if (typeof window === 'undefined') {
     return '';
   }
 
-  return PRODUCTION_PROXY_HOSTS.has(window.location.hostname) ? '/backend-api' : '';
+  return isProductionProxyHost(window.location.hostname) ? '/backend-api' : '';
 };
 
 const buildApiUrl = (baseUrl, endpoint) => `${baseUrl}${endpoint}`;
@@ -40,9 +41,6 @@ const buildApiUrl = (baseUrl, endpoint) => `${baseUrl}${endpoint}`;
 const DIRECT_API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL || 'http://localhost:8000/api');
 const PROXY_API_BASE_URL = getRuntimeProxyApiBaseUrl();
 const API_BASE_URL = PROXY_API_BASE_URL || DIRECT_API_BASE_URL;
-const API_FALLBACK_BASE_URL = PROXY_API_BASE_URL && PROXY_API_BASE_URL !== DIRECT_API_BASE_URL
-  ? DIRECT_API_BASE_URL
-  : '';
 const HEALTHCHECK_URL = `${DIRECT_API_BASE_URL.replace(/\/api$/i, '')}/up`;
 export const SESSION_EXPIRED_EVENT = 'app:session-expired';
 
@@ -226,6 +224,16 @@ const fetchWithTimeout = async (url, options = {}, timeout = API_TIMEOUT) => {
   }
 };
 
+const buildUnexpectedHtmlMessage = (html = '', title = '') => {
+  const combinedContent = `${title}\n${html}`.trim();
+
+  if (/LWS Protection DDoS|Protection DDoS|Verification|Vérification|Checking your browser|Anubis/i.test(combinedContent)) {
+    return 'La protection reseau de l\'hebergeur a renvoye une page HTML au lieu des donnees attendues. Le site va essayer un autre chemin automatiquement.';
+  }
+
+  return 'Le serveur a renvoye une page HTML inattendue au lieu des donnees attendues.';
+};
+
 // Parsing robuste (gère HTML renvoyé par erreur en prod)
 const parseResponseBody = async (response) => {
   const contentType = response.headers.get('content-type') || '';
@@ -241,8 +249,24 @@ const parseResponseBody = async (response) => {
     }
   }
 
-  // Réponse non JSON (souvent une page HTML d'erreur)
   const trimmed = text?.trim() || '';
+  const looksLikeHtml = /^<!doctype html/i.test(trimmed) || /^<html[\s>]/i.test(trimmed);
+
+  if (looksLikeHtml) {
+    const htmlTitle = (trimmed.match(/<title[^>]*>(.*?)<\/title>/i)?.[1] || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return {
+      message: buildUnexpectedHtmlMessage(trimmed, htmlTitle),
+      detail: htmlTitle || null,
+      _raw: trimmed.slice(0, 800),
+      _isUnexpectedHtml: true,
+      _isProtectionPage: /LWS Protection DDoS|Protection DDoS|Verification|Vérification|Checking your browser|Anubis/i.test(`${htmlTitle}\n${trimmed}`),
+    };
+  }
+
+  // Réponse non JSON (souvent une page HTML d'erreur)
   if (!response.ok) {
     return {
       message: trimmed.slice(0, 200) || `Erreur HTTP ${response.status}`,
@@ -269,7 +293,47 @@ const buildApiError = (response, data) => {
   error.validationMessage = validationMessage;
   error.isSessionExpired = response.status === 401;
   error.isRetryable = RETRYABLE_STATUS_CODES.has(response.status);
+  error.isTransportError = Boolean(data?._isUnexpectedHtml || data?._isProtectionPage);
+
+  if (error.isTransportError) {
+    error.isRetryable = true;
+    error.isNetworkError = true;
+  }
+
   return error;
+};
+
+const buildUnexpectedHtmlError = (response, data) => {
+  const error = new Error(data?.message || 'Le serveur a renvoye une page HTML inattendue.');
+  error.status = response.status || 200;
+  error.detail = data?.detail || null;
+  error.payload = data || null;
+  error.isRetryable = true;
+  error.isNetworkError = true;
+  error.isTransportError = true;
+  return error;
+};
+
+const getAvailableApiBaseUrls = () => {
+  const baseUrlsByMode = {
+    proxy: PROXY_API_BASE_URL,
+    direct: DIRECT_API_BASE_URL,
+  };
+
+  return getOrderedTransportModes(Object.keys(baseUrlsByMode))
+    .map((mode) => ({ mode, baseUrl: baseUrlsByMode[mode] }))
+    .filter(({ baseUrl }) => Boolean(baseUrl));
+};
+
+const rememberSuccessfulBaseUrl = (baseUrl) => {
+  if (baseUrl === PROXY_API_BASE_URL) {
+    rememberTransportMode('proxy');
+    return;
+  }
+
+  if (baseUrl === DIRECT_API_BASE_URL) {
+    rememberTransportMode('direct');
+  }
 };
 
 const shouldRetryRequest = (method = 'GET', error, attempt, maxRetries = MAX_API_RETRIES) => {
@@ -308,32 +372,50 @@ const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxR
     const response = await fetchWithTimeout(buildApiUrl(baseUrl, endpoint), config, timeout);
     const data = await parseResponseBody(response);
 
+    if (data?._isUnexpectedHtml) {
+      throw buildUnexpectedHtmlError(response, data);
+    }
+
     if (!response.ok) {
       throw buildApiError(response, data);
     }
 
+    rememberSuccessfulBaseUrl(baseUrl);
     return data;
   };
 
   for (let attempt = 0; ; attempt += 1) {
-    try {
-      try {
-        return await executeAgainstBaseUrl(API_BASE_URL);
-      } catch (error) {
-        if (API_FALLBACK_BASE_URL && error?.isNetworkError) {
-          return await executeAgainstBaseUrl(API_FALLBACK_BASE_URL);
-        }
+    let lastError = null;
 
-        throw error;
+    try {
+      const baseUrlCandidates = getAvailableApiBaseUrls();
+
+      for (let index = 0; index < baseUrlCandidates.length; index += 1) {
+        const { baseUrl } = baseUrlCandidates[index];
+
+        try {
+          return await executeAgainstBaseUrl(baseUrl);
+        } catch (error) {
+          lastError = error;
+
+          const hasAlternativeBaseUrl = index < baseUrlCandidates.length - 1;
+          if (hasAlternativeBaseUrl && (error?.isTransportError || error?.isNetworkError)) {
+            continue;
+          }
+
+          throw error;
+        }
       }
     } catch (error) {
-      if (shouldRetryRequest(config.method, error, attempt, maxRetries)) {
+      const retryTarget = error || lastError;
+
+      if (shouldRetryRequest(config.method, retryTarget, attempt, maxRetries)) {
         await wakeBackend();
         await sleep(800 * (attempt + 1));
         continue;
       }
 
-      throw error;
+      throw retryTarget;
     }
   }
 };

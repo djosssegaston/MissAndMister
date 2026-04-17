@@ -1,3 +1,8 @@
+import {
+  getPreferredTransportMode,
+  isProductionProxyHost,
+} from './apiTransport';
+
 const getApiBaseUrl = () => {
   const trimmed = String(import.meta.env.VITE_API_URL || 'http://localhost:8000/api').trim();
 
@@ -17,17 +22,16 @@ const getApiBaseUrl = () => {
   return `https://${normalizedHost}/api`;
 };
 
-const PRODUCTION_PROXY_HOSTS = new Set([
-  'missmisteruniversitybenin.com',
-  'www.missmisteruniversitybenin.com',
-]);
-
 const getRuntimeMediaProxyBaseUrl = () => {
   if (typeof window === 'undefined') {
     return '';
   }
 
-  return PRODUCTION_PROXY_HOSTS.has(window.location.hostname) ? '/backend-media' : '';
+  if (!isProductionProxyHost(window.location.hostname)) {
+    return '';
+  }
+
+  return getPreferredTransportMode() === 'direct' ? '' : '/backend-media';
 };
 
 const getApiOrigin = () => getApiBaseUrl().replace(/\/api\/?$/, '');
