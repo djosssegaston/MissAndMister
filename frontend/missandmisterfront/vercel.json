@@ -6,18 +6,6 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/backend-api/up",
-      "destination": "https://api.missmisteruniversitybenin.com/up"
-    },
-    {
-      "source": "/backend-api/storage/(.*)",
-      "destination": "https://api.missmisteruniversitybenin.com/storage/$1"
-    },
-    {
-      "source": "/backend-api/(.*)",
-      "destination": "https://api.missmisteruniversitybenin.com/api/$1"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
