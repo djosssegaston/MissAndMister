@@ -7,14 +7,16 @@ use App\Models\Candidate;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class CandidateAccountService
 {
     public function create(array $data): Candidate
     {
-        return DB::transaction(function () use ($data) {
+        [$candidate, $user, $plainPassword] = DB::transaction(function () use ($data) {
             $plainPassword = $data['password'];
 
             unset($data['password'], $data['password_confirmation']);
@@ -37,15 +39,17 @@ class CandidateAccountService
                 'must_change_password' => true,
             ]);
 
-            $this->sendInvitationEmail($candidate, $user, $plainPassword);
-
-            return $candidate->load(['category', 'user']);
+            return [$candidate->load(['category', 'user']), $user, $plainPassword];
         });
+
+        $this->sendInvitationEmailSafely($candidate, $user, $plainPassword);
+
+        return $candidate;
     }
 
     public function update(Candidate $candidate, array $data): Candidate
     {
-        return DB::transaction(function () use ($candidate, $data) {
+        [$updatedCandidate, $userToNotify, $passwordToSend] = DB::transaction(function () use ($candidate, $data) {
             $plainPassword = $data['password'] ?? null;
             $sendCredentials = false;
 
@@ -89,12 +93,18 @@ class CandidateAccountService
                 $user->tokens()->delete();
             }
 
-            if ($sendCredentials && $plainPassword) {
-                $this->sendInvitationEmail($candidate, $user, $plainPassword);
-            }
-
-            return $candidate->fresh(['category', 'user']);
+            return [
+                $candidate->fresh(['category', 'user']),
+                $sendCredentials && $plainPassword ? $user : null,
+                $sendCredentials ? $plainPassword : null,
+            ];
         });
+
+        if ($userToNotify && $passwordToSend) {
+            $this->sendInvitationEmailSafely($updatedCandidate, $userToNotify, $passwordToSend);
+        }
+
+        return $updatedCandidate;
     }
 
     public function syncStatus(Candidate $candidate, bool $isActive): void
@@ -125,6 +135,20 @@ class CandidateAccountService
             temporaryPassword: $plainPassword,
             loginUrl: $this->loginUrl(),
         ));
+    }
+
+    private function sendInvitationEmailSafely(Candidate $candidate, User $user, string $plainPassword): void
+    {
+        try {
+            $this->sendInvitationEmail($candidate, $user, $plainPassword);
+        } catch (Throwable $exception) {
+            Log::warning('Candidate invitation email failed', [
+                'candidate_id' => $candidate->id,
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function loginUrl(): string
