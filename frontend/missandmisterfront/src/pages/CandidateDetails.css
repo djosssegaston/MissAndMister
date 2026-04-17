@@ -238,6 +238,33 @@
   font-family: var(--font-primary);
 }
 
+.cdet-counter-input {
+  width: 96px;
+  min-width: 96px;
+  text-align: center;
+  padding: 0.85rem 0.9rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(212,175,55,0.2);
+  border-radius: 12px;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--white);
+  font-family: var(--font-primary);
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.cdet-counter-input:focus {
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 0 3px rgba(212,175,55,0.12);
+}
+
+.cdet-counter-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Steps */
 .cdet-steps {
   display: flex; align-items: center;

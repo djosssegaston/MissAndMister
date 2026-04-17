@@ -11,6 +11,17 @@ import { useAutoRefresh } from '../utils/liveUpdates';
 import './CandidateDetails.css';
 
 const DEFAULT_PRICE_PER_VOTE = 100;
+const MAX_VOTES_PER_ACTION = 1000;
+
+const clampVotes = (value) => {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return 0;
+  }
+
+  return Math.min(MAX_VOTES_PER_ACTION, Math.max(0, Math.round(numericValue)));
+};
 
 const CandidateDetails = () => {
   const { identifier } = useParams();
@@ -80,12 +91,19 @@ const CandidateDetails = () => {
 
   const incrementVotes = () => {
     setErrors(e => ({ ...e, nbVotes: '' }));
-    setNbVotes(v => Math.min(1000, v + 1));
+    setNbVotes(v => clampVotes(v + 1));
   };
 
   const decrementVotes = () => {
     setErrors(e => ({ ...e, nbVotes: '' }));
-    setNbVotes(v => Math.max(0, v - 1));
+    setNbVotes(v => clampVotes(v - 1));
+  };
+
+  const handleVotesInputChange = (event) => {
+    const digitsOnly = String(event.target.value || '').replace(/\D+/g, '');
+
+    setErrors(e => ({ ...e, nbVotes: '' }));
+    setNbVotes(clampVotes(digitsOnly === '' ? 0 : Number(digitsOnly)));
   };
 
   const handlePay = async () => {
@@ -334,7 +352,19 @@ const CandidateDetails = () => {
 
                 <div className="cdet-counter">
                   <button className="cdet-nb-btn" onClick={decrementVotes} disabled={nbVotes <= 0 || votingBlocked}>−</button>
-                  <div className="cdet-counter-value">{nbVotes}</div>
+                  <input
+                    className="cdet-counter-input cdet-nb-input"
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    min="0"
+                    max={MAX_VOTES_PER_ACTION}
+                    step="1"
+                    value={nbVotes}
+                    onChange={handleVotesInputChange}
+                    disabled={votingLoading || votingBlocked}
+                    aria-label="Nombre de votes"
+                  />
                   <button className="cdet-nb-btn" onClick={incrementVotes} disabled={votingBlocked}>+</button>
                 </div>
                 {errors.nbVotes && <p className="cdet-error">{errors.nbVotes}</p>}
