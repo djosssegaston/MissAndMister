@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\StatsController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VoteController;
 use App\Http\Controllers\Api\PublicCandidateController;
+use App\Http\Controllers\PublicMediaController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -36,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::prefix('public')->group(function () {
     Route::get('candidates', [PublicCandidateController::class, 'index']);
     Route::get('candidates/{identifier}', [PublicCandidateController::class, 'show']);
+    Route::get('media/{path}', [PublicMediaController::class, 'show'])->where('path', '.*');
     Route::get('stats', [StatsController::class, 'publicStats']);
     Route::get('gallery', [GalleryController::class, 'publicIndex']);
     Route::get('partners', [PartnerController::class, 'publicIndex']);

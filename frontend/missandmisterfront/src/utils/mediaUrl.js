@@ -24,6 +24,12 @@ const joinOriginAndPath = (path = '') => {
   return `${getApiOrigin()}${normalizedPath}`;
 };
 
+const buildPublicMediaUrl = (path = '') => {
+  const normalizedPath = String(path).replace(/^\/+/, '');
+  const strippedStoragePrefix = normalizedPath.replace(/^storage\/+/, '');
+  return joinOriginAndPath(`/api/public/media/${strippedStoragePrefix}`);
+};
+
 export const resolveMediaUrl = (value = '') => {
   if (typeof value !== 'string') return null;
 
@@ -39,7 +45,7 @@ export const resolveMediaUrl = (value = '') => {
       const url = new URL(trimmed);
 
       if (url.pathname.startsWith('/storage/')) {
-        return `${getApiOrigin()}${url.pathname}${url.search}${url.hash}`;
+        return `${buildPublicMediaUrl(url.pathname)}${url.search}${url.hash}`;
       }
 
       return trimmed;
@@ -51,24 +57,24 @@ export const resolveMediaUrl = (value = '') => {
   const normalized = trimmed.replace(/^\/+/, '');
 
   if (normalized.startsWith('public/storage/')) {
-    return joinOriginAndPath(`/${normalized.replace(/^public\//, '')}`);
+    return buildPublicMediaUrl(normalized.replace(/^public\/storage\//, ''));
   }
 
   if (normalized.startsWith('storage/app/public/')) {
-    return joinOriginAndPath(`/${normalized.replace(/^storage\/app\/public\//, 'storage/')}`);
+    return buildPublicMediaUrl(normalized.replace(/^storage\/app\/public\//, ''));
   }
 
   if (trimmed.startsWith('/storage/')) {
-    return joinOriginAndPath(trimmed);
+    return buildPublicMediaUrl(trimmed);
   }
 
   if (trimmed.startsWith('storage/')) {
-    return joinOriginAndPath(`/${trimmed}`);
+    return buildPublicMediaUrl(trimmed);
   }
 
   if (normalized.startsWith('storage/')) {
-    return joinOriginAndPath(`/${normalized}`);
+    return buildPublicMediaUrl(normalized);
   }
 
-  return joinOriginAndPath(`/storage/${trimmed.replace(/^\/+/, '')}`);
+  return buildPublicMediaUrl(trimmed);
 };

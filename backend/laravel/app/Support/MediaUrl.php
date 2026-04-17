@@ -20,7 +20,12 @@ class MediaUrl
             return null;
         }
 
-        return url('/storage/' . $storagePath);
+        return url(self::publicPath($storagePath));
+    }
+
+    public static function publicPath(string $storagePath): string
+    {
+        return '/api/public/media/' . ltrim($storagePath, '/');
     }
 
     public static function toStorageRelativePath(?string $path): ?string
@@ -31,12 +36,19 @@ class MediaUrl
         }
 
         if (preg_match('/^(https?:|data:|blob:)/i', $trimmed)) {
-            return null;
+            $path = parse_url($trimmed, PHP_URL_PATH);
+
+            if (! is_string($path) || $path === '') {
+                return null;
+            }
+
+            $trimmed = $path;
         }
 
         $normalized = ltrim($trimmed, '/');
 
         foreach ([
+            'api/public/media/' => '',
             'public/storage/' => 'storage/',
             'storage/app/public/' => 'storage/',
         ] as $prefix => $replacement) {
