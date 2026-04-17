@@ -31,6 +31,41 @@ Le backend doit etre deploye depuis :
 
 - `backend/laravel`
 
+### Deploiement automatique depuis ce repo
+
+Un script de synchronisation LWS est disponible :
+
+```bash
+cd backend/laravel
+composer deploy:lws:dry-run
+composer deploy:lws
+```
+
+Ce script :
+
+- verifie la syntaxe de tous les fichiers PHP locaux
+- synchronise le backend vers LWS via `rsync` + `ssh`
+- preserve le `.env`, `storage/`, `vendor/` et les medias deja presents sur le serveur
+- lance `php artisan optimize:clear` sur LWS
+- verifie ensuite :
+  - `https://api.missmisteruniversitybenin.com/up`
+  - `https://api.missmisteruniversitybenin.com/api/public/settings`
+
+Si tu as aussi modifie des variables admin dans le vrai `.env` serveur et que tu veux reappliquer le bootstrap :
+
+```bash
+cd backend/laravel
+composer deploy:lws:bootstrap
+```
+
+Variables modifiables si besoin :
+
+- `LWS_SSH_TARGET`
+- `LWS_REMOTE_DIR`
+- `LWS_PHP_BIN`
+- `LWS_HEALTH_URL`
+- `LWS_SETTINGS_URL`
+
 ### Points importants
 
 - le dossier public a exposer est `backend/laravel/public`

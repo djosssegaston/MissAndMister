@@ -55,6 +55,15 @@
             "@php artisan config:clear --ansi",
             "@php artisan test"
         ],
+        "deploy:lws": [
+            "bash scripts/deploy-lws.sh"
+        ],
+        "deploy:lws:dry-run": [
+            "bash scripts/deploy-lws.sh --dry-run"
+        ],
+        "deploy:lws:bootstrap": [
+            "bash scripts/deploy-lws.sh --bootstrap-production"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
