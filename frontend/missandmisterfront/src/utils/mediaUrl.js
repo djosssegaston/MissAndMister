@@ -1,6 +1,10 @@
 const getApiBaseUrl = () => {
   const trimmed = String(import.meta.env.VITE_API_URL || 'http://localhost:8000/api').trim();
 
+  if (trimmed.startsWith('/')) {
+    return trimmed.replace(/\/+$/, '');
+  }
+
   if (/^https?:\/\//i.test(trimmed)) {
     return trimmed.replace(/\/+$/, '');
   }

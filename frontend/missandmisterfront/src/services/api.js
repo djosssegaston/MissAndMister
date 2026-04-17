@@ -5,6 +5,10 @@ const normalizeApiBaseUrl = (value) => {
     return 'http://localhost:8000/api';
   }
 
+  if (trimmed.startsWith('/')) {
+    return trimmed.replace(/\/+$/, '');
+  }
+
   if (/^https?:\/\//i.test(trimmed)) {
     return trimmed.replace(/\/+$/, '');
   }
@@ -30,7 +34,7 @@ const API_TIMEOUT = (() => {
     return configuredTimeout;
   }
 
-  return /onrender\.com\/api$/i.test(API_BASE_URL) ? 25000 : 10000;
+  return /(onrender\.com\/api$|^\/backend-api$)/i.test(API_BASE_URL) ? 25000 : 10000;
 })();
 const MAX_API_RETRIES = 2;
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 502, 503, 504]);
