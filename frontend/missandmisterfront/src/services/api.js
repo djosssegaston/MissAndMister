@@ -21,10 +21,29 @@ const normalizeApiBaseUrl = (value) => {
   return `https://${normalizedHost}/api`;
 };
 
+const PRODUCTION_PROXY_HOSTS = new Set([
+  'missmisteruniversitybenin.com',
+  'www.missmisteruniversitybenin.com',
+]);
+
+const getRuntimeProxyApiBaseUrl = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return PRODUCTION_PROXY_HOSTS.has(window.location.hostname) ? '/backend-api' : '';
+};
+
+const buildApiUrl = (baseUrl, endpoint) => `${baseUrl}${endpoint}`;
+
 // Configuration de l'API
-const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL || 'http://localhost:8000/api');
-const API_ROOT_URL = API_BASE_URL.replace(/\/api$/i, '');
-const HEALTHCHECK_URL = `${API_ROOT_URL}/up`;
+const DIRECT_API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL || 'http://localhost:8000/api');
+const PROXY_API_BASE_URL = getRuntimeProxyApiBaseUrl();
+const API_BASE_URL = PROXY_API_BASE_URL || DIRECT_API_BASE_URL;
+const API_FALLBACK_BASE_URL = PROXY_API_BASE_URL && PROXY_API_BASE_URL !== DIRECT_API_BASE_URL
+  ? DIRECT_API_BASE_URL
+  : '';
+const HEALTHCHECK_URL = `${DIRECT_API_BASE_URL.replace(/\/api$/i, '')}/up`;
 export const SESSION_EXPIRED_EVENT = 'app:session-expired';
 
 // Timeout global pour les appels API (en ms)
@@ -285,25 +304,28 @@ const wakeBackend = async () => {
 };
 
 const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxRetries = MAX_API_RETRIES } = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const executeAgainstBaseUrl = async (baseUrl) => {
+    const response = await fetchWithTimeout(buildApiUrl(baseUrl, endpoint), config, timeout);
+    const data = await parseResponseBody(response);
+
+    if (!response.ok) {
+      throw buildApiError(response, data);
+    }
+
+    return data;
+  };
 
   for (let attempt = 0; ; attempt += 1) {
     try {
-      const response = await fetchWithTimeout(url, config, timeout);
-      const data = await parseResponseBody(response);
-
-      if (!response.ok) {
-        const error = buildApiError(response, data);
-        if (shouldRetryRequest(config.method, error, attempt, maxRetries)) {
-          await wakeBackend();
-          await sleep(800 * (attempt + 1));
-          continue;
+      try {
+        return await executeAgainstBaseUrl(API_BASE_URL);
+      } catch (error) {
+        if (API_FALLBACK_BASE_URL && error?.isNetworkError) {
+          return await executeAgainstBaseUrl(API_FALLBACK_BASE_URL);
         }
 
         throw error;
       }
-
-      return data;
     } catch (error) {
       if (shouldRetryRequest(config.method, error, attempt, maxRetries)) {
         await wakeBackend();
