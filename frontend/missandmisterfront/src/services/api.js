@@ -432,11 +432,40 @@ const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxR
     return data;
   };
 
+  const executeParallelReadRequest = async (baseUrlCandidates) => {
+    const attempts = baseUrlCandidates.map(({ baseUrl }) => (
+      executeAgainstBaseUrl(baseUrl)
+        .then((data) => ({ ok: true, baseUrl, data }))
+        .catch((error) => ({ ok: false, baseUrl, error }))
+    ));
+
+    const results = await Promise.all(attempts);
+    const firstSuccess = results.find((result) => result.ok);
+
+    if (firstSuccess) {
+      rememberSuccessfulBaseUrl(firstSuccess.baseUrl);
+      return firstSuccess.data;
+    }
+
+    const rankedFailure = results
+      .map((result) => result.error)
+      .find((error) => error?.isTransportError || error?.isNetworkError)
+      || results[0]?.error
+      || new Error('Impossible de contacter le serveur pour le moment. Reessayez dans quelques secondes.');
+
+    throw rankedFailure;
+  };
+
   for (let attempt = 0; ; attempt += 1) {
     let lastError = null;
 
     try {
       const baseUrlCandidates = getAvailableApiBaseUrls();
+      const method = getRequestMethod(config);
+
+      if (baseUrlCandidates.length > 1 && RETRYABLE_METHODS.has(method)) {
+        return await executeParallelReadRequest(baseUrlCandidates);
+      }
 
       for (let index = 0; index < baseUrlCandidates.length; index += 1) {
         const { baseUrl } = baseUrlCandidates[index];
