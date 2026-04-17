@@ -7,15 +7,15 @@
   "rewrites": [
     {
       "source": "/backend-api/up",
-      "destination": "http://api.missmisteruniversitybenin.com/up"
+      "destination": "https://api.missmisteruniversitybenin.com/up"
     },
     {
       "source": "/backend-api/storage/(.*)",
-      "destination": "http://api.missmisteruniversitybenin.com/storage/$1"
+      "destination": "https://api.missmisteruniversitybenin.com/storage/$1"
     },
     {
       "source": "/backend-api/(.*)",
-      "destination": "http://api.missmisteruniversitybenin.com/api/$1"
+      "destination": "https://api.missmisteruniversitybenin.com/api/$1"
     },
     {
       "source": "/(.*)",
