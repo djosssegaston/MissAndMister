@@ -234,6 +234,52 @@ const buildUnexpectedHtmlMessage = (html = '', title = '') => {
   return 'Le serveur a renvoye une page HTML inattendue au lieu des donnees attendues.';
 };
 
+const looksLikeHtmlPayload = (text = '', contentType = '') => {
+  const normalizedText = String(text || '').trim();
+  const normalizedContentType = String(contentType || '').toLowerCase();
+  const preview = normalizedText.slice(0, 600).toLowerCase();
+
+  if (!normalizedText) {
+    return false;
+  }
+
+  if (
+    normalizedContentType.includes('text/html')
+    || normalizedContentType.includes('application/xhtml+xml')
+  ) {
+    return true;
+  }
+
+  return (
+    /^<!doctype html/i.test(normalizedText)
+    || /^<html[\s>]/i.test(normalizedText)
+    || preview.includes('<html')
+    || preview.includes('<head')
+    || preview.includes('<body')
+    || preview.includes('<title')
+    || preview.includes('<meta charset')
+  );
+};
+
+const sanitizeApiMessage = (message = '', payload = null) => {
+  const normalizedMessage = String(message || '').trim();
+  const rawPayload = String(payload?._raw || '').trim();
+  const combinedPreview = `${normalizedMessage}\n${rawPayload}`.trim();
+
+  if (!combinedPreview) {
+    return normalizedMessage;
+  }
+
+  if (
+    looksLikeHtmlPayload(combinedPreview)
+    || /LWS Protection DDoS|Protection DDoS|Verification|Vérification|Checking your browser|Anubis/i.test(combinedPreview)
+  ) {
+    return 'Impossible de contacter le serveur pour le moment. Reessayez dans quelques secondes.';
+  }
+
+  return normalizedMessage;
+};
+
 // Parsing robuste (gère HTML renvoyé par erreur en prod)
 const parseResponseBody = async (response) => {
   const contentType = response.headers.get('content-type') || '';
@@ -250,7 +296,7 @@ const parseResponseBody = async (response) => {
   }
 
   const trimmed = text?.trim() || '';
-  const looksLikeHtml = /^<!doctype html/i.test(trimmed) || /^<html[\s>]/i.test(trimmed);
+  const looksLikeHtml = looksLikeHtmlPayload(trimmed, contentType);
 
   if (looksLikeHtml) {
     const htmlTitle = (trimmed.match(/<title[^>]*>(.*?)<\/title>/i)?.[1] || '')
@@ -284,8 +330,9 @@ const buildApiError = (response, data) => {
   const preferredMessage = rawMessage && rawMessage !== 'The given data was invalid.'
     ? rawMessage
     : validationMessage;
-
-  const error = new Error(preferredMessage || rawMessage || getHttpErrorFallbackMessage(response.status));
+  const fallbackMessage = getHttpErrorFallbackMessage(response.status);
+  const sanitizedMessage = sanitizeApiMessage(preferredMessage || rawMessage || fallbackMessage, data);
+  const error = new Error(sanitizedMessage || fallbackMessage);
   error.status = response.status;
   error.errors = data?.errors || null;
   error.detail = data?.detail || null;
@@ -304,7 +351,8 @@ const buildApiError = (response, data) => {
 };
 
 const buildUnexpectedHtmlError = (response, data) => {
-  const error = new Error(data?.message || 'Le serveur a renvoye une page HTML inattendue.');
+  const fallbackMessage = 'Impossible de contacter le serveur pour le moment. Reessayez dans quelques secondes.';
+  const error = new Error(sanitizeApiMessage(data?.message || fallbackMessage, data) || fallbackMessage);
   error.status = response.status || 200;
   error.detail = data?.detail || null;
   error.payload = data || null;
