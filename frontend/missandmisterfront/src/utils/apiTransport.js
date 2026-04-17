@@ -3,7 +3,7 @@ const PRODUCTION_PROXY_HOSTS = new Set([
   'www.missmisteruniversitybenin.com',
 ]);
 
-const TRANSPORT_STORAGE_KEY = 'mmub_api_transport_mode';
+const TRANSPORT_STORAGE_KEY = 'mmub_api_transport_mode_v2';
 const VALID_TRANSPORT_MODES = new Set(['proxy', 'direct']);
 
 const normalizeTransportMode = (value = '') => {
@@ -23,9 +23,10 @@ export const isProductionProxyHost = (hostname = getRuntimeHostname()) => (
   PRODUCTION_PROXY_HOSTS.has(hostname)
 );
 
-export const getDefaultTransportMode = () => (
-  isProductionProxyHost() ? 'proxy' : 'direct'
-);
+// In production we prefer the direct API first. The Vercel proxy remains
+// available as a fallback, but starting with the shared-hosting challenge
+// page has proven less stable than going browser -> API directly.
+export const getDefaultTransportMode = () => 'direct';
 
 export const getStoredTransportMode = () => {
   if (typeof sessionStorage === 'undefined') {
