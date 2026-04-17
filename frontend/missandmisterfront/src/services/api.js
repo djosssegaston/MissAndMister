@@ -41,25 +41,14 @@ const RETRYABLE_STATUS_CODES = new Set([408, 429, 502, 503, 504]);
 const RETRYABLE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const SESSION_EXPIRED_MESSAGE = 'Votre session a expiré. Veuillez vous reconnecter pour continuer.';
 
-const getTimezone = () => {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
-};
-
-const getUserAgent = () => {
-  try {
-    return typeof navigator !== 'undefined' ? navigator.userAgent : 'server';
-  } catch {
-    return 'server';
-  }
-};
-
-// Génère un identifiant corrélable pour tracer les requêtes côté back/logs
-const buildRequestId = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const getRequestMethod = (options = {}) => String(options.method || 'GET').toUpperCase();
+const shouldSendJsonContentType = (method, body, hasFormData) => (
+  !hasFormData
+  && body !== undefined
+  && body !== null
+  && !['GET', 'HEAD'].includes(String(method || 'GET').toUpperCase())
+);
 
 // Construit proprement une query string à partir d'un objet de filtres
 const buildQueryString = (params = {}) => {
@@ -209,6 +198,7 @@ const fetchWithTimeout = async (url, options = {}, timeout = API_TIMEOUT) => {
     }
 
     if (error instanceof TypeError || /Failed to fetch|Load failed|NetworkError/i.test(error.message || '')) {
+      error.message = 'Impossible de contacter le serveur pour le moment. Reessayez dans quelques secondes.';
       error.isRetryable = true;
       error.isNetworkError = true;
     }
@@ -330,19 +320,17 @@ const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxR
 const fetchPublicAPI = async (endpoint, options = {}) => {
   const { timeout = API_TIMEOUT, ...requestOptions } = options;
   const hasFormData = isFormDataBody(requestOptions.body);
+  const method = getRequestMethod(requestOptions);
   const defaultHeaders = {
     'Accept': 'application/json',
-    'Cache-Control': 'no-store',
-    'Pragma': 'no-cache',
-    ...(!hasFormData ? { 'Content-Type': 'application/json' } : {}),
+    ...(shouldSendJsonContentType(method, requestOptions.body, hasFormData) ? { 'Content-Type': 'application/json' } : {}),
   };
 
   const config = {
     ...requestOptions,
-    method: requestOptions.method || 'GET',
+    method,
     headers: {
       ...cleanHeaders(defaultHeaders),
-      'X-Request-Id': buildRequestId(),
       ...cleanHeaders(requestOptions.headers || {}),
     },
   };
@@ -360,23 +348,19 @@ const fetchAPI = async (endpoint, options = {}) => {
   const token = resolveAuthToken(endpoint);
   const { timeout = API_TIMEOUT, skipSessionExpiredHandling = false, ...requestOptions } = options;
   const hasFormData = isFormDataBody(requestOptions.body);
+  const method = getRequestMethod(requestOptions);
   
   const defaultHeaders = {
     'Accept': 'application/json',
-    'Cache-Control': 'no-store',
-    'Pragma': 'no-cache',
-    ...(!hasFormData ? { 'Content-Type': 'application/json' } : {}),
+    ...(shouldSendJsonContentType(method, requestOptions.body, hasFormData) ? { 'Content-Type': 'application/json' } : {}),
     ...(token && { Authorization: `Bearer ${token}` }),
-    'X-Client-Timezone': getTimezone(),
-    'X-Client-UA': getUserAgent(),
   };
 
   const config = {
     ...requestOptions,
-    method: requestOptions.method || 'GET',
+    method,
     headers: {
       ...cleanHeaders(defaultHeaders),
-      'X-Request-Id': buildRequestId(),
       ...cleanHeaders(requestOptions.headers || {}),
     },
   };
