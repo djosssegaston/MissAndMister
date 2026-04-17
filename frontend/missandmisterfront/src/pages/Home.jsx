@@ -732,7 +732,7 @@ const Home = () => {
               />
               <div className="initiator-visual-badge">
                 <span className="initiator-badge-label">Initiateur</span>
-                <strong>Mahugnon Delphin Dossa </strong>
+                <strong>Delphin DOSSA EZOUN-AGNAN </strong>
               </div>
               <div className="initiator-quote-card">
                 <p>
