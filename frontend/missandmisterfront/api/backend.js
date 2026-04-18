@@ -130,6 +130,7 @@ const proxyRequest = async (request) => {
   const retryableReadRequest = method === 'GET' || method === 'HEAD';
   const maxAttempts = retryableReadRequest ? 3 : 1;
   const requestHeaders = buildProxyRequestHeaders(request);
+  const hasRequestBody = !['GET', 'HEAD'].includes(method);
 
   let lastFailure = null;
 
@@ -138,7 +139,8 @@ const proxyRequest = async (request) => {
       const upstreamResponse = await fetchWithTimeout(upstreamUrl, {
         method,
         headers: requestHeaders,
-        body: ['GET', 'HEAD'].includes(method) ? undefined : request.body,
+        body: hasRequestBody ? request.body : undefined,
+        ...(hasRequestBody ? { duplex: 'half' } : {}),
       });
 
       const contentType = upstreamResponse.headers.get('content-type') || '';

@@ -382,6 +382,8 @@ const buildApiError = (response, data) => {
   const fallbackMessage = getHttpErrorFallbackMessage(response.status);
   const sanitizedMessage = sanitizeApiMessage(preferredMessage || rawMessage || fallbackMessage, data);
   const error = new Error(sanitizedMessage || fallbackMessage);
+  const isRetryableProxyFailure = response.headers.get('x-proxy-by') === 'vercel-backend-proxy'
+    && RETRYABLE_STATUS_CODES.has(response.status);
   error.status = response.status;
   error.errors = data?.errors || null;
   error.detail = data?.detail || null;
@@ -389,9 +391,9 @@ const buildApiError = (response, data) => {
   error.validationMessage = validationMessage;
   error.isSessionExpired = response.status === 401;
   error.isRetryable = RETRYABLE_STATUS_CODES.has(response.status);
-  error.isTransportError = Boolean(data?._isUnexpectedHtml || data?._isProtectionPage);
+  error.isTransportError = Boolean(data?._isUnexpectedHtml || data?._isProtectionPage || isRetryableProxyFailure);
 
-  if (error.isTransportError) {
+  if (error.isTransportError || isRetryableProxyFailure) {
     error.isRetryable = true;
     error.isNetworkError = true;
   }
