@@ -36,12 +36,23 @@ const getRuntimeProxyApiBaseUrl = () => {
 };
 
 const buildApiUrl = (baseUrl, endpoint) => `${baseUrl}${endpoint}`;
+const isAbsoluteHttpUrl = (value = '') => /^https?:\/\//i.test(String(value || ''));
+const isSameOriginAbsoluteUrl = (value = '') => {
+  if (typeof window === 'undefined' || !isAbsoluteHttpUrl(value)) {
+    return false;
+  }
+
+  try {
+    return new URL(value).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+};
 
 // Configuration de l'API
 const DIRECT_API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL || 'http://localhost:8000/api');
 const PROXY_API_BASE_URL = getRuntimeProxyApiBaseUrl();
 const API_BASE_URL = PROXY_API_BASE_URL || DIRECT_API_BASE_URL;
-const HEALTHCHECK_URL = `${DIRECT_API_BASE_URL.replace(/\/api$/i, '')}/up`;
 export const SESSION_EXPIRED_EVENT = 'app:session-expired';
 const PUBLIC_CACHE_STORAGE_KEY = 'mmub_public_api_cache_v1';
 const PUBLIC_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 6;
@@ -485,6 +496,17 @@ const shouldRetryRequest = (method = 'GET', error, attempt, maxRetries = MAX_API
   return Boolean(error?.isRetryable || error?.isNetworkError);
 };
 
+const shouldRaceBaseUrls = (endpoint = '', config = {}) => {
+  const method = getRequestMethod(config);
+
+  if (!RETRYABLE_METHODS.has(method) || !isPublicReadEndpoint(endpoint, method)) {
+    return false;
+  }
+
+  const headers = config?.headers || {};
+  return !Object.keys(headers).some((key) => key.toLowerCase() === 'authorization');
+};
+
 const shouldRetryAlternateAdminLoginEndpoint = (error) => {
   const status = Number(error?.status || 0);
 
@@ -495,9 +517,31 @@ const shouldRetryAlternateAdminLoginEndpoint = (error) => {
   return [404, 405, 408, 429, 500, 502, 503, 504].includes(status);
 };
 
+const getWakeUrl = () => {
+  if (PROXY_API_BASE_URL) {
+    return buildApiUrl(PROXY_API_BASE_URL, '/public/settings');
+  }
+
+  if (!DIRECT_API_BASE_URL) {
+    return '';
+  }
+
+  if (DIRECT_API_BASE_URL.startsWith('/') || isSameOriginAbsoluteUrl(DIRECT_API_BASE_URL)) {
+    return buildApiUrl(DIRECT_API_BASE_URL, '/public/settings');
+  }
+
+  return '';
+};
+
 const wakeBackend = async () => {
+  const wakeUrl = getWakeUrl();
+
+  if (!wakeUrl) {
+    return;
+  }
+
   try {
-    await fetchWithTimeout(HEALTHCHECK_URL, {
+    await fetchWithTimeout(wakeUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -626,9 +670,8 @@ const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxR
 
     try {
       const baseUrlCandidates = getAvailableApiBaseUrls();
-      const method = getRequestMethod(config);
 
-      if (baseUrlCandidates.length > 1 && RETRYABLE_METHODS.has(method)) {
+      if (baseUrlCandidates.length > 1 && shouldRaceBaseUrls(endpoint, config)) {
         return await executeParallelReadRequest(baseUrlCandidates);
       }
 
