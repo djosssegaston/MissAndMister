@@ -8,7 +8,6 @@ import { useAutoRefresh } from '../utils/liveUpdates';
 import './Candidates.css';
 
 const FILTERS = [
-  { key: 'all', label: 'Tous' },
   { key: 'miss', label: 'Miss' },
   { key: 'mister', label: 'Mister' },
 ];
@@ -49,7 +48,7 @@ const Candidates = () => {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('miss');
   const [sortBy, setSortBy] = useState('votes_desc');
   const [searchQuery, setSearchQuery] = useState('');
   const hasLoadedRef = useRef(false);
@@ -88,12 +87,13 @@ const Candidates = () => {
   };
 
   const buildName = (candidate) => `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim();
+  const activeFilterLabel = FILTERS.find(({ key }) => key === filter)?.label || 'Miss';
 
   const filtered = candidates
     .filter(c => {
       const name = buildName(c).toLowerCase();
       const university = (c.university || '').toLowerCase();
-      const matchCat = filter === 'all' || c.category?.name?.toLowerCase() === filter;
+      const matchCat = c.category?.name?.toLowerCase() === filter;
       const matchSearch = name.includes(searchQuery.toLowerCase()) ||
                           university.includes(searchQuery.toLowerCase());
       return matchCat && matchSearch;
@@ -126,7 +126,7 @@ const Candidates = () => {
         <div className="container">
           <div className="cand-hero-content">
             <h1>Nos <span className="text-gold">Candidats</span></h1>
-            <p>Découvrez les {candidates.length} candidats en compétition et votez pour vos favoris.</p>
+            <p>Découvrez les candidats par catégorie distincte et soutenez vos favoris en toute clarté.</p>
             <div className="cand-hero-counts">
               <div className="count-pill">
                 <span className="count-num">{candidates.filter(c => c.category?.name?.toLowerCase() === 'miss').length}</span>
@@ -187,7 +187,7 @@ const Candidates = () => {
 
           {/* Compteur résultats */}
           <p className="results-count">
-            {filtered.length} candidat{filtered.length !== 1 ? 's' : ''} trouvé{filtered.length !== 1 ? 's' : ''}
+            {filtered.length} candidat{filtered.length !== 1 ? 's' : ''} dans la catégorie {activeFilterLabel}
           </p>
         </div>
       </section>

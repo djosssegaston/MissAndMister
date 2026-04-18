@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -163,7 +163,7 @@ const MaintenanceScreen = ({ publicSettings, onCountdownComplete }) => {
 const ScrollToTop = () => {
   const location = useLocation();
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (typeof window === 'undefined') {
       return undefined;
     }
@@ -172,14 +172,18 @@ const ScrollToTop = () => {
       window.history.scrollRestoration = 'manual';
     }
 
-    const root = document.documentElement;
-    const previousBehavior = root.style.scrollBehavior;
-    root.style.scrollBehavior = 'auto';
-    window.scrollTo(0, 0);
-    root.style.scrollBehavior = previousBehavior;
+    const frameId = window.requestAnimationFrame(() => {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'smooth',
+      });
+    });
 
-    return undefined;
-  }, [location.pathname, location.search, location.hash]);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [location.pathname, location.search]);
 
   return null;
 };
