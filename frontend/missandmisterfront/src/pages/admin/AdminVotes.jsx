@@ -37,6 +37,22 @@ const formatCurrencyAmount = (value) => {
   });
 };
 
+const EMPTY_SUMMARY = {
+  counted_votes: 0,
+  valid_votes: 0,
+  suspect_votes: 0,
+  cancelled_votes: 0,
+  revenue: 0,
+};
+
+const buildSummaryFromVotes = (rows = []) => ({
+  counted_votes: rows.filter((vote) => vote.isCountable).reduce((sum, vote) => sum + (vote.qty || 0), 0),
+  valid_votes: rows.filter((vote) => vote.isCountable).reduce((sum, vote) => sum + (vote.qty || 0), 0),
+  suspect_votes: rows.filter((vote) => vote.status === 'suspect').reduce((sum, vote) => sum + (vote.qty || 0), 0),
+  cancelled_votes: rows.filter((vote) => vote.status === 'cancelled').reduce((sum, vote) => sum + (vote.qty || 0), 0),
+  revenue: rows.filter((vote) => vote.isCountable).reduce((sum, vote) => sum + vote.amount, 0),
+});
+
 const ConfirmModal = ({ message, onConfirm, onCancel }) => (
   <div className="agc-overlay" onClick={onCancel}>
     <div className="agc-modal" onClick={e => e.stopPropagation()}>
@@ -57,6 +73,8 @@ const ConfirmModal = ({ message, onConfirm, onCancel }) => (
 
 const AdminVotes = () => {
   const [votes, setVotes] = useState([]);
+  const [summary, setSummary] = useState(EMPTY_SUMMARY);
+  const [pageInfo, setPageInfo] = useState({ total: 0, perPage: 0 });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatus] = useState('Tous');
   const [catFilter, setCat] = useState('Tous');
@@ -131,7 +149,14 @@ const AdminVotes = () => {
 
       const res = await adminAPI.getVotes({ per_page: 500 });
       const data = res?.data || res || [];
-      setVotes(data.map(mapVote));
+      const mappedVotes = data.map(mapVote);
+
+      setVotes(mappedVotes);
+      setSummary(res?.summary || buildSummaryFromVotes(mappedVotes));
+      setPageInfo({
+        total: Number(res?.total || mappedVotes.length || 0),
+        perPage: Number(res?.per_page || mappedVotes.length || 0),
+      });
       setError(null);
       hasLoadedRef.current = true;
     } catch (err) {
@@ -199,7 +224,7 @@ const AdminVotes = () => {
       onConfirm: async () => {
         try {
           await adminAPI.updateVote(vote.id, { status: newStatus });
-          setVotes(p => p.map(v => v.id === vote.id ? { ...v, status: newStatus } : v));
+          await fetchVotes();
           broadcastLiveUpdate('votes');
         } catch (err) {
           if (err?.isSessionExpired) {
@@ -227,7 +252,7 @@ const AdminVotes = () => {
       onConfirm: async () => {
         try {
           await adminAPI.deleteVote(vote.id);
-          setVotes((previousVotes) => previousVotes.filter((currentVote) => currentVote.id !== vote.id));
+          await fetchVotes();
           setSelected((previousSelection) => {
             const next = new Set(previousSelection);
             next.delete(vote.id);
@@ -255,12 +280,6 @@ const AdminVotes = () => {
     const a      = document.createElement('a'); a.href = url; a.download = 'votes_export.csv'; a.click();
     URL.revokeObjectURL(url);
   };
-
-  const total     = votes.filter(v => v.isCountable).reduce((s, v) => s + (v.qty || 0), 0);
-  const valid     = votes.filter(v => v.isCountable).reduce((s, v) => s + (v.qty || 0), 0);
-  const suspect   = votes.filter(v => v.status === 'suspect').reduce((s, v) => s + (v.qty || 0), 0);
-  const cancelled = votes.filter(v => v.status === 'cancelled').reduce((s, v) => s + (v.qty || 0), 0);
-  const revenue   = votes.filter(v => v.isCountable).reduce((s, v) => s + v.amount, 0);
 
   const toggleSelectAll = (checked) => {
     if (checked) {
@@ -294,18 +313,18 @@ const AdminVotes = () => {
       for (const id of ids) {
         await adminAPI.updateVote(id, { status });
       }
-      setVotes(p => p.map(v => selected.has(v.id) ? { ...v, status } : v));
+      await fetchVotes();
       setSelected(new Set());
       broadcastLiveUpdate('votes');
     } catch (err) {
       if (err?.isSessionExpired) {
         return;
       }
-          setError(err.message || 'Échec de la mise à jour groupée');
-        } finally {
-          setBulkLoading(false);
-        }
-      };
+      setError(err.message || 'Échec de la mise à jour groupée');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -338,11 +357,11 @@ const AdminVotes = () => {
 
       <div className="avotes-stats">
         {[
-          { label:'Votes comptabilisés', value: total,            color:'#D4AF37' },
-          { label:'Valides',      value: valid,                   color:'#4ADE80' },
-          { label:'Suspects',     value: suspect,                 color:'#FBBF24' },
-          { label:'Annulés',      value: cancelled,               color:'#F87171' },
-          { label:'Revenus FCFA', value: formatCurrencyAmount(revenue), color:'#D4AF37' },
+          { label:'Votes comptabilisés', value: summary.counted_votes || 0,         color:'#D4AF37' },
+          { label:'Valides',      value: summary.valid_votes || 0,                   color:'#4ADE80' },
+          { label:'Suspects',     value: summary.suspect_votes || 0,                 color:'#FBBF24' },
+          { label:'Annulés',      value: summary.cancelled_votes || 0,               color:'#F87171' },
+          { label:'Revenus FCFA', value: formatCurrencyAmount(summary.revenue || 0), color:'#D4AF37' },
         ].map((s, i) => (
           <motion.div key={i} className="avotes-stat" initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay: i * 0.07 }}>
             <span className="avotes-stat-val" style={{ color: s.color }}>{s.value}</span>
@@ -350,6 +369,12 @@ const AdminVotes = () => {
           </motion.div>
         ))}
       </div>
+
+      {pageInfo.total > votes.length && (
+        <div className="avotes-meta-note">
+          Les indicateurs ci-dessus sont calculés sur l’ensemble des votes enregistrés. Le tableau affiche actuellement les {votes.length.toLocaleString('fr-FR')} votes les plus récents sur {pageInfo.total.toLocaleString('fr-FR')}.
+        </div>
+      )}
 
       {error && (
         <div className="error-container" style={{ margin: '0 0 1rem 0' }}>

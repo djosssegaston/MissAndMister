@@ -39,7 +39,11 @@ class VoteController extends Controller
         $filters = request()->only(['status', 'candidate_id', 'from', 'to']);
         $perPage = max(5, min((int) request()->get('per_page', 20), 500));
         $list = $this->votes->paginateFiltered($filters, $perPage);
-        return response()->json($list);
+
+        return response()->json(array_merge(
+            $list->toArray(),
+            ['summary' => $this->votes->summarizeFiltered($filters)]
+        ));
     }
 
     /**

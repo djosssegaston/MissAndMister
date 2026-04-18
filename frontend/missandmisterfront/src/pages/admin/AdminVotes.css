@@ -11,6 +11,16 @@
 .avotes-stat:last-child { border-right: none; }
 .avotes-stat-val { display: block; font-size: 1.4rem; font-weight: 900; font-family: 'Playfair Display', serif; line-height: 1; margin-bottom: 4px; }
 .avotes-stat-lbl { font-size: 0.68rem; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ag-text-3); }
+.avotes-meta-note {
+  margin: -0.35rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  border-radius: 14px;
+  background: rgba(212, 175, 55, 0.06);
+  color: var(--ag-text-2);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
 
 .avotes-filters { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.4rem; flex-wrap: wrap; }
 .avotes-search-wrap { position: relative; flex: 1; min-width: 220px; }

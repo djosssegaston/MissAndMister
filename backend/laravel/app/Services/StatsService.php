@@ -5,11 +5,18 @@ namespace App\Services;
 use App\Models\Candidate;
 use App\Models\Vote;
 use App\Models\User;
+use App\Repositories\VoteRepository;
 
 class StatsService
 {
+    public function __construct(private VoteRepository $votes)
+    {
+    }
+
     public function summary(): array
     {
+        $summary = $this->votes->summarizeFiltered();
+
         $top = Vote::selectRaw('candidate_id, SUM(quantity) as votes')
             ->successful()
             ->groupBy('candidate_id')
@@ -21,10 +28,10 @@ class StatsService
 
         return [
             'candidates' => (int) Candidate::count(),
-            'votes' => (int) Vote::successful()->sum('quantity'),
-            'payments' => (int) Vote::successful()->count(),
+            'votes' => (int) ($summary['counted_votes'] ?? 0),
+            'payments' => (int) ($summary['payments'] ?? 0),
             'users' => (int) User::count(),
-            'revenue' => (float) Vote::successful()->sum('amount'),
+            'revenue' => (float) ($summary['revenue'] ?? 0),
             'top_candidates' => $top->map(function ($row) {
                 return [
                     'candidate_id' => $row->candidate_id,
