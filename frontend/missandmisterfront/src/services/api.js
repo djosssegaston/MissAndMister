@@ -97,9 +97,16 @@ const cleanHeaders = (headers = {}) => Object.fromEntries(
   Object.entries(headers).filter(([, value]) => value !== undefined && value !== null)
 );
 
-const isPublicReadEndpoint = (endpoint = '', method = 'GET') => (
-  String(method || 'GET').toUpperCase() === 'GET' && String(endpoint || '').startsWith('/public/')
-);
+const isPublicReadEndpoint = (endpoint = '', method = 'GET') => {
+  if (String(method || 'GET').toUpperCase() !== 'GET') {
+    return false;
+  }
+
+  const normalizedEndpoint = String(endpoint || '');
+
+  return normalizedEndpoint.startsWith('/public/')
+    || normalizedEndpoint.startsWith('/candidates');
+};
 
 const getHttpErrorFallbackMessage = (status) => {
   if (status === 408) {
@@ -466,6 +473,58 @@ const wakeBackend = async () => {
   }
 };
 
+const LEGACY_CANDIDATES_PAGE_SIZE = 500;
+
+const candidateMatchesIdentifier = (candidate = {}, identifier = '') => {
+  const normalizedIdentifier = String(identifier || '').trim();
+
+  if (!normalizedIdentifier) {
+    return false;
+  }
+
+  return [
+    candidate.public_uid,
+    candidate.slug,
+    candidate.public_number,
+    candidate.id,
+  ].some((value) => String(value ?? '').trim() === normalizedIdentifier);
+};
+
+const fetchLegacyCandidatesPage = async (page = 1, filters = {}) => {
+  const queryParams = new URLSearchParams({
+    per_page: LEGACY_CANDIDATES_PAGE_SIZE,
+    page,
+    ...filters,
+  }).toString();
+
+  return fetchPublicAPI(`/candidates${queryParams ? `?${queryParams}` : ''}`, {
+    timeout: 30000,
+  });
+};
+
+const fetchLegacyCandidateByIdentifier = async (identifier) => {
+  let page = 1;
+  let lastPage = 1;
+
+  do {
+    const response = await fetchLegacyCandidatesPage(page);
+    const candidates = Array.isArray(response?.data) ? response.data : [];
+    const match = candidates.find((candidate) => candidateMatchesIdentifier(candidate, identifier));
+
+    if (match) {
+      return match;
+    }
+
+    const resolvedLastPage = Number(response?.last_page || 1);
+    lastPage = Number.isFinite(resolvedLastPage) && resolvedLastPage > 0 ? resolvedLastPage : 1;
+    page += 1;
+  } while (page <= lastPage);
+
+  const notFoundError = new Error('Candidate not found');
+  notFoundError.status = 404;
+  throw notFoundError;
+};
+
 const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxRetries = MAX_API_RETRIES } = {}) => {
   const executeAgainstBaseUrl = async (baseUrl) => {
     const response = await fetchWithTimeout(buildApiUrl(baseUrl, endpoint), config, timeout);
@@ -694,16 +753,26 @@ export const candidatesAPI = {
   // Récupérer tous les candidats
   getAll: async (filters = {}) => {
     const queryParams = new URLSearchParams({ per_page: 500, ...filters }).toString();
-    return fetchPublicAPI(`/public/candidates${queryParams ? `?${queryParams}` : ''}`, {
-      timeout: 30000,
-    });
+    try {
+      return await fetchPublicAPI(`/public/candidates${queryParams ? `?${queryParams}` : ''}`, {
+        timeout: 30000,
+      });
+    } catch (publicError) {
+      console.warn('Public candidates endpoint failed, falling back to legacy endpoint.', publicError);
+      return fetchLegacyCandidatesPage(1, filters);
+    }
   },
 
   // Récupérer un candidat par identifiant public (slug / numero public)
   getById: async (identifier) => {
-    return fetchPublicAPI(`/public/candidates/${encodeURIComponent(identifier)}`, {
-      timeout: 30000,
-    });
+    try {
+      return await fetchPublicAPI(`/public/candidates/${encodeURIComponent(identifier)}`, {
+        timeout: 30000,
+      });
+    } catch (publicError) {
+      console.warn('Public candidate details endpoint failed, falling back to legacy candidates listing.', publicError);
+      return fetchLegacyCandidateByIdentifier(identifier);
+    }
   },
 
   // Récupérer les candidats par catégorie
