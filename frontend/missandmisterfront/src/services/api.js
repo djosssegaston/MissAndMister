@@ -43,6 +43,8 @@ const PROXY_API_BASE_URL = getRuntimeProxyApiBaseUrl();
 const API_BASE_URL = PROXY_API_BASE_URL || DIRECT_API_BASE_URL;
 const HEALTHCHECK_URL = `${DIRECT_API_BASE_URL.replace(/\/api$/i, '')}/up`;
 export const SESSION_EXPIRED_EVENT = 'app:session-expired';
+const PUBLIC_CACHE_STORAGE_KEY = 'mmub_public_api_cache_v1';
+const PUBLIC_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 6;
 
 // Timeout global pour les appels API (en ms)
 const API_TIMEOUT = (() => {
@@ -51,7 +53,8 @@ const API_TIMEOUT = (() => {
     return configuredTimeout;
   }
 
-  return /(onrender\.com\/api$|^\/backend-api$)/i.test(API_BASE_URL) ? 25000 : 10000;
+  const isLocalApi = /(localhost|127\.0\.0\.1)/i.test(API_BASE_URL);
+  return isLocalApi ? 10000 : 20000;
 })();
 const MAX_API_RETRIES = 2;
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 502, 503, 504]);
@@ -94,6 +97,10 @@ const cleanHeaders = (headers = {}) => Object.fromEntries(
   Object.entries(headers).filter(([, value]) => value !== undefined && value !== null)
 );
 
+const isPublicReadEndpoint = (endpoint = '', method = 'GET') => (
+  String(method || 'GET').toUpperCase() === 'GET' && String(endpoint || '').startsWith('/public/')
+);
+
 const getHttpErrorFallbackMessage = (status) => {
   if (status === 408) {
     return 'Le serveur met trop de temps à répondre. Réessayez dans quelques secondes.';
@@ -104,7 +111,7 @@ const getHttpErrorFallbackMessage = (status) => {
   }
 
   if (RETRYABLE_STATUS_CODES.has(status)) {
-    return 'Le backend est en train de démarrer ou temporairement indisponible. Réessayez dans quelques secondes.';
+    return 'Le service est temporairement indisponible. Réessayez dans quelques secondes.';
   }
 
   return `Erreur ${status}`;
@@ -117,6 +124,48 @@ const readStoredJson = (key) => {
     return JSON.parse(localStorage.getItem(key) || 'null');
   } catch {
     return null;
+  }
+};
+
+const getPublicCacheKey = (endpoint = '') => `${PUBLIC_CACHE_STORAGE_KEY}:${endpoint}`;
+
+const readCachedPublicResponse = (endpoint = '') => {
+  if (typeof localStorage === 'undefined' || !endpoint) {
+    return null;
+  }
+
+  try {
+    const rawValue = localStorage.getItem(getPublicCacheKey(endpoint));
+    if (!rawValue) {
+      return null;
+    }
+
+    const parsed = JSON.parse(rawValue);
+    const savedAt = Number(parsed?.savedAt || 0);
+
+    if (!savedAt || (Date.now() - savedAt) > PUBLIC_CACHE_MAX_AGE_MS) {
+      localStorage.removeItem(getPublicCacheKey(endpoint));
+      return null;
+    }
+
+    return parsed?.data ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedPublicResponse = (endpoint = '', data = null) => {
+  if (typeof localStorage === 'undefined' || !endpoint || data === undefined) {
+    return;
+  }
+
+  try {
+    localStorage.setItem(getPublicCacheKey(endpoint), JSON.stringify({
+      savedAt: Date.now(),
+      data,
+    }));
+  } catch {
+    // Ignore storage quota or serialization issues.
   }
 };
 
@@ -207,7 +256,7 @@ const fetchWithTimeout = async (url, options = {}, timeout = API_TIMEOUT) => {
   } catch (error) {
     if (id) clearTimeout(id);
     if (error.name === 'AbortError') {
-      const timeoutError = new Error('Le serveur met trop de temps à répondre. S\'il vient de se reveiller sur Render, reessayez dans quelques secondes.');
+      const timeoutError = new Error('Le serveur met trop de temps à répondre. Réessayez dans quelques secondes.');
       timeoutError.code = 'REQUEST_TIMEOUT';
       timeoutError.isRetryable = true;
       timeoutError.isNetworkError = true;
@@ -433,27 +482,39 @@ const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxR
   };
 
   const executeParallelReadRequest = async (baseUrlCandidates) => {
-    const attempts = baseUrlCandidates.map(({ baseUrl }) => (
-      executeAgainstBaseUrl(baseUrl)
-        .then((data) => ({ ok: true, baseUrl, data }))
-        .catch((error) => ({ ok: false, baseUrl, error }))
-    ));
+    return new Promise((resolve, reject) => {
+      const failures = [];
+      let remaining = baseUrlCandidates.length;
+      let settled = false;
 
-    const results = await Promise.all(attempts);
-    const firstSuccess = results.find((result) => result.ok);
+      baseUrlCandidates.forEach(({ baseUrl }) => {
+        executeAgainstBaseUrl(baseUrl)
+          .then((data) => {
+            if (settled) {
+              return;
+            }
 
-    if (firstSuccess) {
-      rememberSuccessfulBaseUrl(firstSuccess.baseUrl);
-      return firstSuccess.data;
-    }
+            settled = true;
+            resolve(data);
+          })
+          .catch((error) => {
+            failures.push(error);
+            remaining -= 1;
 
-    const rankedFailure = results
-      .map((result) => result.error)
-      .find((error) => error?.isTransportError || error?.isNetworkError)
-      || results[0]?.error
-      || new Error('Impossible de contacter le serveur pour le moment. Reessayez dans quelques secondes.');
+            if (settled || remaining > 0) {
+              return;
+            }
 
-    throw rankedFailure;
+            const rankedFailure = failures.find((item) => item?.isTransportError || item?.isNetworkError)
+              || failures.find((item) => item?.isRetryable)
+              || failures[0]
+              || new Error('Impossible de contacter le serveur pour le moment. Reessayez dans quelques secondes.');
+
+            settled = true;
+            reject(rankedFailure);
+          });
+      });
+    });
   };
 
   for (let attempt = 0; ; attempt += 1) {
@@ -502,6 +563,8 @@ const fetchPublicAPI = async (endpoint, options = {}) => {
   const { timeout = API_TIMEOUT, ...requestOptions } = options;
   const hasFormData = isFormDataBody(requestOptions.body);
   const method = getRequestMethod(requestOptions);
+  const canUseCacheFallback = isPublicReadEndpoint(endpoint, method);
+  const cachedResponse = canUseCacheFallback ? readCachedPublicResponse(endpoint) : null;
   const defaultHeaders = {
     'Accept': 'application/json',
     ...(shouldSendJsonContentType(method, requestOptions.body, hasFormData) ? { 'Content-Type': 'application/json' } : {}),
@@ -517,8 +580,18 @@ const fetchPublicAPI = async (endpoint, options = {}) => {
   };
 
   try {
-    return await performApiRequest(endpoint, config, { timeout });
+    const data = await performApiRequest(endpoint, config, { timeout });
+
+    if (canUseCacheFallback) {
+      writeCachedPublicResponse(endpoint, data);
+    }
+
+    return data;
   } catch (error) {
+    if (canUseCacheFallback && cachedResponse && (error?.isNetworkError || error?.isTransportError || error?.code === 'REQUEST_TIMEOUT')) {
+      return cachedResponse;
+    }
+
     console.error('API Error:', error);
     throw error;
   }
