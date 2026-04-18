@@ -13,7 +13,7 @@ class ReconcileFedapayPayments extends Command
      *
      * @var string
      */
-    protected $signature = 'payments:reconcile-fedapay {--limit=200 : Nombre maximum de paiements a verifier} {--recent-hours=720 : Anciennete maximale des paiements echoues a recontroler}';
+    protected $signature = 'payments:reconcile-fedapay {--limit=200 : Nombre maximum de paiements a verifier} {--recent-hours=2160 : Anciennete maximale des paiements echoues a recontroler}';
 
     /**
      * The console command description.

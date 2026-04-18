@@ -16,6 +16,9 @@ use Illuminate\Support\Str;
 
 class PaymentService
 {
+    private const DEFAULT_WARM_RECONCILE_LIMIT = 10;
+    private const DEFAULT_RECONCILE_LIMIT = 50;
+    private const DEFAULT_RECONCILE_RECENT_HOURS = 2160;
     private const RECONCILE_STATUSES = ['initiated', 'processing', 'pending'];
     private const FAILURE_STATUSES = ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected', 'refunded'];
     private const SUCCESS_STATUSES = ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred'];
@@ -198,13 +201,21 @@ class PaymentService
             ->each(fn (Payment $payment) => $this->reconcileSuccessfulPayment($payment));
     }
 
-    public function warmPaymentStateForReadModels(int $limit = 10, int $cooldownSeconds = 45, int $recentHours = 168): void
+    public function warmPaymentStateForReadModels(
+        int $limit = self::DEFAULT_WARM_RECONCILE_LIMIT,
+        int $cooldownSeconds = 45,
+        int $recentHours = self::DEFAULT_RECONCILE_RECENT_HOURS,
+    ): void
     {
         $this->reconcileUnsettledFedapayPaymentsIfDue($limit, $cooldownSeconds, $recentHours);
         $this->reconcileSuccessfulAssociations(max($limit * 4, 250));
     }
 
-    public function reconcileUnsettledFedapayPaymentsIfDue(int $limit = 10, int $cooldownSeconds = 45, int $recentHours = 168): array
+    public function reconcileUnsettledFedapayPaymentsIfDue(
+        int $limit = self::DEFAULT_WARM_RECONCILE_LIMIT,
+        int $cooldownSeconds = 45,
+        int $recentHours = self::DEFAULT_RECONCILE_RECENT_HOURS,
+    ): array
     {
         $timestampKey = 'payments:fedapay:reconcile:last-run';
         $lockKey = 'payments:fedapay:reconcile:lock';
@@ -228,7 +239,10 @@ class PaymentService
         }
     }
 
-    public function reconcileUnsettledFedapayPayments(int $limit = 50, int $recentHours = 168): array
+    public function reconcileUnsettledFedapayPayments(
+        int $limit = self::DEFAULT_RECONCILE_LIMIT,
+        int $recentHours = self::DEFAULT_RECONCILE_RECENT_HOURS,
+    ): array
     {
         $payments = Payment::query()
             ->with(['vote', 'user'])

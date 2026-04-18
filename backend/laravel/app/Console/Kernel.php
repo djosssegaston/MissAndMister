@@ -15,7 +15,7 @@ class Kernel extends ConsoleKernel
     {
         $schedule->job(new CalculateResultsJob())->hourly();
         $schedule->job(new DetectFraudJob())->everyFifteenMinutes();
-        $schedule->command(ReconcileFedapayPayments::class, ['--limit' => 50, '--recent-hours' => 168])->everyFiveMinutes()->withoutOverlapping();
+        $schedule->command(ReconcileFedapayPayments::class, ['--limit' => 50, '--recent-hours' => 2160])->everyFiveMinutes()->withoutOverlapping();
         $schedule->command(BackupDatabase::class)->dailyAt('02:00');
         $schedule->command('queue:prune-batches')->daily();
         $schedule->command('model:prune', ['--model' => 'App\\Models\\ActivityLog'])->daily();
