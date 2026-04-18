@@ -694,12 +694,16 @@ export const candidatesAPI = {
   // Récupérer tous les candidats
   getAll: async (filters = {}) => {
     const queryParams = new URLSearchParams({ per_page: 500, ...filters }).toString();
-    return fetchPublicAPI(`/public/candidates${queryParams ? `?${queryParams}` : ''}`);
+    return fetchPublicAPI(`/public/candidates${queryParams ? `?${queryParams}` : ''}`, {
+      timeout: 30000,
+    });
   },
 
   // Récupérer un candidat par identifiant public (slug / numero public)
   getById: async (identifier) => {
-    return fetchPublicAPI(`/public/candidates/${encodeURIComponent(identifier)}`);
+    return fetchPublicAPI(`/public/candidates/${encodeURIComponent(identifier)}`, {
+      timeout: 30000,
+    });
   },
 
   // Récupérer les candidats par catégorie
@@ -714,13 +718,17 @@ export const candidatesAPI = {
 
   // Statistiques publiques
   getStats: async () => {
-    return fetchPublicAPI('/public/stats');
+    return fetchPublicAPI('/public/stats', {
+      timeout: 30000,
+    });
   },
 };
 
 export const candidateAPI = {
   getDashboard: async () => {
-    return fetchAPI('/candidate/dashboard');
+    return fetchAPI('/candidate/dashboard', {
+      timeout: 30000,
+    });
   },
 };
 
@@ -736,6 +744,7 @@ export const votesAPI = {
         quantity: voteData.quantity || 1,
         currency: 'XOF',
       }),
+      timeout: 45000,
     });
   },
 
@@ -830,7 +839,9 @@ export const paymentAPI = {
 
   // Synchroniser publiquement un paiement FedaPay a partir de sa reference
   syncPublic: async (reference) => {
-    return fetchPublicAPI(`/payments/${encodeURIComponent(reference)}/sync`);
+    return fetchPublicAPI(`/payments/${encodeURIComponent(reference)}/sync`, {
+      timeout: 30000,
+    });
   },
 };
 
@@ -838,13 +849,17 @@ export const paymentAPI = {
 export const adminAPI = {
   // Statistiques du dashboard
   getStats: async () => {
-    return fetchAPI('/admin/dashboard/stats');
+    return fetchAPI('/admin/dashboard/stats', {
+      timeout: 30000,
+    });
   },
 
   // Candidats (admin)
   getCandidates: async (params = {}) => {
     const query = buildQueryString({ per_page: 500, ...params });
-    return fetchAPI(`/admin/candidates${query}`);
+    return fetchAPI(`/admin/candidates${query}`, {
+      timeout: 30000,
+    });
   },
 
   createCandidate: async (candidateData) => {
@@ -896,7 +911,9 @@ export const adminAPI = {
   // Votes (admin)
   getVotes: async (params = {}) => {
     const query = buildQueryString(params);
-    return fetchAPI(`/admin/votes${query}`);
+    return fetchAPI(`/admin/votes${query}`, {
+      timeout: 30000,
+    });
   },
 
   updateVote: async (id, voteData) => {

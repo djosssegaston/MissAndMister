@@ -4,12 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
-use App\Models\Vote;
 use App\Repositories\PaymentRepository;
-use App\Jobs\SendVoteConfirmationJob;
 use App\Services\FedaPayService;
 use App\Services\PaymentService;
-use App\Services\VoteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -19,7 +16,6 @@ class PaymentController extends Controller
     public function __construct(
         private PaymentService $payments,
         private PaymentRepository $paymentRepo,
-        private VoteService $voteService,
         private FedaPayService $fedapay,
     ) {
     }
@@ -30,6 +26,7 @@ class PaymentController extends Controller
     public function index(): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
+        $this->payments->warmPaymentStateForReadModels();
         return response()->json(Payment::latest()->paginate(30));
     }
 
@@ -95,11 +92,7 @@ class PaymentController extends Controller
             ], 409);
         }
 
-        $payment = $this->applyOutcome(
-            $payment,
-            $this->resolveWebhookOutcome($remoteTransaction, $remoteTransaction, 'manual-sync'),
-            $remoteTransaction
-        );
+        $payment = $this->payments->syncPaymentWithProvider($payment, $remoteTransaction, 'manual-sync');
 
         return response()->json($this->syncResponsePayload($payment, $remoteTransaction));
     }
@@ -168,23 +161,13 @@ class PaymentController extends Controller
         if ($outcome === 'succeeded') {
             $payment = $this->payments->confirm($payment->reference, $payload);
 
-            $vote = Vote::where('payment_id', $payment->id)->first();
-            if ($vote) {
-                $this->voteService->confirmVote($vote);
-                SendVoteConfirmationJob::dispatch($vote->id);
-            }
-
             return $payment->fresh(['vote']);
         }
 
         if ($outcome === 'failed') {
-            $payment = $this->paymentRepo->updateStatus($payment, 'failed', $payload);
-            $vote = Vote::where('payment_id', $payment->id)->first();
-            if ($vote) {
-                $this->voteService->failVote($vote, $eventName ?: 'transaction.failed');
-            }
-
-            return $payment->fresh(['vote']);
+            return $this->payments
+                ->markPaymentAsFailed($payment, $payload, $eventName ?: 'transaction.failed')
+                ->fresh(['vote']);
         }
 
         if ($outcome === 'processing') {
@@ -272,8 +255,8 @@ class PaymentController extends Controller
             ?? ''
         ));
 
-        $approvedIndicators = ['approved', 'succeeded', 'successful', 'success', 'paid'];
-        $failureIndicators = ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected'];
+        $approvedIndicators = ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred'];
+        $failureIndicators = ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected', 'refunded'];
         $processingIndicators = ['pending', 'processing', 'created', 'initiated'];
 
         if (in_array($status, $approvedIndicators, true) || str_contains($eventName, 'approved') || str_contains($eventName, 'success')) {

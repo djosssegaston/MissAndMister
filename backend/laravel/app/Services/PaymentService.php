@@ -2,17 +2,25 @@
 
 namespace App\Services;
 
-use App\Models\Payment;
 use App\Models\ActivityLog;
+use App\Models\Payment;
 use App\Models\User;
+use App\Models\Vote;
+use App\Jobs\SendVoteConfirmationJob;
 use App\Repositories\PaymentRepository;
 use App\Repositories\TransactionRepository;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PaymentService
 {
+    private const RECONCILE_STATUSES = ['initiated', 'processing', 'pending'];
+    private const FAILURE_STATUSES = ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected', 'refunded'];
+    private const SUCCESS_STATUSES = ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred'];
+    private const PROCESSING_STATUSES = ['pending', 'processing', 'created', 'initiated'];
+
     public function __construct(
         private PaymentRepository $payments,
         private TransactionRepository $transactions,
@@ -129,7 +137,7 @@ class PaymentService
         }
 
         if ($payment->status === 'succeeded') {
-            return $payment;
+            return $this->reconcileSuccessfulPayment($payment, $payload);
         }
 
         return DB::transaction(function () use ($payment, $payload) {
@@ -176,14 +184,185 @@ class PaymentService
             ->where(function ($query) {
                 $query
                     ->whereNull('user_id')
+                    ->orDoesntHave('vote')
                     ->orWhereHas('vote', function ($voteQuery) {
-                        $voteQuery->whereNull('user_id')->orWhereNull('ip_address');
+                        $voteQuery
+                            ->whereNull('user_id')
+                            ->orWhereNull('ip_address')
+                            ->orWhere('status', '!=', Vote::STATUS_CONFIRMED);
                     });
             })
             ->orderBy('id')
             ->limit($limit)
             ->get()
             ->each(fn (Payment $payment) => $this->reconcileSuccessfulPayment($payment));
+    }
+
+    public function warmPaymentStateForReadModels(int $limit = 10, int $cooldownSeconds = 45, int $recentHours = 168): void
+    {
+        $this->reconcileUnsettledFedapayPaymentsIfDue($limit, $cooldownSeconds, $recentHours);
+        $this->reconcileSuccessfulAssociations(max($limit * 4, 250));
+    }
+
+    public function reconcileUnsettledFedapayPaymentsIfDue(int $limit = 10, int $cooldownSeconds = 45, int $recentHours = 168): array
+    {
+        $timestampKey = 'payments:fedapay:reconcile:last-run';
+        $lockKey = 'payments:fedapay:reconcile:lock';
+        $now = now();
+        $lastRunAt = (int) Cache::get($timestampKey, 0);
+
+        if ($lastRunAt > 0 && ($now->timestamp - $lastRunAt) < $cooldownSeconds) {
+            return ['skipped' => true, 'reason' => 'cooldown'];
+        }
+
+        if (!Cache::add($lockKey, $now->timestamp, $cooldownSeconds)) {
+            return ['skipped' => true, 'reason' => 'locked'];
+        }
+
+        Cache::put($timestampKey, $now->timestamp, $cooldownSeconds);
+
+        try {
+            return $this->reconcileUnsettledFedapayPayments($limit, $recentHours);
+        } finally {
+            Cache::forget($lockKey);
+        }
+    }
+
+    public function reconcileUnsettledFedapayPayments(int $limit = 50, int $recentHours = 168): array
+    {
+        $payments = Payment::query()
+            ->with(['vote', 'user'])
+            ->where('provider', 'fedapay')
+            ->whereNotNull('transaction_id')
+            ->where(function ($query) use ($recentHours) {
+                $query
+                    ->whereIn('status', self::RECONCILE_STATUSES)
+                    ->orWhere(function ($failedQuery) use ($recentHours) {
+                        $failedQuery
+                            ->where('status', 'failed')
+                            ->where('updated_at', '>=', now()->subHours($recentHours));
+                    })
+                    ->orWhere(function ($successfulQuery) {
+                        $successfulQuery
+                            ->where('status', Payment::STATUS_SUCCEEDED)
+                            ->where(function ($voteQuery) {
+                                $voteQuery
+                                    ->doesntHave('vote')
+                                    ->orWhereHas('vote', function ($relatedVoteQuery) {
+                                        $relatedVoteQuery
+                                            ->where('status', '!=', Vote::STATUS_CONFIRMED)
+                                            ->orWhereNull('user_id')
+                                            ->orWhereNull('ip_address');
+                                    });
+                            });
+                    });
+            })
+            ->orderBy('updated_at')
+            ->limit($limit)
+            ->get();
+
+        $stats = [
+            'inspected' => 0,
+            'confirmed' => 0,
+            'failed' => 0,
+            'processing' => 0,
+            'vote_repairs' => 0,
+        ];
+
+        foreach ($payments as $payment) {
+            $beforePaymentStatus = $payment->status;
+            $beforeVoteStatus = $payment->vote?->status;
+
+            $payment = $this->syncPaymentWithProvider($payment, null, 'automatic-reconcile');
+
+            $stats['inspected']++;
+
+            if ($payment->status === Payment::STATUS_SUCCEEDED && $beforePaymentStatus !== Payment::STATUS_SUCCEEDED) {
+                $stats['confirmed']++;
+            } elseif ($payment->status === 'failed' && $beforePaymentStatus !== 'failed') {
+                $stats['failed']++;
+            } elseif (in_array($payment->status, self::RECONCILE_STATUSES, true)) {
+                $stats['processing']++;
+            }
+
+            if ($beforeVoteStatus !== Vote::STATUS_CONFIRMED && $payment->vote?->status === Vote::STATUS_CONFIRMED) {
+                $stats['vote_repairs']++;
+            }
+        }
+
+        return $stats;
+    }
+
+    public function syncPaymentWithProvider(Payment $payment, ?array $remoteTransaction = null, ?string $source = null): Payment
+    {
+        $payment->loadMissing(['vote', 'user', 'transactions']);
+
+        if ($payment->status === Payment::STATUS_SUCCEEDED) {
+            return $this->reconcileSuccessfulPayment($payment, $remoteTransaction ?? []);
+        }
+
+        if (!$payment->transaction_id) {
+            return $payment->fresh(['vote', 'user']);
+        }
+
+        if (!$remoteTransaction) {
+            try {
+                $remoteTransaction = $this->fedapay->retrieveTransaction($payment->transaction_id);
+            } catch (\Throwable $exception) {
+                logger()->warning('FedaPay provider sync failed', [
+                    'payment_id' => $payment->id,
+                    'reference' => $payment->reference,
+                    'transaction_id' => $payment->transaction_id,
+                    'source' => $source,
+                    'error' => $exception->getMessage(),
+                ]);
+
+                return $payment->fresh(['vote', 'user']);
+            }
+        }
+
+        $merchantReference = trim((string) Arr::get($remoteTransaction, 'merchant_reference', ''));
+        if ($merchantReference !== '' && !hash_equals($payment->reference, $merchantReference)) {
+            logger()->warning('FedaPay provider sync reference mismatch', [
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference,
+                'remote_reference' => $merchantReference,
+                'source' => $source,
+            ]);
+
+            return $payment->fresh(['vote', 'user']);
+        }
+
+        $outcome = $this->resolveTransactionOutcome($remoteTransaction);
+
+        if ($outcome === 'succeeded') {
+            $confirmedPayment = $this->confirm($payment->reference, $remoteTransaction);
+
+            return ($confirmedPayment ?? $payment)->fresh(['vote', 'user']);
+        }
+
+        if ($outcome === 'failed') {
+            if ($payment->status !== Payment::STATUS_SUCCEEDED) {
+                $payment = $this->payments->updateStatus($payment, 'failed', $remoteTransaction);
+            }
+
+            return $this->reconcileFailedPayment($payment->fresh(['vote', 'user']), $remoteTransaction, $source);
+        }
+
+        if ($payment->status !== Payment::STATUS_SUCCEEDED) {
+            $payment = $this->payments->updateStatus($payment, 'processing', $remoteTransaction);
+        }
+
+        return $payment->fresh(['vote', 'user']);
+    }
+
+    public function markPaymentAsFailed(Payment $payment, array $payload = [], ?string $source = null): Payment
+    {
+        if ($payment->status !== Payment::STATUS_SUCCEEDED) {
+            $payment = $this->payments->updateStatus($payment, 'failed', $payload);
+        }
+
+        return $this->reconcileFailedPayment($payment->fresh(['vote', 'user']), $payload, $source);
     }
 
     private function extractTransactionReference(array $payload): ?string
@@ -240,7 +419,7 @@ class PaymentService
 
     private function reconcileSuccessfulPayment(Payment $payment, array $payload = []): Payment
     {
-        $payment->loadMissing(['vote', 'user']);
+        $payment->loadMissing(['vote', 'user', 'transactions']);
 
         $resolvedUser = $payment->user ?: $this->resolveUserFromPayment($payment, $payload);
         $customerContext = $this->extractCustomerContext($payment, $payload, $resolvedUser);
@@ -259,30 +438,166 @@ class PaymentService
         if ($paymentUpdates !== []) {
             $payment->update($paymentUpdates);
             $payment->refresh();
-            $payment->loadMissing(['vote', 'user']);
+            $payment->loadMissing(['vote', 'user', 'transactions']);
+        }
+
+        $providerReference = $this->extractTransactionReference($payload) ?? $payment->transaction_id;
+        if (
+            $payment->status === Payment::STATUS_SUCCEEDED
+            && !$payment->transactions->contains(fn ($transaction) => (string) $transaction->provider_reference === (string) $providerReference)
+        ) {
+            $this->transactions->create([
+                'payment_id' => $payment->id,
+                'type' => 'credit',
+                'status' => 'succeeded',
+                'amount' => $payment->amount,
+                'currency' => $payment->currency,
+                'provider_reference' => $providerReference,
+                'payload' => $payload !== [] ? $payload : ($payment->payload ?? []),
+            ]);
+            $payment->refresh();
+            $payment->loadMissing(['vote', 'user', 'transactions']);
         }
 
         if ($payment->vote) {
-            $voteUpdates = [];
-
-            if (!$payment->vote->user_id && $payment->user_id) {
-                $voteUpdates['user_id'] = $payment->user_id;
-            }
-
-            if (!$payment->vote->ip_address) {
-                $paymentIp = trim((string) data_get($payment->meta, 'ip', ''));
-                if ($paymentIp !== '') {
-                    $voteUpdates['ip_address'] = $paymentIp;
-                }
-            }
-
-            if ($voteUpdates !== []) {
-                $payment->vote->update($voteUpdates);
-                $payment->load('vote');
-            }
+            $payment = $this->reconcileVoteForSucceededPayment($payment, $payload);
         }
 
         return $payment->fresh(['vote', 'user']);
+    }
+
+    private function reconcileFailedPayment(Payment $payment, array $payload = [], ?string $source = null): Payment
+    {
+        $payment->loadMissing(['vote', 'user']);
+
+        if (!$payment->vote || $payment->vote->status === Vote::STATUS_CONFIRMED) {
+            return $payment->fresh(['vote', 'user']);
+        }
+
+        $voteUpdates = $this->buildVoteContextUpdates($payment);
+        $statusChanged = $payment->vote->status !== 'failed';
+
+        if ($statusChanged) {
+            $voteUpdates['status'] = 'failed';
+        }
+
+        if ($voteUpdates === []) {
+            return $payment->fresh(['vote', 'user']);
+        }
+
+        DB::transaction(function () use ($payment, $voteUpdates, $statusChanged, $source) {
+            $payment->vote->update($voteUpdates);
+
+            if ($statusChanged) {
+                ActivityLog::create([
+                    'causer_id' => $payment->vote->user_id ?: $payment->user_id,
+                    'causer_type' => \App\Models\User::class,
+                    'action' => 'vote_failed',
+                    'ip_address' => $payment->vote->ip_address ?: data_get($payment->meta, 'ip'),
+                    'meta' => array_filter([
+                        'candidate_id' => $payment->vote->candidate_id,
+                        'vote_id' => $payment->vote->id,
+                        'quantity' => $payment->vote->quantity,
+                        'reason' => $source ?: 'payment_failed',
+                        'payment_id' => $payment->id,
+                    ], static fn ($value) => $value !== null && $value !== ''),
+                    'status' => 'active',
+                ]);
+            }
+        });
+
+        return $payment->fresh(['vote', 'user']);
+    }
+
+    private function reconcileVoteForSucceededPayment(Payment $payment, array $payload = []): Payment
+    {
+        if (!$payment->vote) {
+            logger()->warning('Succeeded payment without linked vote during reconciliation', [
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference,
+            ]);
+
+            return $payment->fresh(['vote', 'user']);
+        }
+
+        $voteUpdates = $this->buildVoteContextUpdates($payment);
+        $statusChanged = $payment->vote->status !== Vote::STATUS_CONFIRMED;
+
+        if ($statusChanged) {
+            $voteUpdates['status'] = Vote::STATUS_CONFIRMED;
+        }
+
+        if ($voteUpdates === []) {
+            return $payment->fresh(['vote', 'user']);
+        }
+
+        DB::transaction(function () use ($payment, $voteUpdates, $statusChanged, $payload) {
+            $payment->vote->update($voteUpdates);
+
+            if ($statusChanged) {
+                ActivityLog::create([
+                    'causer_id' => $payment->vote->user_id ?: $payment->user_id,
+                    'causer_type' => \App\Models\User::class,
+                    'action' => 'vote_confirmed',
+                    'ip_address' => $payment->vote->ip_address ?: data_get($payment->meta, 'ip'),
+                    'meta' => array_filter([
+                        'candidate_id' => $payment->vote->candidate_id,
+                        'vote_id' => $payment->vote->id,
+                        'quantity' => $payment->vote->quantity,
+                        'payment_id' => $payment->id,
+                        'source' => $this->extractTransactionReference($payload) ?: 'payment_reconcile',
+                    ], static fn ($value) => $value !== null && $value !== ''),
+                    'status' => 'active',
+                ]);
+            }
+        });
+
+        if ($statusChanged && ($payment->vote->user_id ?: $payment->user_id)) {
+            SendVoteConfirmationJob::dispatch($payment->vote->id);
+        }
+
+        return $payment->fresh(['vote', 'user']);
+    }
+
+    private function buildVoteContextUpdates(Payment $payment): array
+    {
+        if (!$payment->vote) {
+            return [];
+        }
+
+        $voteUpdates = [];
+
+        if (!$payment->vote->user_id && $payment->user_id) {
+            $voteUpdates['user_id'] = $payment->user_id;
+        }
+
+        if (!$payment->vote->ip_address) {
+            $paymentIp = trim((string) data_get($payment->meta, 'ip', ''));
+            if ($paymentIp !== '') {
+                $voteUpdates['ip_address'] = $paymentIp;
+            }
+        }
+
+        return $voteUpdates;
+    }
+
+    private function resolveTransactionOutcome(array $payload): string
+    {
+        $status = strtolower(trim((string) Arr::get($payload, 'status', '')));
+
+        if (in_array($status, self::SUCCESS_STATUSES, true)) {
+            return 'succeeded';
+        }
+
+        if (in_array($status, self::FAILURE_STATUSES, true)) {
+            return 'failed';
+        }
+
+        if (in_array($status, self::PROCESSING_STATUSES, true) || $status === '') {
+            return 'processing';
+        }
+
+        return 'processing';
     }
 
     private function resolveUserFromPayment(Payment $payment, array $payload = []): ?User

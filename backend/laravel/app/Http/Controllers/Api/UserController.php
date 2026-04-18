@@ -22,7 +22,7 @@ class UserController extends Controller
 
     public function dashboard(): JsonResponse
     {
-        $this->payments->reconcileSuccessfulAssociations();
+        $this->payments->warmPaymentStateForReadModels();
 
         $user = request()->user();
         return response()->json([
@@ -37,7 +37,7 @@ class UserController extends Controller
     public function adminIndex(): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
-        $this->payments->reconcileSuccessfulAssociations();
+        $this->payments->warmPaymentStateForReadModels();
         $perPage = max(25, min((int) request()->integer('per_page', 200), 500));
         $actor = request()->user();
 

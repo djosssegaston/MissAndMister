@@ -11,6 +11,7 @@ use App\Repositories\CandidateRepository;
 use App\Services\CandidateAccountService;
 use App\Services\CandidateImages\CandidateImagePipeline;
 use App\Services\Media\CloudinaryMediaService;
+use App\Services\PaymentService;
 use App\Support\MediaUrl;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -29,6 +30,7 @@ class CandidateController extends Controller
         private CandidateAccountService $candidateAccounts,
         private CandidateImagePipeline $candidateImagePipeline,
         private CloudinaryMediaService $cloudinaryMedia,
+        private PaymentService $payments,
     )
     {
     }
@@ -39,6 +41,7 @@ class CandidateController extends Controller
     // Public listing (active only)
     public function index(Request $request): JsonResponse
     {
+        $this->payments->warmPaymentStateForReadModels();
         $perPage = max(1, min((int) $request->integer('per_page', 500), 500));
         return response()->json($this->candidates->paginatePublic($perPage));
     }
@@ -46,6 +49,7 @@ class CandidateController extends Controller
     // Admin listing (all statuses)
     public function adminIndex(Request $request): JsonResponse
     {
+        $this->payments->warmPaymentStateForReadModels();
         $perPage = max(1, min((int) $request->integer('per_page', 500), 500));
         return response()->json($this->candidates->paginateAll($perPage));
     }
@@ -346,6 +350,7 @@ class CandidateController extends Controller
 
     public function dashboard(): JsonResponse
     {
+        $this->payments->warmPaymentStateForReadModels();
         $user = request()->user();
         $candidate = $user?->candidate()->with('category')->first();
 

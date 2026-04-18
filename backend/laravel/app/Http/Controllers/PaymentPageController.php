@@ -5,10 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Candidate;
 use App\Models\Payment;
 use App\Models\Vote;
-use App\Repositories\PaymentRepository;
 use App\Services\FedaPayService;
 use App\Services\PaymentService;
-use App\Services\VoteService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Arr;
@@ -18,8 +16,6 @@ class PaymentPageController extends Controller
     public function __construct(
         private FedaPayService $fedapay,
         private PaymentService $payments,
-        private PaymentRepository $paymentRepo,
-        private VoteService $voteService,
     ) {
     }
 
@@ -180,35 +176,9 @@ class PaymentPageController extends Controller
             return $payment->fresh(['vote']);
         }
 
-        $remoteStatus = strtolower((string) Arr::get($remoteTransaction, 'status', ''));
-        $successStates = ['approved', 'succeeded', 'successful', 'success', 'paid'];
-        $failureStates = ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected'];
-
-        if (in_array($remoteStatus, $successStates, true)) {
-            $payment = $this->payments->confirm($payment->reference, $remoteTransaction) ?? $payment;
-
-            $vote = Vote::where('payment_id', $payment->id)->first();
-            if ($vote) {
-                $this->voteService->confirmVote($vote);
-            }
-
-            return $payment->fresh(['vote']);
-        }
-
-        if (in_array($remoteStatus, $failureStates, true)) {
-            $payment = $this->paymentRepo->updateStatus($payment, 'failed', $remoteTransaction);
-
-            $vote = Vote::where('payment_id', $payment->id)->first();
-            if ($vote) {
-                $this->voteService->failVote($vote, 'callback-sync');
-            }
-
-            return $payment->fresh(['vote']);
-        }
-
-        $this->paymentRepo->updateStatus($payment, 'processing', $remoteTransaction);
-
-        return $payment->fresh(['vote']);
+        return $this->payments
+            ->syncPaymentWithProvider($payment, $remoteTransaction, 'callback-sync')
+            ->fresh(['vote']);
     }
 
     private function buildConfirmationUrls(

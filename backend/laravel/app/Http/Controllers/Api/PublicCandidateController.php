@@ -5,16 +5,21 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Candidate;
 use App\Repositories\CandidateRepository;
+use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
 
 class PublicCandidateController extends Controller
 {
-    public function __construct(private CandidateRepository $candidates)
+    public function __construct(
+        private CandidateRepository $candidates,
+        private PaymentService $payments,
+    )
     {
     }
 
     public function index(): JsonResponse
     {
+        $this->payments->warmPaymentStateForReadModels();
         $paginator = $this->candidates->paginatePublic();
         $paginator->setCollection(
             $paginator->getCollection()->map(fn (Candidate $candidate) => $this->presentCandidate($candidate))
@@ -25,6 +30,7 @@ class PublicCandidateController extends Controller
 
     public function show(string $identifier): JsonResponse
     {
+        $this->payments->warmPaymentStateForReadModels();
         $candidate = $this->candidates->findActiveByIdentifier($identifier);
         if (!$candidate) {
             return response()->json(['message' => 'Candidate not found'], 404);

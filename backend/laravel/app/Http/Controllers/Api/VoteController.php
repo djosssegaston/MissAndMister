@@ -35,7 +35,7 @@ class VoteController extends Controller
     public function index(): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
-        $this->payments->reconcileSuccessfulAssociations();
+        $this->payments->warmPaymentStateForReadModels();
         $filters = request()->only(['status', 'candidate_id', 'from', 'to']);
         $perPage = max(5, min((int) request()->get('per_page', 20), 500));
         $list = $this->votes->paginateFiltered($filters, $perPage);
@@ -124,7 +124,7 @@ class VoteController extends Controller
     public function show(int $id): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
-        $this->payments->reconcileSuccessfulAssociations();
+        $this->payments->warmPaymentStateForReadModels();
         $vote = $this->votes->paginateFiltered(['id' => $id], 1)->first();
         if (!$vote) {
             return response()->json(['message' => 'Vote not found'], 404);
@@ -206,7 +206,7 @@ class VoteController extends Controller
     public function export(): StreamedResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
-        $this->payments->reconcileSuccessfulAssociations();
+        $this->payments->warmPaymentStateForReadModels();
         $filters = request()->only(['status', 'candidate_id', 'from', 'to']);
         $query = \App\Models\Vote::with(['user', 'candidate.category', 'payment'])
             ->when(isset($filters['status']) && $filters['status'], fn($q) => $q->where('status', $filters['status']))
