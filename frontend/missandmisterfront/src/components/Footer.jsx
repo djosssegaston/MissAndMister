@@ -82,6 +82,17 @@ const Footer = () => (
 
       <div className="footer-bottom">
         <p>© {new Date().getFullYear()} Miss &amp; Mister University Bénin. Tous droits réservés.</p>
+        <p>
+          Développé par{' '}
+          <a
+            href="https://androcrea.pythonanywhere.com/"
+            target="_blank"
+            rel="noreferrer"
+            className="footer-signature-link"
+          >
+            AndroCréa
+          </a>
+        </p>
       </div>
     </div>
   </footer>

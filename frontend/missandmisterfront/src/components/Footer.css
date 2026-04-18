@@ -132,6 +132,16 @@
   flex-wrap: wrap;
 }
 
+.footer-signature-link {
+  color: var(--primary-gold);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.footer-signature-link:hover {
+  text-decoration: underline;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .footer-grid { grid-template-columns: 1fr 1fr; gap: 2rem; }

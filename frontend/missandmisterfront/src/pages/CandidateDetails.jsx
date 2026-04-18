@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useParams, useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { candidatesAPI, votesAPI } from '../services/api';
 import { useToast } from '../components/Toast';
 import Loader from '../components/Loader';
 import { getCandidateImageSources } from '../utils/candidateImage';
-import { formatCandidatePublicNumber, getCandidatePublicIdentifier } from '../utils/candidatePublic';
+import { formatCandidatePublicNumber, getCandidatePublicIdentifier, getCandidatePublicPath } from '../utils/candidatePublic';
 import { resolveMediaUrl } from '../utils/mediaUrl';
 import { useAutoRefresh } from '../utils/liveUpdates';
 import './CandidateDetails.css';
@@ -27,6 +27,7 @@ const CandidateDetails = () => {
   const { identifier } = useParams();
   const { showToast } = useToast();
   const [candidate, setCandidate] = useState(null);
+  const [candidateDirectory, setCandidateDirectory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [photoFailed, setPhotoFailed] = useState(false);
@@ -58,15 +59,27 @@ const CandidateDetails = () => {
         setVideoFailed(false);
       }
 
-      const data = await candidatesAPI.getById(identifier);
+      const [candidateResponse, directoryResponse] = await Promise.allSettled([
+        candidatesAPI.getById(identifier),
+        candidatesAPI.getAll(),
+      ]);
+
+      if (candidateResponse.status !== 'fulfilled') {
+        throw candidateResponse.reason;
+      }
+
+      const data = candidateResponse.value;
+      const list = directoryResponse.status === 'fulfilled' ? directoryResponse.value : null;
       setPhotoFailed(false);
       setVideoFailed(false);
       setCandidate(data);
+      setCandidateDirectory(list?.data || []);
       setError(null);
       hasLoadedRef.current = true;
     } catch (err) {
       if (isInitialLoad || err?.status === 404 || err?.status === 403) {
         setCandidate(null);
+        setCandidateDirectory([]);
         setError(err.message || 'Erreur lors du chargement du candidat');
       }
     } finally {
@@ -88,6 +101,45 @@ const CandidateDetails = () => {
   const photo = getCandidateImageSources(candidate || {}, 'portrait');
   const photoBackdrop = photo.backdrop || photo.src;
   const videoUrl = resolveMediaUrl(candidate?.video_url || candidate?.video_path);
+  const candidatePublicPath = candidate ? getCandidatePublicPath(candidate) : '/candidates';
+  const candidateShareUrl = typeof window !== 'undefined'
+    ? new URL(candidatePublicPath, window.location.origin).toString()
+    : candidatePublicPath;
+
+  const rankingLabel = useMemo(() => {
+    const currentCandidateVotes = Number(candidate?.votes_count || 0);
+
+    if (!candidate || currentCandidateVotes <= 0) {
+      return '#';
+    }
+
+    const categoryName = String(candidate.category?.name || '').trim().toLowerCase();
+    const rankedCandidates = candidateDirectory
+      .filter((item) => String(item?.category?.name || '').trim().toLowerCase() === categoryName)
+      .map((item) => ({
+        identifier: String(item?.public_uid || item?.slug || item?.public_number || ''),
+        votes: Number(item?.votes_count || 0),
+        publicNumber: Number(item?.public_number || Number.MAX_SAFE_INTEGER),
+        name: `${item?.first_name || ''} ${item?.last_name || ''}`.trim(),
+      }))
+      .filter((item) => item.votes > 0)
+      .sort((left, right) => {
+        if (right.votes !== left.votes) {
+          return right.votes - left.votes;
+        }
+
+        if (left.publicNumber !== right.publicNumber) {
+          return left.publicNumber - right.publicNumber;
+        }
+
+        return left.name.localeCompare(right.name, 'fr', { sensitivity: 'base' });
+      });
+
+    const currentIdentifier = String(candidate.public_uid || candidate.slug || candidate.public_number || '');
+    const currentRank = rankedCandidates.findIndex((item) => item.identifier === currentIdentifier);
+
+    return currentRank >= 0 ? `#${currentRank + 1}` : '#';
+  }, [candidate, candidateDirectory]);
 
   const incrementVotes = () => {
     setErrors(e => ({ ...e, nbVotes: '' }));
@@ -138,10 +190,33 @@ const CandidateDetails = () => {
       window.location.href = paymentUrl;
       return;
     } catch (err) {
-      setErrors({ general: err.message || 'Erreur lors du paiement' });
-      showToast('Erreur lors du paiement', 'error');
+      const paymentErrorMessage = err.message || 'Erreur lors du paiement';
+      setErrors({ general: paymentErrorMessage });
+      showToast(paymentErrorMessage, 'error');
     } finally {
       setVotingLoading(false);
+    }
+  };
+
+  const handleCopyCandidateLink = async () => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(candidateShareUrl);
+      } else {
+        const input = document.createElement('textarea');
+        input.value = candidateShareUrl;
+        input.setAttribute('readonly', '');
+        input.style.position = 'absolute';
+        input.style.left = '-9999px';
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+
+      showToast('Lien du candidat copié avec succès.', 'success');
+    } catch (error) {
+      showToast('Impossible de copier le lien pour le moment.', 'error');
     }
   };
 
@@ -241,7 +316,7 @@ const CandidateDetails = () => {
               </div>
               <div className="cdet-vs-divider" />
               <div className="cdet-vs-item">
-                <strong>#1</strong>
+                <strong>{rankingLabel}</strong>
                 <span>Classement</span>
               </div>
               <div className="cdet-vs-divider" />
@@ -386,6 +461,19 @@ const CandidateDetails = () => {
                 >
                   {votingBlocked ? 'Vote bloqué' : (votingLoading ? 'Paiement sécurisé...' : 'Payer')}
                 </motion.button>
+                <button
+                  type="button"
+                  className="cdet-btn-share"
+                  onClick={handleCopyCandidateLink}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M8 12a3 3 0 0 1 3-3h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M16 12a3 3 0 0 1-3 3H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M15.5 8.5 18 6a3 3 0 1 1 4.24 4.24L19.5 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M8.5 15.5 6 18a3 3 0 1 1-4.24-4.24L4.5 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Copier le lien du candidat
+                </button>
           </motion.div>
         </motion.div>
 

@@ -15,19 +15,11 @@ class FraudDetectionService
     public function assertNotFraudulent(?int $userId, string $ip, int $quantity = 1): void
     {
         $limitPerUser = (int) config('services.fraud.limit_per_user', 100);
-        $limitPerIp = (int) config('services.fraud.limit_per_ip', 200);
+        $userVotesToday = $userId ? $this->votes->countUserVotesToday($userId) : 0;
 
-                $userVotesToday = $userId ? $this->votes->countUserVotesToday($userId) : 0;
-        $ipVotesToday = $this->votes->countIpVotesToday($ip);
-
-                if ($userId && ($userVotesToday + $quantity > $limitPerUser)) {
+        if ($userId && $limitPerUser > 0 && ($userVotesToday + $quantity > $limitPerUser)) {
             $this->report($userId, null, $ip, 80, 'User daily vote limit reached');
             throw ValidationException::withMessages(['votes' => 'Daily vote limit reached']);
-        }
-
-        if ($ipVotesToday + $quantity > $limitPerIp) {
-            $this->report($userId, null, $ip, 60, 'IP daily vote limit reached');
-            throw ValidationException::withMessages(['votes' => 'IP vote limit reached']);
         }
     }
 
