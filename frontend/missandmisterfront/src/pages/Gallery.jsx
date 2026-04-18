@@ -4,7 +4,7 @@ import { useOutletContext } from 'react-router-dom';
 import { galleryAPI } from '../services/api';
 import Loader from '../components/Loader';
 import { resolveMediaUrl } from '../utils/mediaUrl';
-import { useAutoRefresh } from '../utils/liveUpdates';
+import { PUBLIC_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import './Gallery.css';
 
 const DEFAULT_CATEGORIES = ['Cérémonie', 'Candidats', 'Coulisses', 'Gala'];
@@ -167,7 +167,10 @@ const Gallery = () => {
     }
   };
 
-  useAutoRefresh(loadGallery, { enabled: isGalleryPublic });
+  useAutoRefresh(loadGallery, {
+    enabled: isGalleryPublic,
+    intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS,
+  });
 
   const retryLoadGallery = async () => {
     hasLoadedRef.current = false;

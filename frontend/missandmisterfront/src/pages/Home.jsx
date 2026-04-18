@@ -10,7 +10,7 @@ import sessionMobile from '../assets/session_mobil.png';
 import sessionMobileAlt from '../assets/session_mobil1.png';
 import initiatorVisual from '../assets/logo1.jpeg';
 import { getCandidatePublicPath } from '../utils/candidatePublic';
-import { useAutoRefresh } from '../utils/liveUpdates';
+import { PUBLIC_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import { PARTNER_WHATSAPP_URL, PROJECT_PHONE_DISPLAY } from '../utils/siteContact';
 import { getVotingWindowSnapshot } from '../utils/publicSettings';
 import './Home.css';
@@ -317,8 +317,7 @@ const Home = () => {
     }
   };
 
-  useAutoRefresh(fetchAll);
-  useAutoRefresh(fetchAll);
+  useAutoRefresh(fetchAll, { intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS });
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {

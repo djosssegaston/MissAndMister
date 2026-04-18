@@ -4,7 +4,7 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { candidatesAPI } from '../services/api';
 import CandidateCard from '../components/CandidateCard';
 import Loader from '../components/Loader';
-import { useAutoRefresh } from '../utils/liveUpdates';
+import { PUBLIC_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import './Candidates.css';
 
 const FILTERS = [
@@ -79,7 +79,7 @@ const Candidates = () => {
     }
   };
 
-  useAutoRefresh(fetchCandidates);
+  useAutoRefresh(fetchCandidates, { intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS });
 
   const retryFetchCandidates = async () => {
     hasLoadedRef.current = false;

@@ -45,6 +45,8 @@ const HEALTHCHECK_URL = `${DIRECT_API_BASE_URL.replace(/\/api$/i, '')}/up`;
 export const SESSION_EXPIRED_EVENT = 'app:session-expired';
 const PUBLIC_CACHE_STORAGE_KEY = 'mmub_public_api_cache_v1';
 const PUBLIC_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 6;
+const CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY = 'mmub_candidate_public_endpoint_outage_until_v1';
+const CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_MS = 1000 * 60 * 15;
 
 // Timeout global pour les appels API (en ms)
 const API_TIMEOUT = (() => {
@@ -131,6 +133,30 @@ const readStoredJson = (key) => {
     return JSON.parse(localStorage.getItem(key) || 'null');
   } catch {
     return null;
+  }
+};
+
+const readStoredNumber = (key) => {
+  if (typeof sessionStorage === 'undefined') {
+    return 0;
+  }
+
+  try {
+    return Number(sessionStorage.getItem(key) || 0);
+  } catch {
+    return 0;
+  }
+};
+
+const writeStoredNumber = (key, value) => {
+  if (typeof sessionStorage === 'undefined') {
+    return;
+  }
+
+  try {
+    sessionStorage.setItem(key, String(Number(value) || 0));
+  } catch {
+    // Ignore session storage write failures.
   }
 };
 
@@ -474,6 +500,13 @@ const wakeBackend = async () => {
 };
 
 const LEGACY_CANDIDATES_PAGE_SIZE = 500;
+const isCandidatePublicEndpointCoolingDown = () => readStoredNumber(CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY) > Date.now();
+const rememberCandidatePublicEndpointFailure = () => {
+  writeStoredNumber(CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY, Date.now() + CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_MS);
+};
+const clearCandidatePublicEndpointFailure = () => {
+  writeStoredNumber(CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY, 0);
+};
 
 const candidateMatchesIdentifier = (candidate = {}, identifier = '') => {
   const normalizedIdentifier = String(identifier || '').trim();
@@ -753,11 +786,18 @@ export const candidatesAPI = {
   // Récupérer tous les candidats
   getAll: async (filters = {}) => {
     const queryParams = new URLSearchParams({ per_page: 500, ...filters }).toString();
+    if (isCandidatePublicEndpointCoolingDown()) {
+      return fetchLegacyCandidatesPage(1, filters);
+    }
+
     try {
-      return await fetchPublicAPI(`/public/candidates${queryParams ? `?${queryParams}` : ''}`, {
+      const response = await fetchPublicAPI(`/public/candidates${queryParams ? `?${queryParams}` : ''}`, {
         timeout: 30000,
       });
+      clearCandidatePublicEndpointFailure();
+      return response;
     } catch (publicError) {
+      rememberCandidatePublicEndpointFailure();
       console.warn('Public candidates endpoint failed, falling back to legacy endpoint.', publicError);
       return fetchLegacyCandidatesPage(1, filters);
     }
@@ -765,11 +805,18 @@ export const candidatesAPI = {
 
   // Récupérer un candidat par identifiant public (slug / numero public)
   getById: async (identifier) => {
+    if (isCandidatePublicEndpointCoolingDown()) {
+      return fetchLegacyCandidateByIdentifier(identifier);
+    }
+
     try {
-      return await fetchPublicAPI(`/public/candidates/${encodeURIComponent(identifier)}`, {
+      const response = await fetchPublicAPI(`/public/candidates/${encodeURIComponent(identifier)}`, {
         timeout: 30000,
       });
+      clearCandidatePublicEndpointFailure();
+      return response;
     } catch (publicError) {
+      rememberCandidatePublicEndpointFailure();
       console.warn('Public candidate details endpoint failed, falling back to legacy candidates listing.', publicError);
       return fetchLegacyCandidateByIdentifier(identifier);
     }

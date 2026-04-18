@@ -28,7 +28,7 @@ import AdminLayout from '../components/AdminLayout';
 import SessionExpiredModal from '../components/SessionExpiredModal';
 import Loader from '../components/Loader';
 import { settingsAPI } from '../services/api';
-import { useAutoRefresh } from '../utils/liveUpdates';
+import { PUBLIC_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import {
   computePublicVotingState,
   getMaintenanceSnapshot,
@@ -206,7 +206,7 @@ const PublicLayout = () => {
     }
   }, []);
 
-  useAutoRefresh(fetchPublicSettings);
+  useAutoRefresh(fetchPublicSettings, { intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS });
 
   const votingState = useMemo(() => computeVotingState(publicSettings || {}), [publicSettings]);
   const adminPreviewEnabled = hasAdminPreviewSession();
