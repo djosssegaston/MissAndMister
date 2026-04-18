@@ -745,6 +745,18 @@ export const authAPI = {
     return fetchPublicAPI('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
+      timeout: 45000,
+    });
+  },
+
+  adminLogin: async (credentials) => {
+    return fetchPublicAPI('/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...credentials,
+        scope: 'admin',
+      }),
+      timeout: 45000,
     });
   },
 

@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register'])->middleware('throttle:login');
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
+    Route::post('admin-login', [AuthController::class, 'adminLogin']);
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::get('me', [AuthController::class, 'me'])->name('auth.me');
@@ -28,6 +29,7 @@ Route::prefix('auth')->group(function () {
 
 // Aliases for SPA expectations
 Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
+Route::post('admin/login', [AuthController::class, 'adminLogin']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('me', [AuthController::class, 'me']);

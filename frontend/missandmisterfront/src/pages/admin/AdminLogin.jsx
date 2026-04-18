@@ -24,10 +24,7 @@ const AdminLogin = () => {
     setError('');
 
     try {
-      const response = await authAPI.login({
-        ...formData,
-        scope: 'admin',
-      });
+      const response = await authAPI.adminLogin(formData);
       
       // Stocker le token d'authentification dans un espace séparé pour éviter tout mélange avec les sessions users
       localStorage.setItem('adminAuthToken', response.token);
