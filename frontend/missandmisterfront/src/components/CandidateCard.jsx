@@ -18,7 +18,7 @@ const CandidateCard = ({ candidate, votingBlocked = false }) => {
 
   const { publicPath, number, name, category, university, votes } = transformedCandidate;
   const [photoFailed, setPhotoFailed] = useState(false);
-  const photo = getCandidateImageSources(candidate, 'portrait');
+  const photo = getCandidateImageSources(candidate, 'medium');
   const backdrop = photo.backdrop || photo.src;
 
   return (
@@ -42,6 +42,7 @@ const CandidateCard = ({ candidate, votingBlocked = false }) => {
                   className="cc-photo cc-photo-bg"
                   loading="lazy"
                   decoding="async"
+                  fetchPriority="low"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                   }}
@@ -51,11 +52,12 @@ const CandidateCard = ({ candidate, votingBlocked = false }) => {
               <img
                 src={photo.src}
                 srcSet={photo.srcSet}
-                sizes="(max-width: 600px) 100vw, (max-width: 1100px) 50vw, 33vw"
+                sizes="(max-width: 600px) calc(100vw - 2rem), (max-width: 1100px) calc(50vw - 2rem), 320px"
                 alt={name}
                 className="cc-photo cc-photo-main"
                 loading="lazy"
                 decoding="async"
+                fetchPriority="low"
                 onError={(e) => {
                   e.currentTarget.removeAttribute('srcset');
                   setPhotoFailed(true);

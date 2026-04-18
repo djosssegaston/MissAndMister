@@ -8,16 +8,18 @@ export const getCandidateImageSources = (candidate = {}, preferred = 'medium') =
   const medium = resolveMediaUrl(urls.medium) || large;
   const thumbnail = resolveMediaUrl(urls.thumbnail) || medium || large;
   const original = resolveMediaUrl(urls.original) || buildMediaUrl(candidate.photo_original_path);
-  const portrait = original || large || medium || thumbnail || null;
-  const backdrop = medium || large || thumbnail || portrait || null;
+  const portrait = large || medium || thumbnail || original || null;
+  const detail = large || original || medium || thumbnail || null;
+  const backdrop = thumbnail || medium || large || detail || null;
 
   const src = {
     thumbnail,
     medium,
     large,
     original,
+    detail,
     portrait,
-  }[preferred] || portrait || medium || large || thumbnail || original || null;
+  }[preferred] || detail || portrait || medium || large || thumbnail || original || null;
 
   const srcSetItems = [];
   const shouldExposeVariantSrcSet = src !== original && preferred !== 'portrait' && preferred !== 'original';
@@ -33,6 +35,7 @@ export const getCandidateImageSources = (candidate = {}, preferred = 'medium') =
     medium,
     large,
     original,
+    detail,
     portrait,
     backdrop,
     srcSet: srcSetItems.length > 0 ? srcSetItems.join(', ') : undefined,

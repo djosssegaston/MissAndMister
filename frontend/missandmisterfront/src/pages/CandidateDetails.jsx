@@ -33,6 +33,7 @@ const CandidateDetails = () => {
   const [photoFailed, setPhotoFailed] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const hasLoadedRef = useRef(false);
+  const hasLoadedDirectoryRef = useRef(false);
 
   const [nbVotes, setNbVotes] = useState(1);
   const [votingLoading, setVotingLoading] = useState(false);
@@ -59,21 +60,25 @@ const CandidateDetails = () => {
         setVideoFailed(false);
       }
 
-      const [candidateResponse, directoryResponse] = await Promise.allSettled([
-        candidatesAPI.getById(identifier),
-        candidatesAPI.getAll(),
-      ]);
+      const shouldLoadDirectory = !hasLoadedDirectoryRef.current;
+      const requests = shouldLoadDirectory
+        ? [candidatesAPI.getById(identifier), candidatesAPI.getAll()]
+        : [candidatesAPI.getById(identifier)];
+      const [candidateResponse, directoryResponse] = await Promise.allSettled(requests);
 
       if (candidateResponse.status !== 'fulfilled') {
         throw candidateResponse.reason;
       }
 
       const data = candidateResponse.value;
-      const list = directoryResponse.status === 'fulfilled' ? directoryResponse.value : null;
+      const list = directoryResponse?.status === 'fulfilled' ? directoryResponse.value : null;
       setPhotoFailed(false);
       setVideoFailed(false);
       setCandidate(data);
-      setCandidateDirectory(list?.data || []);
+      if (list?.data) {
+        setCandidateDirectory(list.data);
+        hasLoadedDirectoryRef.current = true;
+      }
       setError(null);
       hasLoadedRef.current = true;
     } catch (err) {
@@ -97,11 +102,12 @@ const CandidateDetails = () => {
 
   const retryFetchCandidate = async () => {
     hasLoadedRef.current = false;
+    hasLoadedDirectoryRef.current = false;
     await fetchCandidate();
   };
 
   const total = (nbVotes || 0) * pricePerVote;
-  const photo = getCandidateImageSources(candidate || {}, 'portrait');
+  const photo = getCandidateImageSources(candidate || {}, 'detail');
   const photoBackdrop = photo.backdrop || photo.src;
   const videoUrl = resolveMediaUrl(candidate?.video_url || candidate?.video_path);
   const candidatePublicPath = candidate ? getCandidatePublicPath(candidate) : '/candidates';
