@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import logo from '../../assets/logo.jpeg';
 import Loader from '../../components/Loader';
-import { useAutoRefresh } from '../../utils/liveUpdates';
+import { ADMIN_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminDashboard.css';
 
@@ -64,6 +64,14 @@ const RECENT_STATUS_LABELS = {
   failed: { label: 'Échoué', color: '#ef4444', title: 'Échoué' },
 };
 
+const EMPTY_STATS = {
+  votes: 0,
+  candidates: 0,
+  users: 0,
+  revenue: 0,
+  top_candidates: [],
+};
+
 const formatCurrencyAmount = (value) => {
   const numericValue = Number(value || 0);
   const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
@@ -89,17 +97,39 @@ const AdminDashboard = () => {
       }
 
       setError(null);
-      const [statsData, votesData] = await Promise.all([
+      const [statsResult, votesResult] = await Promise.allSettled([
         adminAPI.getStats(),
         adminAPI.getVotes({ status: 'confirmed', per_page: 5 }),
       ]);
 
-      setStats(statsData);
-      setRecentVotes(
-        (votesData?.data || votesData || [])
+      const nextStats = statsResult.status === 'fulfilled'
+        ? (statsResult.value || EMPTY_STATS)
+        : null;
+      const nextRecentVotes = votesResult.status === 'fulfilled'
+        ? (votesResult.value?.data || votesResult.value || [])
           .filter((vote) => !vote.payment?.status || vote.payment?.status === 'succeeded')
           .slice(0, 5)
-      );
+        : null;
+
+      if (nextStats) {
+        setStats(nextStats);
+      }
+
+      if (nextRecentVotes) {
+        setRecentVotes(nextRecentVotes);
+      }
+
+      if (!nextStats && !nextRecentVotes && isInitialLoad) {
+        const statsError = statsResult.status === 'rejected' ? statsResult.reason : null;
+        const votesError = votesResult.status === 'rejected' ? votesResult.reason : null;
+        setError(
+          statsError?.message
+          || votesError?.message
+          || 'Erreur lors du chargement des données'
+        );
+        return;
+      }
+
       hasLoadedRef.current = true;
     } catch (err) {
       if (err?.isSessionExpired) {
@@ -117,7 +147,7 @@ const AdminDashboard = () => {
     }
   };
 
-  useAutoRefresh(fetchDashboardData);
+  useAutoRefresh(fetchDashboardData, { intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS });
 
   const retryFetchDashboard = async () => {
     hasLoadedRef.current = false;
@@ -149,6 +179,8 @@ const AdminDashboard = () => {
     );
   }
 
+  const dashboardStats = stats || EMPTY_STATS;
+
   return (
     <div className="admin-page adash">
 
@@ -172,10 +204,10 @@ const AdminDashboard = () => {
       {/* ── STAT CARDS ── */}
       <div className="adash-stats-grid">
         {[
-          { label: 'Total votes', value: stats.votes || 0, suffix: '', color: '#D4AF37' },
-          { label: 'Candidats', value: stats.candidates || 0, suffix: '', color: '#F4D03F' },
-          { label: 'Utilisateurs', value: stats.users || 0, suffix: '', color: '#C17F24' },
-          { label: 'Revenus (FCFA)', value: formatCurrencyAmount(stats.revenue || 0), suffix: '', color: '#B8960C' },
+          { label: 'Total votes', value: dashboardStats.votes || 0, suffix: '', color: '#D4AF37' },
+          { label: 'Candidats', value: dashboardStats.candidates || 0, suffix: '', color: '#F4D03F' },
+          { label: 'Utilisateurs', value: dashboardStats.users || 0, suffix: '', color: '#C17F24' },
+          { label: 'Revenus (FCFA)', value: formatCurrencyAmount(dashboardStats.revenue || 0), suffix: '', color: '#B8960C' },
         ].map((s, i) => (
           <motion.div key={i} className="adash-stat-card" {...fadeUp(0.08 * i)} whileHover={{ y: -4 }}>
             <div className="adash-stat-top">
@@ -208,8 +240,8 @@ const AdminDashboard = () => {
             </Link>
           </div>
           <div className="ag-card-body adash-top-body">
-            {stats.top_candidates && stats.top_candidates.length > 0 ? (
-              stats.top_candidates.map((c, i) => (
+            {dashboardStats.top_candidates && dashboardStats.top_candidates.length > 0 ? (
+              dashboardStats.top_candidates.map((c, i) => (
                 <motion.div key={c.candidate_id} className="adash-top-row"
                   initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 + i * 0.07 }}>
                   <span className="adash-medal">{i < 3 ? MEDALS[i] : <span className="adash-rank">#{i + 1}</span>}</span>
@@ -228,7 +260,7 @@ const AdminDashboard = () => {
                     <div className="adash-top-bar-bg">
                       <motion.div className="adash-top-bar-fill"
                         initial={{ width: 0 }}
-                        animate={{ width: `${Math.min((c.votes / (stats.top_candidates[0]?.votes || 1)) * 100, 100)}%` }}
+                        animate={{ width: `${Math.min((c.votes / (dashboardStats.top_candidates[0]?.votes || 1)) * 100, 100)}%` }}
                         transition={{ duration: 0.9, delay: 0.4 + i * 0.07, ease: 'easeOut' }}
                       />
                     </div>

@@ -26,7 +26,7 @@ class PaymentController extends Controller
     public function index(): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
-        $this->payments->warmPaymentStateForReadModels();
+        $this->payments->scheduleWarmPaymentStateForReadModels();
         return response()->json(Payment::latest()->paginate(30));
     }
 

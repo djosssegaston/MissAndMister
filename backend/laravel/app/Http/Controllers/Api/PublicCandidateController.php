@@ -19,7 +19,7 @@ class PublicCandidateController extends Controller
 
     public function index(): JsonResponse
     {
-        $this->payments->warmPaymentStateForReadModels();
+        $this->payments->scheduleWarmPaymentStateForReadModels();
         $paginator = $this->candidates->paginatePublic();
         $paginator->setCollection(
             $paginator->getCollection()->map(fn (Candidate $candidate) => $this->presentCandidate($candidate))
@@ -30,7 +30,7 @@ class PublicCandidateController extends Controller
 
     public function show(string $identifier): JsonResponse
     {
-        $this->payments->warmPaymentStateForReadModels();
+        $this->payments->scheduleWarmPaymentStateForReadModels();
         $candidate = $this->candidates->findActiveByIdentifier($identifier);
         if (!$candidate) {
             return response()->json(['message' => 'Candidate not found'], 404);

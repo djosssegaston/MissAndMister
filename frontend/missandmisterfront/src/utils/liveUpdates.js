@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 export const LIVE_UPDATE_EVENT = 'app:live-update';
 export const LIVE_UPDATE_STORAGE_KEY = 'app_live_update';
 export const LIVE_UPDATE_INTERVAL_MS = 5000;
+export const ADMIN_LIVE_UPDATE_INTERVAL_MS = 20000;
 export const PUBLIC_LIVE_UPDATE_INTERVAL_MS = 60000;
 
 const getWindow = () => (typeof window === 'undefined' ? null : window);

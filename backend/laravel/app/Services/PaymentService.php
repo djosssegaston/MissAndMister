@@ -211,6 +211,32 @@ class PaymentService
         $this->reconcileSuccessfulAssociations(max($limit * 4, 250));
     }
 
+    public function scheduleWarmPaymentStateForReadModels(
+        int $limit = 5,
+        int $cooldownSeconds = 60,
+        int $recentHours = self::DEFAULT_RECONCILE_RECENT_HOURS,
+    ): void
+    {
+        static $scheduled = false;
+
+        if ($scheduled) {
+            return;
+        }
+
+        $scheduled = true;
+
+        app()->terminating(function () use ($limit, $cooldownSeconds, $recentHours): void {
+            try {
+                $this->reconcileUnsettledFedapayPaymentsIfDue($limit, $cooldownSeconds, $recentHours);
+                $this->reconcileSuccessfulAssociations(max($limit * 2, 50));
+            } catch (\Throwable $exception) {
+                logger()->warning('Deferred payment read-model warm failed', [
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        });
+    }
+
     public function reconcileUnsettledFedapayPaymentsIfDue(
         int $limit = self::DEFAULT_WARM_RECONCILE_LIMIT,
         int $cooldownSeconds = 45,

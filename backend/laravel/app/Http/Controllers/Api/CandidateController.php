@@ -41,7 +41,7 @@ class CandidateController extends Controller
     // Public listing (active only)
     public function index(Request $request): JsonResponse
     {
-        $this->payments->warmPaymentStateForReadModels();
+        $this->payments->scheduleWarmPaymentStateForReadModels();
         $perPage = max(1, min((int) $request->integer('per_page', 500), 500));
         return response()->json($this->candidates->paginatePublic($perPage));
     }
@@ -49,7 +49,7 @@ class CandidateController extends Controller
     // Admin listing (all statuses)
     public function adminIndex(Request $request): JsonResponse
     {
-        $this->payments->warmPaymentStateForReadModels();
+        $this->payments->scheduleWarmPaymentStateForReadModels();
         $perPage = max(1, min((int) $request->integer('per_page', 500), 500));
         return response()->json($this->candidates->paginateAll($perPage));
     }
@@ -350,7 +350,7 @@ class CandidateController extends Controller
 
     public function dashboard(): JsonResponse
     {
-        $this->payments->warmPaymentStateForReadModels();
+        $this->payments->scheduleWarmPaymentStateForReadModels();
         $user = request()->user();
         $candidate = $user?->candidate()->with('category')->first();
 

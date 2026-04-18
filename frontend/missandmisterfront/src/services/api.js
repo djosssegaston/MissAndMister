@@ -485,6 +485,16 @@ const shouldRetryRequest = (method = 'GET', error, attempt, maxRetries = MAX_API
   return Boolean(error?.isRetryable || error?.isNetworkError);
 };
 
+const shouldRetryAlternateAdminLoginEndpoint = (error) => {
+  const status = Number(error?.status || 0);
+
+  if (!status) {
+    return Boolean(error?.isRetryable || error?.isNetworkError || error?.isTransportError);
+  }
+
+  return [404, 405, 408, 429, 500, 502, 503, 504].includes(status);
+};
+
 const wakeBackend = async () => {
   try {
     await fetchWithTimeout(HEALTHCHECK_URL, {
@@ -750,14 +760,35 @@ export const authAPI = {
   },
 
   adminLogin: async (credentials) => {
-    return fetchPublicAPI('/admin/login', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...credentials,
-        scope: 'admin',
-      }),
-      timeout: 45000,
+    const payload = JSON.stringify({
+      ...credentials,
+      scope: 'admin',
     });
+    const candidateEndpoints = [
+      '/admin/login',
+      '/auth/admin-login',
+      '/auth/login',
+    ];
+
+    let lastError = null;
+
+    for (const endpoint of candidateEndpoints) {
+      try {
+        return await fetchPublicAPI(endpoint, {
+          method: 'POST',
+          body: payload,
+          timeout: 45000,
+        });
+      } catch (error) {
+        lastError = error;
+
+        if (!shouldRetryAlternateAdminLoginEndpoint(error)) {
+          throw error;
+        }
+      }
+    }
+
+    throw lastError || new Error('Impossible de contacter le serveur pour le moment. Reessayez dans quelques secondes.');
   },
 
   // Déconnexion
@@ -1020,7 +1051,9 @@ export const adminAPI = {
   // Utilisateurs (admin)
   getUsers: async (params = {}) => {
     const query = buildQueryString(params);
-    return fetchAPI(`/admin/users${query}`);
+    return fetchAPI(`/admin/users${query}`, {
+      timeout: 30000,
+    });
   },
 
   updateUserStatus: async (id, status) => {
@@ -1078,7 +1111,9 @@ export const adminAPI = {
   },
 
   getGalleryItems: async () => {
-    return fetchAPI('/admin/gallery');
+    return fetchAPI('/admin/gallery', {
+      timeout: 30000,
+    });
   },
 
   createGalleryItem: async (payload) => {
@@ -1105,7 +1140,9 @@ export const adminAPI = {
   },
 
   getPartners: async () => {
-    return fetchAPI('/admin/partners');
+    return fetchAPI('/admin/partners', {
+      timeout: 30000,
+    });
   },
 
   createPartner: async (payload) => {

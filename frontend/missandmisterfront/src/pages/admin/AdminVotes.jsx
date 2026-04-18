@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import Loader from '../../components/Loader';
-import { broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
+import { ADMIN_LIVE_UPDATE_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminVotes.css';
 
@@ -175,7 +175,7 @@ const AdminVotes = () => {
     }
   };
 
-  useAutoRefresh(fetchVotes);
+  useAutoRefresh(fetchVotes, { intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS });
 
   const retryFetchVotes = async () => {
     hasLoadedRef.current = false;

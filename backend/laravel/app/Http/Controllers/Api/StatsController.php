@@ -19,13 +19,13 @@ class StatsController extends Controller
     public function index(): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
-        $this->payments->warmPaymentStateForReadModels();
+        $this->payments->scheduleWarmPaymentStateForReadModels();
         return response()->json($this->stats->summary());
     }
 
     public function publicStats(): JsonResponse
     {
-        $this->payments->warmPaymentStateForReadModels();
+        $this->payments->scheduleWarmPaymentStateForReadModels();
         return response()->json($this->stats->publicSummary());
     }
 }
