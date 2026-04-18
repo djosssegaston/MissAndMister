@@ -174,6 +174,7 @@ const AdminCandidates = () => {
   const [formErrors, setFormErrors] = useState({});
   const [categories, setCategories] = useState([]);
   const [page, setPage] = useState(1);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const hasLoadedRef = useRef(false);
   const perPage = 10;
   const adminRole = (() => {
@@ -234,11 +235,14 @@ const AdminCandidates = () => {
       const rows = sortCandidates((list?.data || list || []).map((c, idx) => mapCandidate(c, idx, catList)));
       setCandidates(rows);
       setError(null);
+      setAutoRefreshEnabled(true);
       hasLoadedRef.current = true;
     } catch (err) {
       if (err?.isSessionExpired) {
         return;
       }
+
+      setAutoRefreshEnabled(false);
 
       if (isInitialLoad) {
         setError(err.message || 'Erreur de chargement');
@@ -251,10 +255,14 @@ const AdminCandidates = () => {
     }
   };
 
-  useAutoRefresh(fetchAll, { intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS });
+  useAutoRefresh(fetchAll, {
+    intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS,
+    enabled: autoRefreshEnabled,
+  });
 
   const retryFetchAll = async () => {
     hasLoadedRef.current = false;
+    setAutoRefreshEnabled(true);
     await fetchAll();
   };
 

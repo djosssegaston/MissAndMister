@@ -95,6 +95,7 @@ const AdminPartners = () => {
   const [errors, setErrors] = useState({});
   const [confirm, setConfirm] = useState(null);
   const [error, setError] = useState(null);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const hasLoadedRef = useRef(false);
   const adminRole = (() => {
     try {
@@ -124,11 +125,14 @@ const AdminPartners = () => {
       const rows = (response?.data || []).map(normalizePartner);
       setPartners(rows);
       setError(null);
+      setAutoRefreshEnabled(true);
       hasLoadedRef.current = true;
     } catch (fetchError) {
       if (fetchError?.isSessionExpired) {
         return;
       }
+
+      setAutoRefreshEnabled(false);
 
       if (isInitialLoad) {
         setError(fetchError.message || 'Impossible de charger les partenaires.');
@@ -141,11 +145,15 @@ const AdminPartners = () => {
     }
   };
 
-  useAutoRefresh(fetchPartners, { intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS });
+  useAutoRefresh(fetchPartners, {
+    intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS,
+    enabled: autoRefreshEnabled,
+  });
 
   const retryFetchPartners = async () => {
     hasLoadedRef.current = false;
     setError(null);
+    setAutoRefreshEnabled(true);
     await fetchPartners();
   };
 

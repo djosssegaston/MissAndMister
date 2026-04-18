@@ -33,6 +33,7 @@ const AdminUsers = () => {
   const [confirm, setConfirm]   = useState(null);
   const [page, setPage]         = useState(1);
   const [perPage]               = useState(25);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const hasLoadedRef = useRef(false);
   const adminRole = (() => {
     try {
@@ -58,11 +59,14 @@ const AdminUsers = () => {
       const data = res?.data || res || [];
       setUsers(data);
       setError(null);
+      setAutoRefreshEnabled(true);
       hasLoadedRef.current = true;
     } catch (err) {
       if (err?.isSessionExpired) {
         return;
       }
+
+      setAutoRefreshEnabled(false);
 
       if (isInitialLoad) {
         setError(err.message || 'Erreur de chargement');
@@ -75,10 +79,14 @@ const AdminUsers = () => {
     }
   };
 
-  useAutoRefresh(fetchUsers, { intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS });
+  useAutoRefresh(fetchUsers, {
+    intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS,
+    enabled: autoRefreshEnabled,
+  });
 
   const retryFetchUsers = async () => {
     hasLoadedRef.current = false;
+    setAutoRefreshEnabled(true);
     await fetchUsers();
   };
 

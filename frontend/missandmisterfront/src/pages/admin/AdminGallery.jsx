@@ -94,6 +94,7 @@ const AdminGallery = () => {
   const [feedback, setFeedback] = useState(null);
   const [errors, setErrors] = useState({});
   const [confirm, setConfirm] = useState(null);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const hasLoadedRef = useRef(false);
   const adminRole = (() => {
     try {
@@ -122,11 +123,14 @@ const AdminGallery = () => {
       const rows = (response?.data || []).map(normalizeItem);
       setItems(rows);
       setCategories(response?.categories?.length ? response.categories : DEFAULT_CATEGORIES);
+      setAutoRefreshEnabled(true);
       hasLoadedRef.current = true;
     } catch (error) {
       if (error?.isSessionExpired) {
         return;
       }
+
+      setAutoRefreshEnabled(false);
 
       if (isInitialLoad) {
         setFeedback({
@@ -142,7 +146,10 @@ const AdminGallery = () => {
     }
   };
 
-  useAutoRefresh(fetchGallery, { intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS });
+  useAutoRefresh(fetchGallery, {
+    intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS,
+    enabled: autoRefreshEnabled,
+  });
 
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase();

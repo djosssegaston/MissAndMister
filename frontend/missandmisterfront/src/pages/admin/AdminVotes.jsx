@@ -88,6 +88,7 @@ const AdminVotes = () => {
   const [confirm, setConfirm] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const hasLoadedRef = useRef(false);
   const adminRole = (() => {
     try {
@@ -158,11 +159,14 @@ const AdminVotes = () => {
         perPage: Number(res?.per_page || mappedVotes.length || 0),
       });
       setError(null);
+      setAutoRefreshEnabled(true);
       hasLoadedRef.current = true;
     } catch (err) {
       if (err?.isSessionExpired) {
         return;
       }
+
+      setAutoRefreshEnabled(false);
 
       if (isInitialLoad) {
         setError(err.message || 'Erreur de chargement');
@@ -175,10 +179,14 @@ const AdminVotes = () => {
     }
   };
 
-  useAutoRefresh(fetchVotes, { intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS });
+  useAutoRefresh(fetchVotes, {
+    intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS,
+    enabled: autoRefreshEnabled,
+  });
 
   const retryFetchVotes = async () => {
     hasLoadedRef.current = false;
+    setAutoRefreshEnabled(true);
     await fetchVotes();
   };
 

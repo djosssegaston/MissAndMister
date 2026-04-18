@@ -86,6 +86,7 @@ const AdminDashboard = () => {
   const [recentVotes, setRecentVotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const hasLoadedRef = useRef(false);
 
   const fetchDashboardData = async () => {
@@ -119,9 +120,12 @@ const AdminDashboard = () => {
         setRecentVotes(nextRecentVotes);
       }
 
+      setAutoRefreshEnabled(true);
+
       if (!nextStats && !nextRecentVotes && isInitialLoad) {
         const statsError = statsResult.status === 'rejected' ? statsResult.reason : null;
         const votesError = votesResult.status === 'rejected' ? votesResult.reason : null;
+        setAutoRefreshEnabled(false);
         setError(
           statsError?.message
           || votesError?.message
@@ -136,6 +140,8 @@ const AdminDashboard = () => {
         return;
       }
 
+      setAutoRefreshEnabled(false);
+
       if (isInitialLoad) {
         setError(err.message || 'Erreur lors du chargement des données');
       }
@@ -147,10 +153,14 @@ const AdminDashboard = () => {
     }
   };
 
-  useAutoRefresh(fetchDashboardData, { intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS });
+  useAutoRefresh(fetchDashboardData, {
+    intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS,
+    enabled: autoRefreshEnabled,
+  });
 
   const retryFetchDashboard = async () => {
     hasLoadedRef.current = false;
+    setAutoRefreshEnabled(true);
     await fetchDashboardData();
   };
 
