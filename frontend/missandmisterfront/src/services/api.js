@@ -73,9 +73,15 @@ const MAX_API_RETRIES = 2;
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 502, 503, 504]);
 const RETRYABLE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const SESSION_EXPIRED_MESSAGE = 'Votre session a expiré. Veuillez vous reconnecter pour continuer.';
+const INTENTIONAL_LOGOUT_SUPPRESSION_MS = 5000;
+let sessionExpiredNotificationsMutedUntil = 0;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const getRequestMethod = (options = {}) => String(options.method || 'GET').toUpperCase();
+const muteSessionExpiredNotifications = (durationMs = INTENTIONAL_LOGOUT_SUPPRESSION_MS) => {
+  sessionExpiredNotificationsMutedUntil = Date.now() + Math.max(0, Number(durationMs) || 0);
+};
+const areSessionExpiredNotificationsMuted = () => Date.now() < sessionExpiredNotificationsMutedUntil;
 const shouldSendJsonContentType = (method, body, hasFormData) => (
   !hasFormData
   && body !== undefined
@@ -791,14 +797,18 @@ const fetchAPI = async (endpoint, options = {}) => {
   } catch (error) {
     if (error.status === 401) {
       const scope = getSessionScope(endpoint);
-      error.message = SESSION_EXPIRED_MESSAGE;
       clearStoredSession(scope);
-      if (!skipSessionExpiredHandling) {
+      if (!skipSessionExpiredHandling && !areSessionExpiredNotificationsMuted()) {
+        error.message = SESSION_EXPIRED_MESSAGE;
         dispatchSessionExpired({ scope, message: error.message });
+      } else {
+        error.isExpectedAuthTeardown = true;
       }
     }
 
-    console.error('API Error:', error);
+    if (!error.isExpectedAuthTeardown) {
+      console.error('API Error:', error);
+    }
     throw error;
   }
 };
@@ -856,6 +866,8 @@ export const authAPI = {
 
   // Déconnexion
   logout: async () => {
+    muteSessionExpiredNotifications();
+
     return fetchAPI('/auth/logout', {
       method: 'POST',
       skipSessionExpiredHandling: true,
