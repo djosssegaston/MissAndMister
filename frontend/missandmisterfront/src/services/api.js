@@ -507,6 +507,25 @@ const shouldRaceBaseUrls = (endpoint = '', config = {}) => {
   return !Object.keys(headers).some((key) => key.toLowerCase() === 'authorization');
 };
 
+const shouldSkipCrossOriginDirectTransport = (baseUrl = '', endpoint = '', config = {}) => {
+  if (!PROXY_API_BASE_URL || !isProductionProxyHost()) {
+    return false;
+  }
+
+  if (!isAbsoluteHttpUrl(baseUrl) || isSameOriginAbsoluteUrl(baseUrl)) {
+    return false;
+  }
+
+  const method = getRequestMethod(config);
+
+  if (isPublicReadEndpoint(endpoint, method)) {
+    return true;
+  }
+
+  const headers = config?.headers || {};
+  return Object.keys(headers).some((key) => key.toLowerCase() === 'authorization');
+};
+
 const shouldRetryAlternateAdminLoginEndpoint = (error) => {
   const status = Number(error?.status || 0);
 
@@ -669,7 +688,8 @@ const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxR
     let lastError = null;
 
     try {
-      const baseUrlCandidates = getAvailableApiBaseUrls();
+      const baseUrlCandidates = getAvailableApiBaseUrls()
+        .filter(({ baseUrl }) => !shouldSkipCrossOriginDirectTransport(baseUrl, endpoint, config));
 
       if (baseUrlCandidates.length > 1 && shouldRaceBaseUrls(endpoint, config)) {
         return await executeParallelReadRequest(baseUrlCandidates);
