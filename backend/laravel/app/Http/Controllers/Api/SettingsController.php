@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\VotingWindowService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
 class SettingsController extends Controller
@@ -128,36 +129,40 @@ class SettingsController extends Controller
 
     public function public(): JsonResponse
     {
-        $settings = Setting::where('status', 'active')
-            ->whereIn('key', array_merge($this->allowedKeys, $this->runtimeKeys))
-            ->get();
+        $payload = Cache::remember('public:settings:payload', now()->addSeconds(5), function () {
+            $settings = Setting::where('status', 'active')
+                ->whereIn('key', array_merge($this->allowedKeys, $this->runtimeKeys))
+                ->get();
 
-        $formatted = $this->formatCollection($settings);
-        $normalizedRuntime = $this->votingWindow->normalizeRuntimeSettings($formatted);
-        if ($this->extractRuntimeSettings($formatted) !== $normalizedRuntime) {
-            $this->persistRuntimeSettings($normalizedRuntime);
-            $formatted = array_merge($formatted, $normalizedRuntime);
-        }
+            $formatted = $this->formatCollection($settings);
+            $normalizedRuntime = $this->votingWindow->normalizeRuntimeSettings($formatted);
+            if ($this->extractRuntimeSettings($formatted) !== $normalizedRuntime) {
+                $this->persistRuntimeSettings($normalizedRuntime);
+                $formatted = array_merge($formatted, $normalizedRuntime);
+            }
 
-        $publicSettings = array_intersect_key($formatted, array_flip($this->allowedKeys));
-        $votingStatus = $this->votingWindow->computeState($formatted);
+            $publicSettings = array_intersect_key($formatted, array_flip($this->allowedKeys));
+            $votingStatus = $this->votingWindow->computeState($formatted);
 
-        return response()->json(array_merge($publicSettings, [
-            'maintenance_mode' => $votingStatus['maintenance_active'],
-            'maintenance_end_at_iso' => $votingStatus['maintenance_end']?->toIso8601String(),
-            'maintenance_remaining_seconds' => $votingStatus['maintenance_remaining_seconds'],
-            'voting_blocked' => $votingStatus['blocked'],
-            'voting_open_now' => !$votingStatus['blocked'],
-            'voting_block_reason' => $votingStatus['reason'],
-            'voting_block_message' => $votingStatus['message'],
-            'server_time' => $votingStatus['now']->toIso8601String(),
-            'vote_start_at_iso' => $votingStatus['start']?->toIso8601String(),
-            'vote_end_at_iso' => $votingStatus['effective_end']?->toIso8601String(),
-            'vote_end_at_effective_iso' => $votingStatus['effective_end']?->toIso8601String(),
-            'countdown_paused' => $votingStatus['countdown_paused'],
-            'countdown_total_seconds' => $votingStatus['countdown_total_seconds'],
-            'countdown_remaining_seconds' => $votingStatus['countdown_remaining_seconds'],
-        ]));
+            return array_merge($publicSettings, [
+                'maintenance_mode' => $votingStatus['maintenance_active'],
+                'maintenance_end_at_iso' => $votingStatus['maintenance_end']?->toIso8601String(),
+                'maintenance_remaining_seconds' => $votingStatus['maintenance_remaining_seconds'],
+                'voting_blocked' => $votingStatus['blocked'],
+                'voting_open_now' => !$votingStatus['blocked'],
+                'voting_block_reason' => $votingStatus['reason'],
+                'voting_block_message' => $votingStatus['message'],
+                'server_time' => $votingStatus['now']->toIso8601String(),
+                'vote_start_at_iso' => $votingStatus['start']?->toIso8601String(),
+                'vote_end_at_iso' => $votingStatus['effective_end']?->toIso8601String(),
+                'vote_end_at_effective_iso' => $votingStatus['effective_end']?->toIso8601String(),
+                'countdown_paused' => $votingStatus['countdown_paused'],
+                'countdown_total_seconds' => $votingStatus['countdown_total_seconds'],
+                'countdown_remaining_seconds' => $votingStatus['countdown_remaining_seconds'],
+            ]);
+        });
+
+        return response()->json($payload);
     }
 
     private function resolveGroup(string $key): string

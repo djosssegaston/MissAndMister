@@ -8,9 +8,28 @@ use Illuminate\Database\Eloquent\Builder;
 
 class CandidateRepository
 {
-    public function paginatePublic(int $perPage = 500): LengthAwarePaginator
+    public function paginatePublic(int $perPage = 500, ?string $category = null): LengthAwarePaginator
     {
         return $this->publicBaseQuery()
+            ->select([
+                'id',
+                'category_id',
+                'first_name',
+                'last_name',
+                'public_number',
+                'public_uid',
+                'slug',
+                'university',
+                'photo_path',
+                'photo_variants',
+            ])
+            ->when(filled($category), function (Builder $query) use ($category) {
+                $normalizedCategory = strtolower(trim((string) $category));
+
+                $query->whereHas('category', function (Builder $categoryQuery) use ($normalizedCategory) {
+                    $categoryQuery->whereRaw('LOWER(name) = ?', [$normalizedCategory]);
+                });
+            })
             ->withSum(['votes as votes_count' => function ($q) {
                 $q->successful();
             }], 'quantity')
@@ -65,6 +84,56 @@ class CandidateRepository
                 }
             })
             ->first();
+    }
+
+    public function resolveRankInCategory(Candidate $candidate): ?int
+    {
+        $targetVotes = (int) ($candidate->votes_count ?? 0);
+
+        if (!$candidate->category_id || $targetVotes <= 0) {
+            return null;
+        }
+
+        $rankedIds = $this->publicBaseQuery()
+            ->select([
+                'id',
+                'category_id',
+                'first_name',
+                'last_name',
+                'public_number',
+            ])
+            ->where('category_id', $candidate->category_id)
+            ->withSum(['votes as votes_count' => function ($query) {
+                $query->successful();
+            }], 'quantity')
+            ->get()
+            ->filter(fn (Candidate $item) => (int) ($item->votes_count ?? 0) > 0)
+            ->sort(function (Candidate $left, Candidate $right) {
+                $leftVotes = (int) ($left->votes_count ?? 0);
+                $rightVotes = (int) ($right->votes_count ?? 0);
+
+                if ($leftVotes !== $rightVotes) {
+                    return $rightVotes <=> $leftVotes;
+                }
+
+                $leftNumber = $left->public_number ?? PHP_INT_MAX;
+                $rightNumber = $right->public_number ?? PHP_INT_MAX;
+
+                if ($leftNumber !== $rightNumber) {
+                    return $leftNumber <=> $rightNumber;
+                }
+
+                return strcasecmp(
+                    trim(($left->last_name ?? '') . ' ' . ($left->first_name ?? '')),
+                    trim(($right->last_name ?? '') . ' ' . ($right->first_name ?? ''))
+                );
+            })
+            ->pluck('id')
+            ->values();
+
+        $position = $rankedIds->search($candidate->id);
+
+        return $position === false ? null : ((int) $position + 1);
     }
 
     public function create(array $data): Candidate

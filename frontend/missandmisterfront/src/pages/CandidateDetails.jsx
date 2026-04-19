@@ -27,13 +27,11 @@ const CandidateDetails = () => {
   const { identifier } = useParams();
   const { showToast } = useToast();
   const [candidate, setCandidate] = useState(null);
-  const [candidateDirectory, setCandidateDirectory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [photoFailed, setPhotoFailed] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const hasLoadedRef = useRef(false);
-  const hasLoadedDirectoryRef = useRef(false);
 
   const [nbVotes, setNbVotes] = useState(1);
   const [votingLoading, setVotingLoading] = useState(false);
@@ -60,31 +58,15 @@ const CandidateDetails = () => {
         setVideoFailed(false);
       }
 
-      const shouldLoadDirectory = !hasLoadedDirectoryRef.current;
-      const requests = shouldLoadDirectory
-        ? [candidatesAPI.getById(identifier), candidatesAPI.getAll()]
-        : [candidatesAPI.getById(identifier)];
-      const [candidateResponse, directoryResponse] = await Promise.allSettled(requests);
-
-      if (candidateResponse.status !== 'fulfilled') {
-        throw candidateResponse.reason;
-      }
-
-      const data = candidateResponse.value;
-      const list = directoryResponse?.status === 'fulfilled' ? directoryResponse.value : null;
+      const data = await candidatesAPI.getById(identifier);
       setPhotoFailed(false);
       setVideoFailed(false);
       setCandidate(data);
-      if (list?.data) {
-        setCandidateDirectory(list.data);
-        hasLoadedDirectoryRef.current = true;
-      }
       setError(null);
       hasLoadedRef.current = true;
     } catch (err) {
       if (isInitialLoad || err?.status === 404 || err?.status === 403) {
         setCandidate(null);
-        setCandidateDirectory([]);
         setError(err.message || 'Erreur lors du chargement du candidat');
       }
     } finally {
@@ -102,7 +84,6 @@ const CandidateDetails = () => {
 
   const retryFetchCandidate = async () => {
     hasLoadedRef.current = false;
-    hasLoadedDirectoryRef.current = false;
     await fetchCandidate();
   };
 
@@ -116,39 +97,13 @@ const CandidateDetails = () => {
     : candidatePublicPath;
 
   const rankingLabel = useMemo(() => {
-    const currentCandidateVotes = Number(candidate?.votes_count || 0);
-
-    if (!candidate || currentCandidateVotes <= 0) {
+    const currentRank = Number(candidate?.rank_in_category || 0);
+    if (!candidate || currentRank <= 0) {
       return '#';
     }
 
-    const categoryName = String(candidate.category?.name || '').trim().toLowerCase();
-    const rankedCandidates = candidateDirectory
-      .filter((item) => String(item?.category?.name || '').trim().toLowerCase() === categoryName)
-      .map((item) => ({
-        identifier: String(item?.public_uid || item?.slug || item?.public_number || ''),
-        votes: Number(item?.votes_count || 0),
-        publicNumber: Number(item?.public_number || Number.MAX_SAFE_INTEGER),
-        name: `${item?.first_name || ''} ${item?.last_name || ''}`.trim(),
-      }))
-      .filter((item) => item.votes > 0)
-      .sort((left, right) => {
-        if (right.votes !== left.votes) {
-          return right.votes - left.votes;
-        }
-
-        if (left.publicNumber !== right.publicNumber) {
-          return left.publicNumber - right.publicNumber;
-        }
-
-        return left.name.localeCompare(right.name, 'fr', { sensitivity: 'base' });
-      });
-
-    const currentIdentifier = String(candidate.public_uid || candidate.slug || candidate.public_number || '');
-    const currentRank = rankedCandidates.findIndex((item) => item.identifier === currentIdentifier);
-
-    return currentRank >= 0 ? `#${currentRank + 1}` : '#';
-  }, [candidate, candidateDirectory]);
+    return `#${currentRank}`;
+  }, [candidate]);
 
   const incrementVotes = () => {
     setErrors(e => ({ ...e, nbVotes: '' }));

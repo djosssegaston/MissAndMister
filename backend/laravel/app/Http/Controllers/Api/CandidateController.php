@@ -43,7 +43,8 @@ class CandidateController extends Controller
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
         $perPage = max(1, min((int) $request->integer('per_page', 500), 500));
-        return response()->json($this->candidates->paginatePublic($perPage));
+        $category = trim((string) $request->query('category', ''));
+        return response()->json($this->candidates->paginatePublic($perPage, $category !== '' ? $category : null));
     }
 
     // Admin listing (all statuses)

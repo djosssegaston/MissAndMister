@@ -212,8 +212,8 @@ class PaymentService
     }
 
     public function scheduleWarmPaymentStateForReadModels(
-        int $limit = 5,
-        int $cooldownSeconds = 60,
+        int $limit = 10,
+        int $cooldownSeconds = 20,
         int $recentHours = self::DEFAULT_RECONCILE_RECENT_HOURS,
     ): void
     {

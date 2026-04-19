@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\PaymentService;
 use App\Services\StatsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 
 class StatsController extends Controller
 {
@@ -26,6 +27,8 @@ class StatsController extends Controller
     public function publicStats(): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        return response()->json($this->stats->publicSummary());
+        $payload = Cache::remember('public:stats:summary', now()->addSeconds(5), fn () => $this->stats->publicSummary());
+
+        return response()->json($payload);
     }
 }

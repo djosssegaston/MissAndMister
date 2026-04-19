@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { candidatesAPI, paymentAPI } from '../services/api';
 import { getCandidatePublicPath } from '../utils/candidatePublic';
+import { broadcastLiveUpdate } from '../utils/liveUpdates';
 import './PaymentConfirmation.css';
 
 const SYNCABLE_STATES = new Set(['success', 'processing', 'pending', 'opening', 'initiated', 'failed']);
@@ -217,6 +218,7 @@ const PaymentConfirmation = () => {
         if (nextState === 'success') {
           setPaymentState('success');
           setMessage('Votre paiement a été confirmé. Nous finalisons l’actualisation du compteur du candidat.');
+          broadcastLiveUpdate('votes');
           setIsSyncing(false);
           stopPolling();
           return;
@@ -225,6 +227,7 @@ const PaymentConfirmation = () => {
         if (nextState === 'failed') {
           setPaymentState('failed');
           setMessage('Le paiement n’a pas pu être confirmé. Aucun vote n’a été comptabilisé.');
+          broadcastLiveUpdate('votes');
           setIsSyncing(false);
           stopPolling();
           return;
