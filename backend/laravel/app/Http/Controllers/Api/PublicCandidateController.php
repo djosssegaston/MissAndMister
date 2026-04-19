@@ -21,7 +21,7 @@ class PublicCandidateController extends Controller
     public function index(): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $perPage = max(24, min((int) request()->integer('per_page', 500), 500));
+        $perPage = max(24, min((int) request()->integer('per_page', 120), 200));
         $category = trim((string) request()->query('category', ''));
         $cacheKey = 'public:candidates:index:' . md5(json_encode([$perPage, strtolower($category)]));
 

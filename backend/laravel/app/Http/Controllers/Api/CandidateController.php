@@ -42,7 +42,7 @@ class CandidateController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $perPage = max(1, min((int) $request->integer('per_page', 500), 500));
+        $perPage = max(1, min((int) $request->integer('per_page', 120), 200));
         $category = trim((string) $request->query('category', ''));
         return response()->json($this->candidates->paginatePublic($perPage, $category !== '' ? $category : null));
     }
@@ -51,7 +51,7 @@ class CandidateController extends Controller
     public function adminIndex(Request $request): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $perPage = max(1, min((int) $request->integer('per_page', 500), 500));
+        $perPage = max(1, min((int) $request->integer('per_page', 200), 200));
         return response()->json($this->candidates->paginateAll($perPage));
     }
 

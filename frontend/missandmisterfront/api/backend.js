@@ -1,5 +1,5 @@
 const UPSTREAM_API_BASE_URL = 'https://api.missmisteruniversitybenin.com/api';
-const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504, 509]);
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const PUBLIC_CACHE_CONTROL = 'public, s-maxage=120, stale-while-revalidate=86400';
 const DYNAMIC_PUBLIC_CACHE_CONTROL = 'public, s-maxage=5, stale-while-revalidate=30';
 const PRIVATE_CACHE_CONTROL = 'no-store';
@@ -143,7 +143,7 @@ const proxyRequest = async (request) => {
   const { upstreamUrl, upstreamPath } = buildUpstreamUrl(request.url);
   const cacheablePublicRequest = isCacheablePublicRequest(method, upstreamPath);
   const retryableReadRequest = method === 'GET' || method === 'HEAD';
-  const maxAttempts = retryableReadRequest ? 3 : 1;
+  const maxAttempts = retryableReadRequest ? 2 : 1;
   const requestHeaders = buildProxyRequestHeaders(request);
   const hasRequestBody = !['GET', 'HEAD'].includes(method);
 
@@ -163,11 +163,14 @@ const proxyRequest = async (request) => {
 
       if (expectsJsonPayload(upstreamPath)) {
         const text = await upstreamResponse.text();
+        const looksLikeQuotaLimit = upstreamResponse.status === 509
+          || /quota limit exceeded|ol-conn/i.test(text);
 
         if (looksLikeHtmlPayload(text, contentType)) {
           lastFailure = new Error('Unexpected HTML challenge response from upstream.');
+          lastFailure.status = looksLikeQuotaLimit ? 509 : upstreamResponse.status;
 
-          if (retryableReadRequest && attempt < maxAttempts) {
+          if (retryableReadRequest && attempt < maxAttempts && !looksLikeQuotaLimit) {
             await sleep(300 * attempt);
             continue;
           }

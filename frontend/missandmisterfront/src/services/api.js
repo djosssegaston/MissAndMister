@@ -56,8 +56,12 @@ const API_BASE_URL = PROXY_API_BASE_URL || DIRECT_API_BASE_URL;
 export const SESSION_EXPIRED_EVENT = 'app:session-expired';
 const PUBLIC_CACHE_STORAGE_KEY = 'mmub_public_api_cache_v1';
 const PUBLIC_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 6;
+const PUBLIC_CANDIDATES_PAGE_SIZE = 200;
+const ADMIN_LIST_PAGE_SIZE = 200;
 const CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY = 'mmub_candidate_public_endpoint_outage_until_v1';
 const CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_MS = 1000 * 60 * 15;
+const READ_TRANSPORT_COOLDOWN_KEY = 'mmub_read_transport_cooldown_until_v1';
+const READ_TRANSPORT_COOLDOWN_MS = 1000 * 60;
 
 // Timeout global pour les appels API (en ms)
 const API_TIMEOUT = (() => {
@@ -69,8 +73,8 @@ const API_TIMEOUT = (() => {
   const isLocalApi = /(localhost|127\.0\.0\.1)/i.test(API_BASE_URL);
   return isLocalApi ? 10000 : 20000;
 })();
-const MAX_API_RETRIES = 2;
-const RETRYABLE_STATUS_CODES = new Set([408, 429, 502, 503, 504]);
+const MAX_API_RETRIES = 1;
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 502, 503, 504, 509]);
 const RETRYABLE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const SESSION_EXPIRED_MESSAGE = 'Votre session a expiré. Veuillez vous reconnecter pour continuer.';
 const INTENTIONAL_LOGOUT_SUPPRESSION_MS = 5000;
@@ -495,6 +499,10 @@ const shouldRetryRequest = (method = 'GET', error, attempt, maxRetries = MAX_API
     return false;
   }
 
+  if (Number(error?.status || 0) === 509) {
+    return false;
+  }
+
   if (error?.status && RETRYABLE_STATUS_CODES.has(error.status)) {
     return true;
   }
@@ -578,13 +586,29 @@ const wakeBackend = async () => {
   }
 };
 
-const LEGACY_CANDIDATES_PAGE_SIZE = 500;
+const LEGACY_CANDIDATES_PAGE_SIZE = PUBLIC_CANDIDATES_PAGE_SIZE;
 const isCandidatePublicEndpointCoolingDown = () => readStoredNumber(CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY) > Date.now();
 const rememberCandidatePublicEndpointFailure = () => {
   writeStoredNumber(CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY, Date.now() + CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_MS);
 };
 const clearCandidatePublicEndpointFailure = () => {
   writeStoredNumber(CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY, 0);
+};
+const isReadTransportCoolingDown = () => readStoredNumber(READ_TRANSPORT_COOLDOWN_KEY) > Date.now();
+const rememberReadTransportCooldown = (durationMs = READ_TRANSPORT_COOLDOWN_MS) => {
+  writeStoredNumber(READ_TRANSPORT_COOLDOWN_KEY, Date.now() + Math.max(0, Number(durationMs) || 0));
+};
+const clearReadTransportCooldown = () => {
+  writeStoredNumber(READ_TRANSPORT_COOLDOWN_KEY, 0);
+};
+
+const buildReadTransportCooldownError = () => {
+  const error = new Error('Le service est temporairement indisponible. Réessayez dans quelques secondes.');
+  error.status = 503;
+  error.isRetryable = true;
+  error.isNetworkError = true;
+  error.isTransportError = true;
+  return error;
 };
 
 const candidateMatchesIdentifier = (candidate = {}, identifier = '') => {
@@ -638,6 +662,13 @@ const fetchLegacyCandidateByIdentifier = async (identifier) => {
 };
 
 const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxRetries = MAX_API_RETRIES } = {}) => {
+  const method = getRequestMethod(config);
+  const isReadRequest = RETRYABLE_METHODS.has(method);
+
+  if (isReadRequest && isReadTransportCoolingDown()) {
+    throw buildReadTransportCooldownError();
+  }
+
   const executeAgainstBaseUrl = async (baseUrl) => {
     const response = await fetchWithTimeout(buildApiUrl(baseUrl, endpoint), config, timeout);
     const data = await parseResponseBody(response);
@@ -651,6 +682,9 @@ const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxR
     }
 
     rememberSuccessfulBaseUrl(baseUrl);
+    if (isReadRequest) {
+      clearReadTransportCooldown();
+    }
     return data;
   };
 
@@ -720,7 +754,18 @@ const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxR
     } catch (error) {
       const retryTarget = error || lastError;
 
-      if (shouldRetryRequest(config.method, retryTarget, attempt, maxRetries)) {
+      const shouldThrottleReads = isReadRequest && (
+        Number(retryTarget?.status || 0) === 509
+        || retryTarget?.isTransportError
+        || retryTarget?.isNetworkError
+        || retryTarget?.code === 'REQUEST_TIMEOUT'
+      );
+
+      if (shouldThrottleReads) {
+        rememberReadTransportCooldown();
+      }
+
+      if (shouldRetryRequest(method, retryTarget, attempt, maxRetries)) {
         await wakeBackend();
         await sleep(800 * (attempt + 1));
         continue;
@@ -738,6 +783,9 @@ const fetchPublicAPI = async (endpoint, options = {}) => {
   const method = getRequestMethod(requestOptions);
   const canUseCacheFallback = isPublicReadEndpoint(endpoint, method);
   const cachedResponse = canUseCacheFallback ? readCachedPublicResponse(endpoint) : null;
+  if (canUseCacheFallback && cachedResponse && isReadTransportCoolingDown()) {
+    return cachedResponse;
+  }
   const defaultHeaders = {
     'Accept': 'application/json',
     ...(shouldSendJsonContentType(method, requestOptions.body, hasFormData) ? { 'Content-Type': 'application/json' } : {}),
@@ -903,7 +951,7 @@ export const authAPI = {
 export const candidatesAPI = {
   // Récupérer tous les candidats
   getAll: async (filters = {}) => {
-    const queryParams = new URLSearchParams({ per_page: 500, ...filters }).toString();
+    const queryParams = new URLSearchParams({ per_page: PUBLIC_CANDIDATES_PAGE_SIZE, ...filters }).toString();
     if (isCandidatePublicEndpointCoolingDown()) {
       return fetchLegacyCandidatesPage(1, filters);
     }
@@ -1090,7 +1138,7 @@ export const adminAPI = {
 
   // Candidats (admin)
   getCandidates: async (params = {}) => {
-    const query = buildQueryString({ per_page: 500, ...params });
+    const query = buildQueryString({ per_page: ADMIN_LIST_PAGE_SIZE, ...params });
     return fetchAPI(`/admin/candidates${query}`, {
       timeout: 30000,
     });
@@ -1125,7 +1173,7 @@ export const adminAPI = {
 
   // Utilisateurs (admin)
   getUsers: async (params = {}) => {
-    const query = buildQueryString(params);
+    const query = buildQueryString({ per_page: ADMIN_LIST_PAGE_SIZE, ...params });
     return fetchAPI(`/admin/users${query}`, {
       timeout: 30000,
     });
@@ -1146,7 +1194,7 @@ export const adminAPI = {
 
   // Votes (admin)
   getVotes: async (params = {}) => {
-    const query = buildQueryString(params);
+    const query = buildQueryString({ per_page: ADMIN_LIST_PAGE_SIZE, ...params });
     return fetchAPI(`/admin/votes${query}`, {
       timeout: 30000,
     });

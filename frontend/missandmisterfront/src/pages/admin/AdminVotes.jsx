@@ -148,7 +148,7 @@ const AdminVotes = () => {
         setLoading(true);
       }
 
-      const res = await adminAPI.getVotes({ per_page: 500 });
+      const res = await adminAPI.getVotes({ per_page: 200 });
       const data = res?.data || res || [];
       const mappedVotes = data.map(mapVote);
 

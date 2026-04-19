@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class CandidateRepository
 {
-    public function paginatePublic(int $perPage = 500, ?string $category = null): LengthAwarePaginator
+    public function paginatePublic(int $perPage = 200, ?string $category = null): LengthAwarePaginator
     {
         return $this->publicBaseQuery()
             ->select([
@@ -41,7 +41,7 @@ class CandidateRepository
             ->paginate($perPage);
     }
 
-    public function paginateAll(int $perPage = 500): LengthAwarePaginator
+    public function paginateAll(int $perPage = 200): LengthAwarePaginator
     {
         return Candidate::withTrashed()
             ->with('category')
