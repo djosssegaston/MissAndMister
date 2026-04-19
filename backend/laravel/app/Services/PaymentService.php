@@ -453,6 +453,7 @@ class PaymentService
     {
         $transactionId = $this->extractRemoteTransactionId($remoteTransaction);
         $reference = $this->extractRemoteMerchantReference($remoteTransaction);
+        $customMetadata = $this->extractRemoteCustomMetadata($remoteTransaction);
 
         if (!$transactionId && !$reference) {
             return null;
@@ -488,7 +489,16 @@ class PaymentService
             return null;
         }
 
-        $customMetadata = $this->extractRemoteCustomMetadata($remoteTransaction);
+        if (!$this->canImportRemoteSuccessfulTransaction($remoteTransaction, $reference, $customMetadata)) {
+            logger()->info('Skipping remote FedaPay transaction import because it does not look like an application vote payment', [
+                'transaction_id' => $transactionId,
+                'reference' => $reference,
+                'candidate_name' => data_get($customMetadata, 'candidate_name'),
+            ]);
+
+            return null;
+        }
+
         $currency = strtoupper((string) (
             data_get($customMetadata, 'currency')
             ?: data_get($remoteTransaction, 'currency.iso')
@@ -946,6 +956,35 @@ class PaymentService
         }
 
         return [];
+    }
+
+    private function canImportRemoteSuccessfulTransaction(array $remoteTransaction, string $reference, array $customMetadata): bool
+    {
+        $metadataReference = trim((string) data_get($customMetadata, 'payment_reference', ''));
+        $provider = strtolower(trim((string) data_get($customMetadata, 'provider', '')));
+        $candidateId = (int) data_get($customMetadata, 'candidate_id', 0);
+        $candidateName = trim((string) data_get($customMetadata, 'candidate_name', ''));
+
+        if ($this->looksLikeApplicationPaymentReference($metadataReference)) {
+            return true;
+        }
+
+        if ($this->looksLikeApplicationPaymentReference($reference)) {
+            return true;
+        }
+
+        if ($provider === 'fedapay' && ($candidateId > 0 || $candidateName !== '')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function looksLikeApplicationPaymentReference(?string $reference): bool
+    {
+        $value = strtoupper(trim((string) $reference));
+
+        return $value !== '' && preg_match('/^[A-Z0-9]{12}$/', $value) === 1;
     }
 
     private function buildImportedPaymentMeta(array $remoteTransaction, array $customMetadata): array
