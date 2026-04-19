@@ -10,6 +10,7 @@ use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 
 class PaymentController extends Controller
 {
@@ -106,6 +107,12 @@ class PaymentController extends Controller
         $raw = $request->getContent();
 
         if (!$this->fedapay->verifyWebhookSignature($raw, $signature)) {
+            logger()->warning('FedaPay webhook signature validation failed', [
+                'has_signature' => filled($signature),
+                'signature_preview' => $signature ? substr((string) $signature, 0, 32) : null,
+                'webhook_secret_configured' => filled($this->fedapay->webhookSecret()),
+            ]);
+
             return response()->json(['message' => 'Invalid signature'], 401);
         }
 
@@ -117,11 +124,49 @@ class PaymentController extends Controller
         $eventName = $this->extractEventName($payload);
         $transactionId = $this->extractTransactionId($payload);
         $reference = $this->extractPaymentReference($payload);
+        $fingerprint = sha1(json_encode([
+            'event' => $eventName,
+            'transaction_id' => $transactionId,
+            'reference' => $reference,
+            'payload_id' => data_get($payload, 'id') ?? data_get($payload, 'data.id'),
+            'status' => data_get($payload, 'status') ?? data_get($payload, 'data.status'),
+            'updated_at' => data_get($payload, 'updated_at') ?? data_get($payload, 'data.updated_at'),
+        ]));
 
+        app()->terminating(function () use ($payload, $eventName, $transactionId, $reference, $fingerprint): void {
+            $lockKey = 'fedapay:webhook:process:' . $fingerprint;
+
+            if (!Cache::add($lockKey, now()->timestamp, 120)) {
+                return;
+            }
+
+            try {
+                $this->processWebhookPayload($payload, $eventName, $transactionId, $reference);
+            } catch (\Throwable $exception) {
+                logger()->warning('FedaPay webhook deferred processing failed', [
+                    'event' => $eventName,
+                    'transaction_id' => $transactionId,
+                    'reference' => $reference,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        });
+
+        return response()->json(['message' => 'Webhook accepted']);
+    }
+
+    private function processWebhookPayload(
+        array $payload,
+        string $eventName,
+        ?string $transactionId,
+        ?string $reference,
+    ): void {
         $payment = null;
+
         if ($transactionId !== null) {
             $payment = $this->paymentRepo->findByTransactionId($transactionId);
         }
+
         if (!$payment && $reference !== null) {
             $payment = $this->paymentRepo->findByReference($reference);
         }
@@ -133,7 +178,7 @@ class PaymentController extends Controller
                 'reference' => $reference,
             ]);
 
-            return response()->json(['message' => 'Webhook processed']);
+            return;
         }
 
         $remoteTransaction = null;
@@ -152,8 +197,6 @@ class PaymentController extends Controller
         $outcome = $this->resolveWebhookOutcome($payload, $remoteTransaction, $eventName);
 
         $this->applyOutcome($payment, $outcome, $remoteTransaction ?: $payload, $eventName);
-
-        return response()->json(['message' => 'Webhook processed']);
     }
 
     private function applyOutcome(Payment $payment, string $outcome, array $payload = [], ?string $eventName = null): Payment

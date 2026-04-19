@@ -21,7 +21,7 @@ class FedaPayService
 
     public function webhookSecret(): ?string
     {
-        return $this->configValue('services.fedapay.webhook_secret', $this->secretKey());
+        return $this->configValue('services.fedapay.webhook_secret');
     }
 
     public function environment(): string
