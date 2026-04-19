@@ -15,6 +15,7 @@ class AuditRemoteFedapayTransactions extends Command
         {--limit=50 : Nombre maximum de lignes problematiques a afficher}
         {--pages=20 : Nombre maximum de pages a interroger chez FedaPay}
         {--per-page=100 : Nombre maximum de transactions par page}
+        {--ignore-reference=* : References FedaPay a exclure de l audit}
         {--debug : Affiche l environnement FedaPay et quelques diagnostics}
         {--recover : Applique le rattrapage local pour les transactions reussies manquantes ou desynchronisees}';
 
@@ -33,6 +34,7 @@ class AuditRemoteFedapayTransactions extends Command
         $perPage = max(1, min(200, (int) $this->option('per-page')));
         $recover = (bool) $this->option('recover');
         $debug = (bool) $this->option('debug');
+        $ignoredReferences = $this->ignoredReferences();
 
         $seenTransactionIds = [];
         $remoteSuccessful = [];
@@ -72,6 +74,7 @@ class AuditRemoteFedapayTransactions extends Command
             foreach ($batch as $transaction) {
                 $transactionId = trim((string) data_get($transaction, 'id', ''));
                 $status = strtolower(trim((string) data_get($transaction, 'status', '')));
+                $reference = $this->extractAuditReference($transaction);
                 $statusKey = $status !== '' ? $status : '(empty)';
 
                 if (!isset($statusHistogram[$statusKey])) {
@@ -92,6 +95,10 @@ class AuditRemoteFedapayTransactions extends Command
                     $seenTransactionIds[$transactionId] = true;
                 }
 
+                if ($this->shouldIgnoreReference($reference, $ignoredReferences)) {
+                    continue;
+                }
+
                 $remoteSuccessful[] = $transaction;
             }
 
@@ -108,6 +115,7 @@ class AuditRemoteFedapayTransactions extends Command
             'local_not_succeeded' => 0,
             'local_succeeded_no_vote' => 0,
             'recovered' => 0,
+            'ignored_references' => count($ignoredReferences),
         ];
         $problemRows = [];
 
@@ -116,12 +124,7 @@ class AuditRemoteFedapayTransactions extends Command
             $summary['remote_amount'] += $amount;
 
             $transactionId = trim((string) data_get($transaction, 'id', ''));
-            $reference = trim((string) (
-                data_get($transaction, 'merchant_reference')
-                ?: data_get($transaction, 'custom_metadata.payment_reference')
-                ?: data_get($transaction, 'reference')
-                ?: ''
-            ));
+            $reference = $this->extractAuditReference($transaction);
 
             $payment = null;
             if ($transactionId !== '') {
@@ -200,6 +203,7 @@ class AuditRemoteFedapayTransactions extends Command
                     ['Webhook secret configured', $fedapay->webhookSecret() ? 'yes' : 'no'],
                     ['Pages requested', $pages],
                     ['Per-page requested', $perPage],
+                    ['Ignored references configured', $summary['ignored_references']],
                     ['Pages inspected', $pagesInspected],
                     ['Raw remote transactions inspected', $rawTransactionsInspected],
                     ['Recognized success statuses', implode(', ', self::SUCCESS_STATUSES)],
@@ -239,6 +243,7 @@ class AuditRemoteFedapayTransactions extends Command
                 ['Paiements locaux non succeeds', $summary['local_not_succeeded']],
                 ['Paiements succeeds sans vote confirme', $summary['local_succeeded_no_vote']],
                 ['Paiements recuperes pendant ce run', $summary['recovered']],
+                ['References ignorees', $summary['ignored_references']],
             ]
         );
 
@@ -262,5 +267,38 @@ class AuditRemoteFedapayTransactions extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function ignoredReferences(): array
+    {
+        $configured = config('services.fedapay.audit_ignore_references', '');
+        $configuredList = is_array($configured)
+            ? $configured
+            : (preg_split('/[\s,;]+/', (string) $configured) ?: []);
+        $optionList = $this->option('ignore-reference');
+
+        return array_values(array_unique(array_filter(array_map(
+            static fn ($value) => trim((string) $value),
+            array_merge($configuredList, is_array($optionList) ? $optionList : [])
+        ), static fn ($value) => $value !== '')));
+    }
+
+    private function shouldIgnoreReference(string $reference, array $ignoredReferences): bool
+    {
+        if ($reference === '' || $ignoredReferences === []) {
+            return false;
+        }
+
+        return in_array($reference, $ignoredReferences, true);
+    }
+
+    private function extractAuditReference(array $transaction): string
+    {
+        return trim((string) (
+            data_get($transaction, 'merchant_reference')
+            ?: data_get($transaction, 'custom_metadata.payment_reference')
+            ?: data_get($transaction, 'reference')
+            ?: ''
+        ));
     }
 }
