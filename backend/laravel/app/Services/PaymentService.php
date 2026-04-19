@@ -499,9 +499,108 @@ class PaymentService
             $payment->loadMissing(['vote', 'user', 'transactions']);
         }
 
+        if (!$payment->vote) {
+            $payment = $this->restoreMissingVoteForSucceededPayment($payment);
+        }
+
         if ($payment->vote) {
             $payment = $this->reconcileVoteForSucceededPayment($payment, $payload);
         }
+
+        return $payment->fresh(['vote', 'user']);
+    }
+
+    private function restoreMissingVoteForSucceededPayment(Payment $payment): Payment
+    {
+        $payment->loadMissing(['vote', 'user']);
+
+        if ($payment->vote) {
+            return $payment->fresh(['vote', 'user']);
+        }
+
+        $candidateId = (int) (
+            data_get($payment->meta, 'candidate_id')
+            ?: data_get($payment->payload, 'custom_metadata.candidate_id')
+            ?: data_get($payment->payload, 'fedapay.custom_metadata.candidate_id')
+            ?: 0
+        );
+
+        if ($candidateId <= 0) {
+            logger()->warning('Succeeded payment cannot restore vote without candidate', [
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference,
+            ]);
+
+            return $payment->fresh(['vote', 'user']);
+        }
+
+        $quantity = max(1, (int) (
+            data_get($payment->meta, 'quantity')
+            ?: data_get($payment->payload, 'custom_metadata.quantity')
+            ?: data_get($payment->payload, 'fedapay.custom_metadata.quantity')
+            ?: 1
+        ));
+        $ipAddress = trim((string) data_get($payment->meta, 'ip', ''));
+
+        DB::transaction(function () use ($payment, $candidateId, $quantity, $ipAddress): void {
+            $lockedPayment = Payment::query()
+                ->with(['vote', 'user'])
+                ->lockForUpdate()
+                ->find($payment->id);
+
+            if (!$lockedPayment || $lockedPayment->vote) {
+                return;
+            }
+
+            $existingVote = Vote::withTrashed()
+                ->where('payment_id', $lockedPayment->id)
+                ->first();
+
+            $votePayload = [
+                'user_id' => $lockedPayment->user_id,
+                'candidate_id' => $candidateId,
+                'amount' => (float) $lockedPayment->amount,
+                'quantity' => $quantity,
+                'currency' => $lockedPayment->currency,
+                'status' => Vote::STATUS_CONFIRMED,
+                'ip_address' => $ipAddress !== '' ? $ipAddress : null,
+                'meta' => array_filter([
+                    'recovered_from_payment' => true,
+                    'payment_reference' => $lockedPayment->reference,
+                    'candidate_name' => data_get($lockedPayment->meta, 'candidate_name'),
+                    'unit_price' => data_get($lockedPayment->meta, 'unit_price'),
+                    'submitted_amount' => data_get($lockedPayment->meta, 'submitted_amount'),
+                ], static fn ($value) => $value !== null && $value !== ''),
+            ];
+
+            if ($existingVote) {
+                if (method_exists($existingVote, 'trashed') && $existingVote->trashed()) {
+                    $existingVote->restore();
+                }
+
+                $existingVote->update($votePayload);
+                $vote = $existingVote->fresh();
+            } else {
+                $vote = Vote::create(array_merge($votePayload, [
+                    'payment_id' => $lockedPayment->id,
+                ]));
+            }
+
+            ActivityLog::create([
+                'causer_id' => $vote->user_id ?: $lockedPayment->user_id,
+                'causer_type' => \App\Models\User::class,
+                'action' => 'vote_restored_from_payment',
+                'ip_address' => $vote->ip_address,
+                'meta' => array_filter([
+                    'candidate_id' => $vote->candidate_id,
+                    'vote_id' => $vote->id,
+                    'quantity' => $vote->quantity,
+                    'payment_id' => $lockedPayment->id,
+                    'reference' => $lockedPayment->reference,
+                ], static fn ($value) => $value !== null && $value !== ''),
+                'status' => 'active',
+            ]);
+        });
 
         return $payment->fresh(['vote', 'user']);
     }
