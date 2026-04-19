@@ -40,6 +40,7 @@ return [
         'secret_key' => env('FEDAPAY_SECRET_KEY'),
         'webhook_secret' => env('FEDAPAY_WEBHOOK_SECRET'),
         'environment' => env('FEDAPAY_ENVIRONMENT', 'sandbox'),
+        'read_model_warm_enabled' => env('FEDAPAY_READ_MODEL_WARM_ENABLED', false),
     ],
 
     'fraud' => [

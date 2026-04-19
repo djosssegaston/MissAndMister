@@ -229,6 +229,10 @@ class PaymentService
         int $recentHours = self::DEFAULT_RECONCILE_RECENT_HOURS,
     ): void
     {
+        if (!$this->shouldWarmPaymentStateDuringHttpRequests()) {
+            return;
+        }
+
         static $scheduled = false;
 
         if ($scheduled) {
@@ -247,6 +251,15 @@ class PaymentService
                 ]);
             }
         });
+    }
+
+    private function shouldWarmPaymentStateDuringHttpRequests(): bool
+    {
+        if (app()->runningInConsole()) {
+            return true;
+        }
+
+        return (bool) config('services.fedapay.read_model_warm_enabled', false);
     }
 
     public function reconcileUnsettledFedapayPaymentsIfDue(

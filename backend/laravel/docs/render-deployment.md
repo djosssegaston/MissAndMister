@@ -27,6 +27,7 @@ Ces variables sont deja referencees dans `render.yaml`, mais certaines doivent e
 - `FEDAPAY_SECRET_KEY`
 - `FEDAPAY_WEBHOOK_SECRET`
 - `FEDAPAY_ENVIRONMENT`
+- `FEDAPAY_READ_MODEL_WARM_ENABLED`
 
 ## Base MySQL Railway retenue
 
@@ -49,3 +50,4 @@ Ne pas utiliser l’hote interne Railway `mysql.railway.internal` depuis Render.
 - Les emails sont gardes en log pour ce premier deploiement.
 - Les paiements FedaPay restent inactifs tant que les clés publiques, secrètes et de webhook ne sont pas fournies.
 - Les clés FedaPay sont désormais gérées uniquement côté serveur via `.env` / Render, plus via le dashboard admin.
+- En production mutualisée ou lente, laissez `FEDAPAY_READ_MODEL_WARM_ENABLED=false` pour éviter de lancer des réconciliations FedaPay pendant les requêtes HTTP normales.

@@ -21,6 +21,7 @@ class AuditRemoteFedapayTransactions extends Command
     protected $description = 'Compare les transactions FedaPay live aux paiements locaux et peut rattraper celles manquantes';
 
     private const SUCCESS_STATUSES = ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred'];
+    private const MAX_DEBUG_STATUS_ROWS = 8;
 
     public function handle(
         FedaPayService $fedapay,
@@ -35,6 +36,9 @@ class AuditRemoteFedapayTransactions extends Command
 
         $seenTransactionIds = [];
         $remoteSuccessful = [];
+        $rawTransactionsInspected = 0;
+        $pagesInspected = 0;
+        $statusHistogram = [];
 
         for ($page = 1; $page <= $pages; $page++) {
             $batch = $fedapay->searchTransactions([
@@ -46,11 +50,19 @@ class AuditRemoteFedapayTransactions extends Command
                 break;
             }
 
-            $freshItems = 0;
+            $pagesInspected++;
+            $rawTransactionsInspected += count($batch);
 
             foreach ($batch as $transaction) {
                 $transactionId = trim((string) data_get($transaction, 'id', ''));
                 $status = strtolower(trim((string) data_get($transaction, 'status', '')));
+                $statusKey = $status !== '' ? $status : '(empty)';
+
+                if (!isset($statusHistogram[$statusKey])) {
+                    $statusHistogram[$statusKey] = 0;
+                }
+
+                $statusHistogram[$statusKey]++;
 
                 if (!in_array($status, self::SUCCESS_STATUSES, true)) {
                     continue;
@@ -65,10 +77,9 @@ class AuditRemoteFedapayTransactions extends Command
                 }
 
                 $remoteSuccessful[] = $transaction;
-                $freshItems++;
             }
 
-            if ($freshItems === 0) {
+            if (count($batch) < $perPage) {
                 break;
             }
         }
@@ -173,8 +184,23 @@ class AuditRemoteFedapayTransactions extends Command
                     ['Webhook secret configured', $fedapay->webhookSecret() ? 'yes' : 'no'],
                     ['Pages requested', $pages],
                     ['Per-page requested', $perPage],
+                    ['Pages inspected', $pagesInspected],
+                    ['Raw remote transactions inspected', $rawTransactionsInspected],
+                    ['Recognized success statuses', implode(', ', self::SUCCESS_STATUSES)],
                 ]
             );
+
+            if ($statusHistogram !== []) {
+                $this->table(
+                    ['Statut remote', 'Occurrences'],
+                    collect($statusHistogram)
+                        ->sortByDesc(fn (int $count) => $count)
+                        ->take(self::MAX_DEBUG_STATUS_ROWS)
+                        ->map(fn (int $count, string $status) => [$status, $count])
+                        ->values()
+                        ->all()
+                );
+            }
         }
 
         $this->table(
