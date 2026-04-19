@@ -49,12 +49,11 @@ class ReconcileFedapayPayments extends Command
                 $totals[$key] += (int) ($stats[$key] ?? 0);
             }
 
-            $progress = (int) ($stats['confirmed'] ?? 0) + (int) ($stats['failed'] ?? 0) + (int) ($stats['vote_repairs'] ?? 0);
             $inspected = (int) ($stats['inspected'] ?? 0);
 
             $this->line("Passe {$pass}: inspectes={$inspected}, confirmes=" . ($stats['confirmed'] ?? 0) . ", echoues=" . ($stats['failed'] ?? 0) . ", en_traitement=" . ($stats['processing'] ?? 0) . ", votes_repares=" . ($stats['vote_repairs'] ?? 0));
 
-            if ($inspected < $limit || $progress === 0) {
+            if ($inspected < $limit) {
                 break;
             }
         }

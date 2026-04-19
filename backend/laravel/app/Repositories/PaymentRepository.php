@@ -27,6 +27,9 @@ class PaymentRepository
             'status' => $status,
             'payload' => array_merge($payment->payload ?? [], $payload),
             'paid_at' => $status === 'succeeded' ? now() : $payment->paid_at,
+            // Keep reconciliation scans moving forward even when the remote state
+            // stays unchanged, so older pending rows do not starve newer ones.
+            'updated_at' => now(),
         ]);
 
         return $payment;
