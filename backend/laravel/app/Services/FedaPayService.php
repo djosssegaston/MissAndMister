@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Arr;
@@ -76,8 +77,7 @@ class FedaPayService
             $payload['mode'] = $mode;
         }
 
-        $response = Http::baseUrl($this->apiBaseUrl())
-            ->acceptJson()
+        $response = $this->request()
             ->asJson()
             ->withToken($this->requireSecretKey())
             ->post('/transactions', $payload)
@@ -93,8 +93,7 @@ class FedaPayService
      */
     public function retrieveTransaction(int|string $transactionId): ?array
     {
-        $response = Http::baseUrl($this->apiBaseUrl())
-            ->acceptJson()
+        $response = $this->request()
             ->withToken($this->requireSecretKey())
             ->get('/transactions/' . $transactionId)
             ->throw()
@@ -109,8 +108,7 @@ class FedaPayService
      */
     public function generateTransactionToken(int|string $transactionId): array
     {
-        $response = Http::baseUrl($this->apiBaseUrl())
-            ->acceptJson()
+        $response = $this->request()
             ->asJson()
             ->withToken($this->requireSecretKey())
             ->post('/transactions/' . $transactionId . '/token')
@@ -135,8 +133,7 @@ class FedaPayService
      */
     public function searchTransactionsDebug(array $params = []): array
     {
-        $response = Http::baseUrl($this->apiBaseUrl())
-            ->acceptJson()
+        $response = $this->request()
             ->withToken($this->requireSecretKey())
             ->get('/transactions/search', $params)
             ->throw();
@@ -164,7 +161,7 @@ class FedaPayService
 
     public function verifyWebhookSignature(string $payload, ?string $signature): bool
     {
-        $secret = $this->webhookSecret();
+        $secret = trim((string) $this->webhookSecret());
 
         if (!$secret || !$signature) {
             return false;
@@ -225,7 +222,9 @@ class FedaPayService
     {
         $value = config($configKey);
         if ($value !== null && $value !== '') {
-            return (string) $value;
+            $trimmed = trim((string) $value);
+
+            return $trimmed !== '' ? $trimmed : $default;
         }
 
         return $default;
@@ -240,6 +239,14 @@ class FedaPayService
         }
 
         return $secret;
+    }
+
+    private function request(): PendingRequest
+    {
+        return Http::baseUrl($this->apiBaseUrl())
+            ->acceptJson()
+            ->connectTimeout(5)
+            ->timeout(15);
     }
 
     private function normalizeTransactionPayload(array $payload): array

@@ -1130,7 +1130,22 @@ class PaymentService
 
     private function resolveTransactionOutcome(array $payload): string
     {
-        $status = strtolower(trim((string) Arr::get($payload, 'status', '')));
+        $status = '';
+        $statusCandidates = [
+            Arr::get($payload, 'status'),
+            Arr::get($payload, 'data.status'),
+            Arr::get($payload, 'data.entity.status'),
+            Arr::get($payload, 'transaction.status'),
+            Arr::get($payload, 'data.transaction.status'),
+        ];
+
+        foreach ($statusCandidates as $candidate) {
+            $value = strtolower(trim((string) $candidate));
+            if ($value !== '') {
+                $status = $value;
+                break;
+            }
+        }
 
         if (in_array($status, self::SUCCESS_STATUSES, true)) {
             return 'succeeded';

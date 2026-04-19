@@ -124,35 +124,42 @@ class PaymentController extends Controller
         $eventName = $this->extractEventName($payload);
         $transactionId = $this->extractTransactionId($payload);
         $reference = $this->extractPaymentReference($payload);
+        $status = $this->extractWebhookStatus($payload);
         $fingerprint = sha1(json_encode([
             'event' => $eventName,
             'transaction_id' => $transactionId,
             'reference' => $reference,
             'payload_id' => data_get($payload, 'id') ?? data_get($payload, 'data.id'),
-            'status' => data_get($payload, 'status') ?? data_get($payload, 'data.status'),
+            'status' => $status,
             'updated_at' => data_get($payload, 'updated_at') ?? data_get($payload, 'data.updated_at'),
         ]));
+        $lockKey = 'fedapay:webhook:process:' . $fingerprint;
 
-        app()->terminating(function () use ($payload, $eventName, $transactionId, $reference, $fingerprint): void {
-            $lockKey = 'fedapay:webhook:process:' . $fingerprint;
+        if (!Cache::add($lockKey, now()->timestamp, 120)) {
+            return response()->json(['message' => 'Webhook already processed']);
+        }
 
-            if (!Cache::add($lockKey, now()->timestamp, 120)) {
-                return;
-            }
+        try {
+            $result = $this->processWebhookPayload($payload, $eventName, $transactionId, $reference);
+        } catch (\Throwable $exception) {
+            Cache::forget($lockKey);
+            logger()->warning('FedaPay webhook processing failed', [
+                'event' => $eventName,
+                'transaction_id' => $transactionId,
+                'reference' => $reference,
+                'status' => $status !== '' ? $status : null,
+                'error' => $exception->getMessage(),
+            ]);
 
-            try {
-                $this->processWebhookPayload($payload, $eventName, $transactionId, $reference);
-            } catch (\Throwable $exception) {
-                logger()->warning('FedaPay webhook deferred processing failed', [
-                    'event' => $eventName,
-                    'transaction_id' => $transactionId,
-                    'reference' => $reference,
-                    'error' => $exception->getMessage(),
-                ]);
-            }
-        });
+            // Return a non-2xx response so FedaPay can retry the event delivery.
+            return response()->json(['message' => 'Webhook processing failed'], 500);
+        }
 
-        return response()->json(['message' => 'Webhook accepted']);
+        return response()->json([
+            'message' => 'Webhook processed',
+            'result' => $result['result'] ?? 'processed',
+            'outcome' => $result['outcome'] ?? null,
+        ]);
     }
 
     private function processWebhookPayload(
@@ -160,15 +167,36 @@ class PaymentController extends Controller
         string $eventName,
         ?string $transactionId,
         ?string $reference,
-    ): void {
+    ): array {
         $payment = null;
+        $remoteTransaction = null;
 
         if ($transactionId !== null) {
             $payment = $this->paymentRepo->findByTransactionId($transactionId);
+            try {
+                $remoteTransaction = $this->fedapay->retrieveTransaction($transactionId);
+            } catch (\Throwable $exception) {
+                logger()->warning('FedaPay transaction lookup failed during webhook sync', [
+                    'payment_id' => $payment?->id,
+                    'transaction_id' => $transactionId,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
         }
 
         if (!$payment && $reference !== null) {
             $payment = $this->paymentRepo->findByReference($reference);
+        }
+
+        if (!$payment && $remoteTransaction) {
+            $syncedPayment = $this->payments->syncRemoteSuccessfulTransaction($remoteTransaction);
+            if ($syncedPayment) {
+                return [
+                    'result' => 'synced_without_local_match',
+                    'outcome' => $syncedPayment->status,
+                    'payment_id' => $syncedPayment->id,
+                ];
+            }
         }
 
         if (!$payment) {
@@ -176,27 +204,29 @@ class PaymentController extends Controller
                 'event' => $eventName,
                 'transaction_id' => $transactionId,
                 'reference' => $reference,
+                'status' => $this->extractWebhookStatus($payload),
             ]);
 
-            return;
-        }
-
-        $remoteTransaction = null;
-        if ($transactionId !== null) {
-            try {
-                $remoteTransaction = $this->fedapay->retrieveTransaction($transactionId);
-            } catch (\Throwable $exception) {
-                logger()->warning('FedaPay transaction lookup failed during webhook sync', [
-                    'payment_id' => $payment->id,
-                    'transaction_id' => $transactionId,
-                    'error' => $exception->getMessage(),
-                ]);
+            // For application references, force retry instead of silently losing an event.
+            if ($reference !== null && $this->looksLikeApplicationReference($reference)) {
+                throw new \RuntimeException('No local payment matched an application reference in webhook payload.');
             }
+
+            return [
+                'result' => 'unmatched',
+                'outcome' => 'processing',
+            ];
         }
 
         $outcome = $this->resolveWebhookOutcome($payload, $remoteTransaction, $eventName);
 
-        $this->applyOutcome($payment, $outcome, $remoteTransaction ?: $payload, $eventName);
+        $updatedPayment = $this->applyOutcome($payment, $outcome, $remoteTransaction ?: $payload, $eventName);
+
+        return [
+            'result' => 'applied',
+            'outcome' => $updatedPayment->status,
+            'payment_id' => $updatedPayment->id,
+        ];
     }
 
     private function applyOutcome(Payment $payment, string $outcome, array $payload = [], ?string $eventName = null): Payment
@@ -245,6 +275,7 @@ class PaymentController extends Controller
         $candidates = [
             data_get($payload, 'data.id'),
             data_get($payload, 'data.entity.id'),
+            data_get($payload, 'data.object.id'),
             data_get($payload, 'data.transaction_id'),
             data_get($payload, 'transaction.id'),
             data_get($payload, 'data.transaction.id'),
@@ -269,12 +300,18 @@ class PaymentController extends Controller
             data_get($payload, 'merchant_reference'),
             data_get($payload, 'data.merchant_reference'),
             data_get($payload, 'data.entity.merchant_reference'),
+            data_get($payload, 'data.object.merchant_reference'),
             data_get($payload, 'reference'),
             data_get($payload, 'data.reference'),
             data_get($payload, 'data.entity.reference'),
+            data_get($payload, 'data.object.reference'),
             data_get($payload, 'custom_metadata.payment_reference'),
             data_get($payload, 'data.custom_metadata.payment_reference'),
             data_get($payload, 'data.custom_metadata.reference'),
+            data_get($payload, 'data.entity.custom_metadata.payment_reference'),
+            data_get($payload, 'data.entity.custom_metadata.reference'),
+            data_get($payload, 'data.object.custom_metadata.payment_reference'),
+            data_get($payload, 'data.object.custom_metadata.reference'),
             data_get($payload, 'transaction.reference'),
             data_get($payload, 'data.transaction.reference'),
         ];
@@ -293,28 +330,74 @@ class PaymentController extends Controller
     {
         $status = strtolower((string) (
             data_get($remoteTransaction, 'status')
-            ?? data_get($payload, 'status')
-            ?? data_get($payload, 'data.status')
-            ?? ''
+            ?: $this->extractWebhookStatus($payload)
+            ?: ''
         ));
 
         $approvedIndicators = ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred'];
         $failureIndicators = ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected', 'refunded'];
         $processingIndicators = ['pending', 'processing', 'created', 'initiated'];
 
-        if (in_array($status, $approvedIndicators, true) || str_contains($eventName, 'approved') || str_contains($eventName, 'success')) {
+        if (
+            in_array($status, $approvedIndicators, true)
+            || str_contains($eventName, 'approved')
+            || str_contains($eventName, 'success')
+            || str_contains($eventName, 'paid')
+            || str_contains($eventName, 'transferred')
+        ) {
             return 'succeeded';
         }
 
-        if (in_array($status, $failureIndicators, true) || str_contains($eventName, 'canceled') || str_contains($eventName, 'cancelled') || str_contains($eventName, 'declined') || str_contains($eventName, 'failed')) {
+        if (
+            in_array($status, $failureIndicators, true)
+            || str_contains($eventName, 'canceled')
+            || str_contains($eventName, 'cancelled')
+            || str_contains($eventName, 'declined')
+            || str_contains($eventName, 'failed')
+            || str_contains($eventName, 'refunded')
+            || str_contains($eventName, 'expired')
+        ) {
             return 'failed';
         }
 
-        if (in_array($status, $processingIndicators, true) || str_contains($eventName, 'pending') || str_contains($eventName, 'created')) {
+        if (
+            in_array($status, $processingIndicators, true)
+            || str_contains($eventName, 'pending')
+            || str_contains($eventName, 'created')
+            || str_contains($eventName, 'updated')
+        ) {
             return 'processing';
         }
 
         return 'processing';
+    }
+
+    private function extractWebhookStatus(array $payload): string
+    {
+        $candidates = [
+            data_get($payload, 'status'),
+            data_get($payload, 'data.status'),
+            data_get($payload, 'data.entity.status'),
+            data_get($payload, 'data.object.status'),
+            data_get($payload, 'data.transaction.status'),
+            data_get($payload, 'transaction.status'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            $value = strtolower(trim((string) $candidate));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
+    }
+
+    private function looksLikeApplicationReference(string $reference): bool
+    {
+        $value = strtoupper(trim($reference));
+
+        return $value !== '' && preg_match('/^[A-Z0-9]{12}$/', $value) === 1;
     }
 
     private function syncResponsePayload(Payment $payment, ?array $remoteTransaction = null): array
