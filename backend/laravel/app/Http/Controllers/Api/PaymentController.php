@@ -170,9 +170,18 @@ class PaymentController extends Controller
     ): array {
         $payment = null;
         $remoteTransaction = null;
+        $payloadStatus = $this->extractWebhookStatus($payload);
 
         if ($transactionId !== null) {
             $payment = $this->paymentRepo->findByTransactionId($transactionId);
+        }
+
+        if (!$payment && $reference !== null) {
+            $payment = $this->paymentRepo->findByReference($reference);
+        }
+
+        $shouldFetchRemoteTransaction = $transactionId !== null && (!$payment || $payloadStatus === '');
+        if ($shouldFetchRemoteTransaction) {
             try {
                 $remoteTransaction = $this->fedapay->retrieveTransaction($transactionId);
             } catch (\Throwable $exception) {
@@ -182,10 +191,6 @@ class PaymentController extends Controller
                     'error' => $exception->getMessage(),
                 ]);
             }
-        }
-
-        if (!$payment && $reference !== null) {
-            $payment = $this->paymentRepo->findByReference($reference);
         }
 
         if (!$payment && $remoteTransaction) {
@@ -204,13 +209,8 @@ class PaymentController extends Controller
                 'event' => $eventName,
                 'transaction_id' => $transactionId,
                 'reference' => $reference,
-                'status' => $this->extractWebhookStatus($payload),
+                'status' => $payloadStatus !== '' ? $payloadStatus : null,
             ]);
-
-            // For application references, force retry instead of silently losing an event.
-            if ($reference !== null && $this->looksLikeApplicationReference($reference)) {
-                throw new \RuntimeException('No local payment matched an application reference in webhook payload.');
-            }
 
             return [
                 'result' => 'unmatched',
@@ -391,13 +391,6 @@ class PaymentController extends Controller
         }
 
         return '';
-    }
-
-    private function looksLikeApplicationReference(string $reference): bool
-    {
-        $value = strtoupper(trim($reference));
-
-        return $value !== '' && preg_match('/^[A-Z0-9]{12}$/', $value) === 1;
     }
 
     private function syncResponsePayload(Payment $payment, ?array $remoteTransaction = null): array

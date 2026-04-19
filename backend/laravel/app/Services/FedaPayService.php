@@ -181,37 +181,45 @@ class FedaPayService
             [$name, $value] = array_map('trim', explode('=', $part, 2));
 
             if ($name !== '' && $value !== '') {
-                $parts[strtolower($name)] = $value;
+                $lowerName = strtolower($name);
+                if (!isset($parts[$lowerName])) {
+                    $parts[$lowerName] = [];
+                }
+
+                $parts[$lowerName][] = $value;
             }
         }
 
         if (!empty($parts['t'])) {
-            $timestamp = $parts['t'];
-            $expectedCandidates[] = hash_hmac('sha256', $timestamp . '.' . $payload, $secret);
-            $expectedCandidates[] = hash_hmac('sha256', $timestamp . $payload, $secret);
+            foreach ($parts['t'] as $timestamp) {
+                $expectedCandidates[] = hash_hmac('sha256', $timestamp . '.' . $payload, $secret);
+                $expectedCandidates[] = hash_hmac('sha256', $timestamp . $payload, $secret);
+            }
         }
 
         foreach ($expectedCandidates as $expected) {
-            if (hash_equals($expected, $normalized)) {
+            if ($this->signatureMatches($expected, $normalized)) {
                 return true;
             }
         }
 
-        foreach ($parts as $name => $value) {
-            if ($value === '') {
-                continue;
-            }
-
+        foreach ($parts as $name => $values) {
             if (in_array($name, ['v1', 'signature', 'sha256', 'hash'], true)) {
-                foreach ($expectedCandidates as $expected) {
-                    if (hash_equals($expected, $value)) {
-                        return true;
+                foreach ($values as $value) {
+                    if ($value === '') {
+                        continue;
+                    }
+
+                    foreach ($expectedCandidates as $expected) {
+                        if ($this->signatureMatches($expected, $value)) {
+                            return true;
+                        }
                     }
                 }
             }
         }
 
-        if (hash_equals($expectedCandidates[0], $normalized)) {
+        if ($this->signatureMatches($expectedCandidates[0], $normalized)) {
             return true;
         }
 
@@ -239,6 +247,14 @@ class FedaPayService
         }
 
         return $secret;
+    }
+
+    private function signatureMatches(string $expected, string $provided): bool
+    {
+        $normalizedExpected = strtolower(trim($expected));
+        $normalizedProvided = strtolower(trim($provided));
+
+        return $normalizedExpected !== '' && $normalizedProvided !== '' && hash_equals($normalizedExpected, $normalizedProvided);
     }
 
     private function request(): PendingRequest
