@@ -425,6 +425,16 @@ class PaymentService
         return $this->reconcileFailedPayment($payment->fresh(['vote', 'user']), $payload, $source);
     }
 
+    public function recoverMissingVote(string $reference, int $candidateId): ?Payment
+    {
+        $payment = $this->payments->findByReference($reference);
+        if (!$payment) {
+            return null;
+        }
+
+        return $this->restoreMissingVoteForSucceededPayment($payment, $candidateId);
+    }
+
     private function extractTransactionReference(array $payload): ?string
     {
         $candidates = [
@@ -530,7 +540,7 @@ class PaymentService
         return $payment->fresh(['vote', 'user']);
     }
 
-    private function restoreMissingVoteForSucceededPayment(Payment $payment): Payment
+    private function restoreMissingVoteForSucceededPayment(Payment $payment, ?int $forcedCandidateId = null): Payment
     {
         $payment->loadMissing(['vote', 'user']);
 
@@ -538,13 +548,15 @@ class PaymentService
             return $payment->fresh(['vote', 'user']);
         }
 
-        $candidateId = (int) (
-            data_get($payment->meta, 'candidate_id')
-            ?: data_get($payment->payload, 'custom_metadata.candidate_id')
-            ?: data_get($payment->payload, 'fedapay.custom_metadata.candidate_id')
-            ?: 0
-        );
-        $candidateId = $this->resolveRestorableCandidateId($candidateId, $payment);
+        $candidateId = $forcedCandidateId && $forcedCandidateId > 0
+            ? $forcedCandidateId
+            : (int) (
+                data_get($payment->meta, 'candidate_id')
+                ?: data_get($payment->payload, 'custom_metadata.candidate_id')
+                ?: data_get($payment->payload, 'fedapay.custom_metadata.candidate_id')
+                ?: 0
+            );
+        $candidateId = $this->resolveRestorableCandidateId($candidateId, $payment, $forcedCandidateId !== null);
 
         if ($candidateId <= 0) {
             logger()->warning('Succeeded payment cannot restore vote without candidate', [
@@ -669,10 +681,14 @@ class PaymentService
         return $payment->fresh(['vote', 'user']);
     }
 
-    private function resolveRestorableCandidateId(int $candidateId, Payment $payment): int
+    private function resolveRestorableCandidateId(int $candidateId, Payment $payment, bool $strict = false): int
     {
         if ($candidateId > 0 && Candidate::withTrashed()->whereKey($candidateId)->exists()) {
             return $candidateId;
+        }
+
+        if ($strict) {
+            return 0;
         }
 
         $candidateName = trim((string) (

@@ -98,6 +98,7 @@ class AuditFedapayPayments extends Command
                         'transaction_id' => (string) ($payment->transaction_id ?? ''),
                         'amount' => (float) $payment->amount,
                         'reason' => $reason,
+                        'candidate_name' => (string) (data_get($payment->meta, 'candidate_name') ?? ''),
                         'active_vote_id' => $activeVote?->id,
                         'active_vote_status' => $activeVote?->status,
                         'candidate_id' => $activeVote?->candidate_id ?: data_get($payment->meta, 'candidate_id'),
@@ -144,13 +145,14 @@ class AuditFedapayPayments extends Command
 
         if ($problemRows !== []) {
             $this->table(
-                ['Payment ID', 'Reference', 'Transaction', 'Montant', 'Raison', 'Vote actif', 'Statut vote', 'Candidate', 'Votes total', 'Votes actifs', 'Votes suppr.'],
+                ['Payment ID', 'Reference', 'Transaction', 'Montant', 'Raison', 'Nom candidat', 'Vote actif', 'Statut vote', 'Candidate', 'Votes total', 'Votes actifs', 'Votes suppr.'],
                 array_map(static fn (array $row) => [
                     $row['payment_id'],
                     $row['reference'],
                     $row['transaction_id'],
                     number_format($row['amount'], 2, ',', ' '),
                     $row['reason'],
+                    $row['candidate_name'] !== '' ? $row['candidate_name'] : '-',
                     $row['active_vote_id'] ?? '-',
                     $row['active_vote_status'] ?? '-',
                     $row['candidate_id'] ?? '-',
