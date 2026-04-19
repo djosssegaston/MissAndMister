@@ -10,6 +10,7 @@ use App\Models\Vote;
 use App\Jobs\SendVoteConfirmationJob;
 use App\Repositories\PaymentRepository;
 use App\Repositories\TransactionRepository;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -435,6 +436,113 @@ class PaymentService
         return $this->restoreMissingVoteForSucceededPayment($payment, $candidateId);
     }
 
+    public function syncRemoteSuccessfulTransaction(array $remoteTransaction): ?Payment
+    {
+        $transactionId = $this->extractRemoteTransactionId($remoteTransaction);
+        $reference = $this->extractRemoteMerchantReference($remoteTransaction);
+
+        if (!$transactionId && !$reference) {
+            return null;
+        }
+
+        $payment = null;
+
+        if ($transactionId !== null) {
+            $payment = Payment::withTrashed()->where('transaction_id', $transactionId)->first();
+        }
+
+        if (!$payment && $reference !== null) {
+            $payment = Payment::withTrashed()->where('reference', $reference)->first();
+        }
+
+        if ($payment) {
+            if (method_exists($payment, 'trashed') && $payment->trashed()) {
+                $payment->restore();
+            }
+
+            return $this->syncPaymentWithProvider($payment->fresh(['vote', 'user', 'transactions']), $remoteTransaction, 'remote-audit');
+        }
+
+        if ($this->resolveTransactionOutcome($remoteTransaction) !== 'succeeded') {
+            return null;
+        }
+
+        if (!$reference) {
+            logger()->warning('Cannot import remote successful transaction without merchant reference', [
+                'transaction_id' => $transactionId,
+            ]);
+
+            return null;
+        }
+
+        $customMetadata = $this->extractRemoteCustomMetadata($remoteTransaction);
+        $currency = strtoupper((string) (
+            data_get($customMetadata, 'currency')
+            ?: data_get($remoteTransaction, 'currency.iso')
+            ?: 'XOF'
+        ));
+        $amount = (float) (
+            data_get($remoteTransaction, 'amount')
+            ?: data_get($customMetadata, 'amount')
+            ?: 0
+        );
+
+        if ($amount <= 0) {
+            logger()->warning('Cannot import remote successful transaction without amount', [
+                'transaction_id' => $transactionId,
+                'reference' => $reference,
+            ]);
+
+            return null;
+        }
+
+        $payment = $this->payments->create([
+            'user_id' => null,
+            'reference' => $reference,
+            'transaction_id' => $transactionId,
+            'amount' => $amount,
+            'currency' => $currency,
+            'provider' => 'fedapay',
+            'status' => Payment::STATUS_SUCCEEDED,
+            'payload' => [
+                'fedapay' => $remoteTransaction,
+            ],
+            'meta' => $this->buildImportedPaymentMeta($remoteTransaction, $customMetadata),
+            'paid_at' => $this->resolveRemotePaidAt($remoteTransaction),
+        ]);
+
+        $providerReference = $this->extractTransactionReference($remoteTransaction) ?? $transactionId;
+        if (
+            $providerReference
+            && !$payment->transactions()->where('provider_reference', $providerReference)->exists()
+        ) {
+            $this->transactions->create([
+                'payment_id' => $payment->id,
+                'type' => 'credit',
+                'status' => 'succeeded',
+                'amount' => $payment->amount,
+                'currency' => $payment->currency,
+                'provider_reference' => $providerReference,
+                'payload' => $remoteTransaction,
+            ]);
+        }
+
+        ActivityLog::create([
+            'causer_id' => $payment->user_id,
+            'causer_type' => \App\Models\User::class,
+            'action' => 'payment_imported_from_fedapay',
+            'ip_address' => data_get($payment->meta, 'ip'),
+            'meta' => array_filter([
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference,
+                'transaction_id' => $payment->transaction_id,
+            ], static fn ($value) => $value !== null && $value !== ''),
+            'status' => 'active',
+        ]);
+
+        return $this->reconcileSuccessfulPayment($payment->fresh(['vote', 'user', 'transactions']), $remoteTransaction);
+    }
+
     private function extractTransactionReference(array $payload): ?string
     {
         $candidates = [
@@ -770,6 +878,108 @@ class PaymentService
         }
 
         return $payment->fresh(['vote', 'user']);
+    }
+
+    private function extractRemoteTransactionId(array $remoteTransaction): ?string
+    {
+        $candidates = [
+            data_get($remoteTransaction, 'id'),
+            data_get($remoteTransaction, 'data.id'),
+            data_get($remoteTransaction, 'transaction.id'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractRemoteMerchantReference(array $remoteTransaction): ?string
+    {
+        $candidates = [
+            data_get($remoteTransaction, 'merchant_reference'),
+            data_get($remoteTransaction, 'custom_metadata.payment_reference'),
+            data_get($remoteTransaction, 'reference'),
+            data_get($remoteTransaction, 'data.merchant_reference'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractRemoteCustomMetadata(array $remoteTransaction): array
+    {
+        $candidates = [
+            data_get($remoteTransaction, 'custom_metadata'),
+            data_get($remoteTransaction, 'metadata'),
+            data_get($remoteTransaction, 'data.custom_metadata'),
+            data_get($remoteTransaction, 'data.metadata'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_array($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return [];
+    }
+
+    private function buildImportedPaymentMeta(array $remoteTransaction, array $customMetadata): array
+    {
+        $remoteStatus = strtolower(trim((string) data_get($remoteTransaction, 'status', '')));
+
+        return array_filter([
+            'provider' => 'fedapay',
+            'fedapay_transaction_id' => $this->extractRemoteTransactionId($remoteTransaction),
+            'fedapay_status' => $remoteStatus !== '' ? $remoteStatus : null,
+            'fedapay_environment' => $this->fedapay->environment(),
+            'candidate_id' => data_get($customMetadata, 'candidate_id'),
+            'candidate_name' => data_get($customMetadata, 'candidate_name'),
+            'quantity' => data_get($customMetadata, 'quantity'),
+            'unit_price' => data_get($customMetadata, 'unit_price'),
+            'submitted_amount' => data_get($customMetadata, 'submitted_amount'),
+            'ip' => data_get($customMetadata, 'ip'),
+            'user_agent' => data_get($customMetadata, 'user_agent'),
+            'voter_name' => data_get($customMetadata, 'voter_name'),
+            'voter_email' => data_get($customMetadata, 'voter_email'),
+            'voter_phone' => data_get($customMetadata, 'voter_phone'),
+        ], static fn ($value) => $value !== null && $value !== '');
+    }
+
+    private function resolveRemotePaidAt(array $remoteTransaction): Carbon
+    {
+        $candidates = [
+            data_get($remoteTransaction, 'approved_at'),
+            data_get($remoteTransaction, 'transferred_at'),
+            data_get($remoteTransaction, 'updated_at'),
+            data_get($remoteTransaction, 'created_at'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            $value = trim((string) $candidate);
+            if ($value === '') {
+                continue;
+            }
+
+            try {
+                return Carbon::parse($value);
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        return now();
     }
 
     private function buildVoteContextUpdates(Payment $payment): array

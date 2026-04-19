@@ -120,6 +120,22 @@ class FedaPayService
         return $this->normalizeTokenPayload((array) $response);
     }
 
+    /**
+     * @throws ConnectionException
+     * @throws RequestException
+     */
+    public function searchTransactions(array $params = []): array
+    {
+        $response = Http::baseUrl($this->apiBaseUrl())
+            ->acceptJson()
+            ->withToken($this->requireSecretKey())
+            ->get('/transactions/search', $params)
+            ->throw()
+            ->json();
+
+        return $this->normalizeTransactionListPayload(is_array($response) ? $response : []);
+    }
+
     public function verifyWebhookSignature(string $payload, ?string $signature): bool
     {
         $secret = $this->webhookSecret();
@@ -257,11 +273,56 @@ class FedaPayService
         return $payload;
     }
 
+    private function normalizeTransactionListPayload(array $payload): array
+    {
+        $candidates = [
+            $payload,
+            Arr::get($payload, 'data'),
+            Arr::get($payload, 'transactions'),
+            Arr::get($payload, 'items'),
+            Arr::get($payload, 'data.data'),
+            Arr::get($payload, 'transactions.data'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (!$this->looksLikeTransactionList($candidate)) {
+                continue;
+            }
+
+            return array_values(array_filter(array_map(function ($transaction) {
+                return is_array($transaction)
+                    ? $this->normalizeTransactionPayload($transaction)
+                    : null;
+            }, $candidate)));
+        }
+
+        if ($this->looksLikeTransaction($payload)) {
+            return [$this->normalizeTransactionPayload($payload)];
+        }
+
+        return [];
+    }
+
     private function looksLikeTransaction(array $payload): bool
     {
         return Arr::has($payload, 'id')
             || Arr::has($payload, 'status')
             || Arr::has($payload, 'reference')
             || Arr::has($payload, 'merchant_reference');
+    }
+
+    private function looksLikeTransactionList(mixed $payload): bool
+    {
+        if (!is_array($payload) || !array_is_list($payload) || $payload === []) {
+            return false;
+        }
+
+        foreach ($payload as $item) {
+            if (is_array($item) && $this->looksLikeTransaction($item)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
