@@ -15,6 +15,7 @@ class AuditRemoteFedapayTransactions extends Command
         {--limit=50 : Nombre maximum de lignes problematiques a afficher}
         {--pages=20 : Nombre maximum de pages a interroger chez FedaPay}
         {--per-page=100 : Nombre maximum de transactions par page}
+        {--debug : Affiche l environnement FedaPay et quelques diagnostics}
         {--recover : Applique le rattrapage local pour les transactions reussies manquantes ou desynchronisees}';
 
     protected $description = 'Compare les transactions FedaPay live aux paiements locaux et peut rattraper celles manquantes';
@@ -30,6 +31,7 @@ class AuditRemoteFedapayTransactions extends Command
         $pages = max(1, (int) $this->option('pages'));
         $perPage = max(1, min(200, (int) $this->option('per-page')));
         $recover = (bool) $this->option('recover');
+        $debug = (bool) $this->option('debug');
 
         $seenTransactionIds = [];
         $remoteSuccessful = [];
@@ -159,6 +161,20 @@ class AuditRemoteFedapayTransactions extends Command
 
         if ($recover) {
             $results->calculateAndPersist();
+        }
+
+        if ($debug) {
+            $this->table(
+                ['Diagnostic', 'Valeur'],
+                [
+                    ['FedaPay environment', $fedapay->environment()],
+                    ['FedaPay API base URL', $fedapay->apiBaseUrl()],
+                    ['Secret key configured', $fedapay->secretKey() ? 'yes' : 'no'],
+                    ['Webhook secret configured', $fedapay->webhookSecret() ? 'yes' : 'no'],
+                    ['Pages requested', $pages],
+                    ['Per-page requested', $perPage],
+                ]
+            );
         }
 
         $this->table(
