@@ -1,5 +1,5 @@
 const UPSTREAM_API_BASE_URL = 'https://api.missmisteruniversitybenin.com/api';
-const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504, 509]);
 const PUBLIC_CACHE_CONTROL = 'public, s-maxage=120, stale-while-revalidate=86400';
 const DYNAMIC_PUBLIC_CACHE_CONTROL = 'public, s-maxage=5, stale-while-revalidate=30';
 const PRIVATE_CACHE_CONTROL = 'no-store';
@@ -12,10 +12,17 @@ const isCacheablePublicRequest = (method, path) => method === 'GET' && String(pa
 const usesDynamicPublicCache = (path = '') => (
   /^public\/(candidates(?:\/|$)|stats(?:\/|$)|settings(?:\/|$))/i.test(String(path || ''))
 );
-const expectsJsonPayload = (path) => (
-  String(path || '').startsWith('public/')
-  || /^payments\/[^/]+\/sync$/i.test(String(path || ''))
-);
+const expectsJsonPayload = (path) => {
+  const normalizedPath = String(path || '');
+
+  return (
+    /^public\//i.test(normalizedPath)
+    || /^admin\//i.test(normalizedPath)
+    || /^auth\//i.test(normalizedPath)
+    || /^login$/i.test(normalizedPath)
+    || /^payments\/[^/]+\/sync$/i.test(normalizedPath)
+  );
+};
 
 const looksLikeHtmlPayload = (text = '', contentType = '') => {
   const normalizedText = String(text || '').trim();

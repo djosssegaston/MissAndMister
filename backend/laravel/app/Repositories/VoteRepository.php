@@ -82,7 +82,7 @@ class VoteRepository
             'user:id,name,email,phone',
             'candidate:id,first_name,last_name,category_id,public_number,public_uid,slug',
             'candidate.category:id,name',
-            'payment:id,user_id,reference,status,amount,currency,provider,meta,payload',
+            'payment:id,user_id,reference,status,amount,currency,provider,meta',
         ])
             ->when(isset($filters['id']) && $filters['id'], fn ($q) => $q->whereKey($filters['id']))
             ->when(isset($filters['status']) && $filters['status'], fn ($q) => $q->where('status', $filters['status']))
