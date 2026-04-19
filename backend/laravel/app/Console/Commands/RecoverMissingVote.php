@@ -11,7 +11,7 @@ class RecoverMissingVote extends Command
 {
     protected $signature = 'payments:recover-missing-vote
         {reference : Reference locale du paiement FedaPay}
-        {candidate : ID, public_uid, slug ou public_number du candidat}
+        {candidate? : ID, public_uid, slug ou public_number du candidat}
         {--dry-run : Verifie seulement la resolution sans ecrire}';
 
     protected $description = 'Rattache manuellement un paiement FedaPay reussi sans vote au bon candidat, sans doublonner';
@@ -20,18 +20,21 @@ class RecoverMissingVote extends Command
     {
         $reference = trim((string) $this->argument('reference'));
         $candidateInput = trim((string) $this->argument('candidate'));
-        $candidate = $this->resolveCandidate($candidateInput);
-
-        if (!$candidate) {
-            $this->error('Candidat introuvable pour cet identifiant.');
-
-            return self::FAILURE;
-        }
 
         $payment = Payment::query()->with(['vote'])->where('reference', $reference)->first();
 
         if (!$payment) {
             $this->error('Paiement introuvable pour cette reference.');
+
+            return self::FAILURE;
+        }
+
+        $candidate = $candidateInput !== ''
+            ? $this->resolveCandidate($candidateInput)
+            : $this->resolveCandidateFromPayment($payment);
+
+        if (!$candidate) {
+            $this->error('Candidat introuvable. Lance la commande sans placeholder ou passe un vrai ID/public_uid/slug/public_number.');
 
             return self::FAILURE;
         }
@@ -93,5 +96,31 @@ class RecoverMissingVote extends Command
         return $query->where('public_uid', $input)
             ->orWhere('slug', $input)
             ->first();
+    }
+
+    private function resolveCandidateFromPayment(Payment $payment): ?Candidate
+    {
+        $candidateId = (int) data_get($payment->meta, 'candidate_id', 0);
+        if ($candidateId > 0) {
+            $candidate = Candidate::withTrashed()->find($candidateId);
+            if ($candidate) {
+                return $candidate;
+            }
+        }
+
+        $candidateName = trim((string) data_get($payment->meta, 'candidate_name', ''));
+        if ($candidateName === '') {
+            return null;
+        }
+
+        $matches = Candidate::withTrashed()
+            ->whereRaw("TRIM(CONCAT(first_name, ' ', last_name)) = ?", [$candidateName])
+            ->get();
+
+        if ($matches->count() === 1) {
+            return $matches->first();
+        }
+
+        return null;
     }
 }
