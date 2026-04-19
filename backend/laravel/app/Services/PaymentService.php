@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ActivityLog;
 use App\Models\Candidate;
 use App\Models\Payment;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vote;
 use App\Jobs\SendVoteConfirmationJob;
@@ -18,6 +19,7 @@ use Illuminate\Support\Str;
 
 class PaymentService
 {
+    private const DEFAULT_PRICE_PER_IMPORTED_VOTE = 500;
     private const DEFAULT_WARM_RECONCILE_LIMIT = 10;
     private const DEFAULT_RECONCILE_LIMIT = 50;
     private const DEFAULT_RECONCILE_RECENT_HOURS = 2160;
@@ -963,7 +965,7 @@ class PaymentService
         $metadataReference = trim((string) data_get($customMetadata, 'payment_reference', ''));
         $provider = strtolower(trim((string) data_get($customMetadata, 'provider', '')));
         $candidateId = (int) data_get($customMetadata, 'candidate_id', 0);
-        $candidateName = trim((string) data_get($customMetadata, 'candidate_name', ''));
+        $candidateName = $this->extractRemoteCandidateName($remoteTransaction, $customMetadata);
 
         if ($this->looksLikeApplicationPaymentReference($metadataReference)) {
             return true;
@@ -990,6 +992,9 @@ class PaymentService
     private function buildImportedPaymentMeta(array $remoteTransaction, array $customMetadata): array
     {
         $remoteStatus = strtolower(trim((string) data_get($remoteTransaction, 'status', '')));
+        $unitPrice = $this->resolveImportedUnitPrice($customMetadata);
+        $quantity = $this->extractRemoteQuantity($remoteTransaction, $customMetadata, $unitPrice);
+        $candidateName = $this->extractRemoteCandidateName($remoteTransaction, $customMetadata);
 
         return array_filter([
             'provider' => 'fedapay',
@@ -997,16 +1002,83 @@ class PaymentService
             'fedapay_status' => $remoteStatus !== '' ? $remoteStatus : null,
             'fedapay_environment' => $this->fedapay->environment(),
             'candidate_id' => data_get($customMetadata, 'candidate_id'),
-            'candidate_name' => data_get($customMetadata, 'candidate_name'),
-            'quantity' => data_get($customMetadata, 'quantity'),
-            'unit_price' => data_get($customMetadata, 'unit_price'),
-            'submitted_amount' => data_get($customMetadata, 'submitted_amount'),
+            'candidate_name' => $candidateName,
+            'quantity' => $quantity,
+            'unit_price' => $unitPrice,
+            'submitted_amount' => data_get($customMetadata, 'submitted_amount') ?: data_get($remoteTransaction, 'amount'),
             'ip' => data_get($customMetadata, 'ip'),
             'user_agent' => data_get($customMetadata, 'user_agent'),
             'voter_name' => data_get($customMetadata, 'voter_name'),
             'voter_email' => data_get($customMetadata, 'voter_email'),
             'voter_phone' => data_get($customMetadata, 'voter_phone'),
         ], static fn ($value) => $value !== null && $value !== '');
+    }
+
+    private function extractRemoteCandidateName(array $remoteTransaction, array $customMetadata): ?string
+    {
+        $candidateName = trim((string) (
+            data_get($customMetadata, 'candidate_name')
+            ?: data_get($remoteTransaction, 'custom_metadata.candidate_name')
+            ?: data_get($remoteTransaction, 'metadata.candidate_name')
+            ?: ''
+        ));
+
+        if ($candidateName !== '') {
+            return preg_replace('/\s+/', ' ', $candidateName) ?: $candidateName;
+        }
+
+        $description = trim((string) (
+            data_get($remoteTransaction, 'description')
+            ?: data_get($remoteTransaction, 'data.description')
+            ?: ''
+        ));
+
+        if ($description !== '' && preg_match('/^Vote pour\s+(.+)$/iu', $description, $matches) === 1) {
+            $parsedName = trim((string) ($matches[1] ?? ''));
+            if ($parsedName !== '') {
+                return preg_replace('/\s+/', ' ', $parsedName) ?: $parsedName;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveImportedUnitPrice(array $customMetadata): ?int
+    {
+        $metadataUnitPrice = (int) data_get($customMetadata, 'unit_price', 0);
+        if ($metadataUnitPrice > 0) {
+            return $metadataUnitPrice;
+        }
+
+        $configuredPrice = (int) Setting::query()
+            ->where('key', 'price_per_vote')
+            ->where('status', 'active')
+            ->value('value');
+
+        return $configuredPrice > 0 ? $configuredPrice : self::DEFAULT_PRICE_PER_IMPORTED_VOTE;
+    }
+
+    private function extractRemoteQuantity(array $remoteTransaction, array $customMetadata, ?int $unitPrice = null): ?int
+    {
+        $explicitQuantity = (int) data_get($customMetadata, 'quantity', 0);
+        if ($explicitQuantity > 0) {
+            return $explicitQuantity;
+        }
+
+        $resolvedUnitPrice = $unitPrice && $unitPrice > 0
+            ? $unitPrice
+            : $this->resolveImportedUnitPrice($customMetadata);
+        $amount = (int) round((float) (
+            data_get($remoteTransaction, 'amount')
+            ?: data_get($customMetadata, 'amount')
+            ?: 0
+        ));
+
+        if ($resolvedUnitPrice > 0 && $amount > 0 && $amount % $resolvedUnitPrice === 0) {
+            return max(1, (int) ($amount / $resolvedUnitPrice));
+        }
+
+        return null;
     }
 
     private function resolveRemotePaidAt(array $remoteTransaction): Carbon

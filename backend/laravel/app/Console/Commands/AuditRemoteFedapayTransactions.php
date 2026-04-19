@@ -180,11 +180,7 @@ class AuditRemoteFedapayTransactions extends Command
                     'local_payment_id' => $payment?->id,
                     'local_status' => $payment?->status,
                     'vote_status' => $voteStatus,
-                    'candidate_name' => (string) (
-                        data_get($transaction, 'custom_metadata.candidate_name')
-                        ?: data_get($payment?->meta ?? [], 'candidate_name')
-                        ?: ''
-                    ),
+                    'candidate_name' => $this->extractCandidateName($transaction, $payment?->meta ?? []),
                 ];
             }
         }
@@ -267,6 +263,26 @@ class AuditRemoteFedapayTransactions extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function extractCandidateName(array $transaction, array $paymentMeta = []): string
+    {
+        $candidateName = trim((string) (
+            data_get($transaction, 'custom_metadata.candidate_name')
+            ?: data_get($paymentMeta, 'candidate_name')
+            ?: ''
+        ));
+
+        if ($candidateName !== '') {
+            return $candidateName;
+        }
+
+        $description = trim((string) data_get($transaction, 'description', ''));
+        if ($description !== '' && preg_match('/^Vote pour\s+(.+)$/iu', $description, $matches) === 1) {
+            return trim((string) ($matches[1] ?? ''));
+        }
+
+        return '';
     }
 
     private function ignoredReferences(): array
