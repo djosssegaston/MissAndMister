@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Candidate;
 use App\Models\Payment;
 use App\Services\PaymentService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Console\Command;
 
 class RecoverMissingVote extends Command
@@ -35,6 +36,23 @@ class RecoverMissingVote extends Command
 
         if (!$candidate) {
             $this->error('Candidat introuvable. Lance la commande sans placeholder ou passe un vrai ID/public_uid/slug/public_number.');
+            $suggestions = $this->suggestCandidatesForPayment($payment);
+
+            if ($suggestions->isNotEmpty()) {
+                $this->newLine();
+                $this->warn('Suggestions de candidats proches pour ce paiement :');
+                $this->table(
+                    ['ID', 'Public #', 'Nom', 'Slug', 'Supprime le'],
+                    $suggestions->map(static fn (Candidate $candidate) => [
+                        $candidate->id,
+                        $candidate->public_number,
+                        trim(($candidate->first_name ?? '') . ' ' . ($candidate->last_name ?? '')),
+                        $candidate->slug,
+                        optional($candidate->deleted_at)?->toDateTimeString() ?? '-',
+                    ])->all()
+                );
+                $this->line('Relance ensuite la commande avec l\'ID correct en second argument.');
+            }
 
             return self::FAILURE;
         }
@@ -122,5 +140,37 @@ class RecoverMissingVote extends Command
         }
 
         return null;
+    }
+
+    private function suggestCandidatesForPayment(Payment $payment): Collection
+    {
+        $candidateName = trim((string) data_get($payment->meta, 'candidate_name', ''));
+        if ($candidateName === '') {
+            return new Collection();
+        }
+
+        $tokens = collect(preg_split('/\s+/', $candidateName) ?: [])
+            ->map(static fn (string $token) => trim($token))
+            ->filter(static fn (string $token) => mb_strlen($token) >= 3)
+            ->values();
+
+        if ($tokens->isEmpty()) {
+            return new Collection();
+        }
+
+        return Candidate::withTrashed()
+            ->select(['id', 'public_number', 'first_name', 'last_name', 'slug', 'deleted_at'])
+            ->where(function ($query) use ($tokens): void {
+                foreach ($tokens as $token) {
+                    $query
+                        ->orWhere('first_name', 'like', '%' . $token . '%')
+                        ->orWhere('last_name', 'like', '%' . $token . '%');
+                }
+            })
+            ->orderByRaw('deleted_at IS NULL DESC')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->limit(10)
+            ->get();
     }
 }
