@@ -126,14 +126,40 @@ class FedaPayService
      */
     public function searchTransactions(array $params = []): array
     {
+        return $this->searchTransactionsDebug($params)['normalized'];
+    }
+
+    /**
+     * @throws ConnectionException
+     * @throws RequestException
+     */
+    public function searchTransactionsDebug(array $params = []): array
+    {
         $response = Http::baseUrl($this->apiBaseUrl())
             ->acceptJson()
             ->withToken($this->requireSecretKey())
             ->get('/transactions/search', $params)
-            ->throw()
-            ->json();
+            ->throw();
 
-        return $this->normalizeTransactionListPayload(is_array($response) ? $response : []);
+        $decoded = $response->json();
+        $payload = is_array($decoded) ? $decoded : [];
+        $rawList = $this->extractTransactionListCandidate($payload);
+        $normalized = $this->normalizeTransactionListPayload($payload);
+
+        return [
+            'normalized' => $normalized,
+            'response_status' => $response->status(),
+            'top_level_type' => is_array($decoded)
+                ? (array_is_list($decoded) ? 'list' : 'object')
+                : gettype($decoded),
+            'top_level_keys' => is_array($payload) && !array_is_list($payload)
+                ? array_slice(array_map('strval', array_keys($payload)), 0, 12)
+                : [],
+            'raw_list_count' => is_array($rawList) ? count($rawList) : 0,
+            'normalized_count' => count($normalized),
+            'status_histogram' => $this->buildStatusHistogram($rawList ?? []),
+            'payload_preview' => $this->previewPayload($decoded),
+        ];
     }
 
     public function verifyWebhookSignature(string $payload, ?string $signature): bool
@@ -275,20 +301,9 @@ class FedaPayService
 
     private function normalizeTransactionListPayload(array $payload): array
     {
-        $candidates = [
-            $payload,
-            Arr::get($payload, 'data'),
-            Arr::get($payload, 'transactions'),
-            Arr::get($payload, 'items'),
-            Arr::get($payload, 'data.data'),
-            Arr::get($payload, 'transactions.data'),
-        ];
+        $candidate = $this->extractTransactionListCandidate($payload);
 
-        foreach ($candidates as $candidate) {
-            if (!$this->looksLikeTransactionList($candidate)) {
-                continue;
-            }
-
+        if (is_array($candidate)) {
             return array_values(array_filter(array_map(function ($transaction) {
                 return is_array($transaction)
                     ? $this->normalizeTransactionPayload($transaction)
@@ -324,5 +339,63 @@ class FedaPayService
         }
 
         return false;
+    }
+
+    private function extractTransactionListCandidate(mixed $payload, int $depth = 0): ?array
+    {
+        if ($depth > 6 || !is_array($payload)) {
+            return null;
+        }
+
+        if ($this->looksLikeTransactionList($payload)) {
+            return $payload;
+        }
+
+        foreach ($payload as $value) {
+            if (!is_array($value)) {
+                continue;
+            }
+
+            $candidate = $this->extractTransactionListCandidate($value, $depth + 1);
+            if ($candidate !== null) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function buildStatusHistogram(array $transactions): array
+    {
+        $histogram = [];
+
+        foreach ($transactions as $transaction) {
+            if (!is_array($transaction)) {
+                continue;
+            }
+
+            $status = strtolower(trim((string) Arr::get($transaction, 'status', '')));
+            $key = $status !== '' ? $status : '(empty)';
+            $histogram[$key] = ($histogram[$key] ?? 0) + 1;
+        }
+
+        arsort($histogram);
+
+        return $histogram;
+    }
+
+    private function previewPayload(mixed $payload): string
+    {
+        $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        if (!is_string($json) || trim($json) === '') {
+            return '(empty)';
+        }
+
+        $preview = trim($json);
+
+        return strlen($preview) > 240
+            ? substr($preview, 0, 240) . '...'
+            : $preview;
     }
 }

@@ -39,12 +39,28 @@ class AuditRemoteFedapayTransactions extends Command
         $rawTransactionsInspected = 0;
         $pagesInspected = 0;
         $statusHistogram = [];
+        $firstPageDebug = null;
 
         for ($page = 1; $page <= $pages; $page++) {
-            $batch = $fedapay->searchTransactions([
-                'page' => $page,
-                'per_page' => $perPage,
-            ]);
+            $searchResult = $debug
+                ? $fedapay->searchTransactionsDebug([
+                    'page' => $page,
+                    'per_page' => $perPage,
+                ])
+                : ['normalized' => $fedapay->searchTransactions([
+                    'page' => $page,
+                    'per_page' => $perPage,
+                ])];
+
+            if ($debug && $page === 1) {
+                $firstPageDebug = $searchResult;
+            }
+
+            $batch = $searchResult['normalized'] ?? [];
+
+            if ($batch === [] && $debug && $page === 1 && (($firstPageDebug['raw_list_count'] ?? 0) > 0)) {
+                $this->warn('La premiere page contient des donnees brutes FedaPay, mais aucune transaction n a pu etre normalisee completement.');
+            }
 
             if ($batch === []) {
                 break;
@@ -187,13 +203,23 @@ class AuditRemoteFedapayTransactions extends Command
                     ['Pages inspected', $pagesInspected],
                     ['Raw remote transactions inspected', $rawTransactionsInspected],
                     ['Recognized success statuses', implode(', ', self::SUCCESS_STATUSES)],
+                    ['First page HTTP status', $firstPageDebug['response_status'] ?? '-'],
+                    ['First page top-level type', $firstPageDebug['top_level_type'] ?? '-'],
+                    ['First page top-level keys', !empty($firstPageDebug['top_level_keys']) ? implode(', ', $firstPageDebug['top_level_keys']) : '-'],
+                    ['First page raw list count', $firstPageDebug['raw_list_count'] ?? 0],
+                    ['First page normalized count', $firstPageDebug['normalized_count'] ?? 0],
+                    ['First page preview', $firstPageDebug['payload_preview'] ?? '-'],
                 ]
             );
 
-            if ($statusHistogram !== []) {
+            $debugStatusHistogram = $statusHistogram !== []
+                ? $statusHistogram
+                : (($firstPageDebug['status_histogram'] ?? []) ?: []);
+
+            if ($debugStatusHistogram !== []) {
                 $this->table(
                     ['Statut remote', 'Occurrences'],
-                    collect($statusHistogram)
+                    collect($debugStatusHistogram)
                         ->sortByDesc(fn (int $count) => $count)
                         ->take(self::MAX_DEBUG_STATUS_ROWS)
                         ->map(fn (int $count, string $status) => [$status, $count])
