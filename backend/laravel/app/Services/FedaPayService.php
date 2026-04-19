@@ -204,7 +204,7 @@ class FedaPayService
         }
 
         foreach ($parts as $name => $values) {
-            if (in_array($name, ['v1', 'signature', 'sha256', 'hash'], true)) {
+            if (in_array($name, ['s', 'v1', 'signature', 'sha256', 'hash'], true)) {
                 foreach ($values as $value) {
                     if ($value === '') {
                         continue;
