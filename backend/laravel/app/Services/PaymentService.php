@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ActivityLog;
+use App\Models\Candidate;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\Vote;
@@ -198,7 +199,17 @@ class PaymentService
             ->orderBy('id')
             ->limit($limit)
             ->get()
-            ->each(fn (Payment $payment) => $this->reconcileSuccessfulPayment($payment));
+            ->each(function (Payment $payment): void {
+                try {
+                    $this->reconcileSuccessfulPayment($payment);
+                } catch (\Throwable $exception) {
+                    logger()->warning('Failed to reconcile successful payment associations', [
+                        'payment_id' => $payment->id,
+                        'reference' => $payment->reference,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            });
     }
 
     public function warmPaymentStateForReadModels(
@@ -313,7 +324,16 @@ class PaymentService
             $beforePaymentStatus = $payment->status;
             $beforeVoteStatus = $payment->vote?->status;
 
-            $payment = $this->syncPaymentWithProvider($payment, null, 'automatic-reconcile');
+            try {
+                $payment = $this->syncPaymentWithProvider($payment, null, 'automatic-reconcile');
+            } catch (\Throwable $exception) {
+                logger()->warning('Automatic FedaPay reconciliation skipped a broken payment', [
+                    'payment_id' => $payment->id,
+                    'reference' => $payment->reference,
+                    'error' => $exception->getMessage(),
+                ]);
+                continue;
+            }
 
             $stats['inspected']++;
 
@@ -524,6 +544,7 @@ class PaymentService
             ?: data_get($payment->payload, 'fedapay.custom_metadata.candidate_id')
             ?: 0
         );
+        $candidateId = $this->resolveRestorableCandidateId($candidateId, $payment);
 
         if ($candidateId <= 0) {
             logger()->warning('Succeeded payment cannot restore vote without candidate', [
@@ -646,6 +667,43 @@ class PaymentService
         });
 
         return $payment->fresh(['vote', 'user']);
+    }
+
+    private function resolveRestorableCandidateId(int $candidateId, Payment $payment): int
+    {
+        if ($candidateId > 0 && Candidate::withTrashed()->whereKey($candidateId)->exists()) {
+            return $candidateId;
+        }
+
+        $candidateName = trim((string) (
+            data_get($payment->meta, 'candidate_name')
+            ?: data_get($payment->payload, 'custom_metadata.candidate_name')
+            ?: data_get($payment->payload, 'fedapay.custom_metadata.candidate_name')
+            ?: ''
+        ));
+
+        if ($candidateName === '') {
+            return 0;
+        }
+
+        $matchingIds = Candidate::withTrashed()
+            ->select('id')
+            ->whereRaw("TRIM(CONCAT(first_name, ' ', last_name)) = ?", [$candidateName])
+            ->pluck('id');
+
+        if ($matchingIds->count() === 1) {
+            return (int) $matchingIds->first();
+        }
+
+        logger()->warning('Unable to resolve candidate for restored payment vote', [
+            'payment_id' => $payment->id,
+            'reference' => $payment->reference,
+            'candidate_id' => $candidateId > 0 ? $candidateId : null,
+            'candidate_name' => $candidateName,
+            'matches' => $matchingIds->all(),
+        ]);
+
+        return 0;
     }
 
     private function reconcileVoteForSucceededPayment(Payment $payment, array $payload = []): Payment
