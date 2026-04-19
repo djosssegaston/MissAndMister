@@ -111,7 +111,17 @@ php /chemin/vers/backend/laravel/artisan schedule:run >> /dev/null 2>&1
 
 Frequence recommandee :
 
-- toutes les 5 minutes
+- toutes les 1 minute
+
+### Queue worker recommande
+
+Pour traiter les jobs asynchrones (emails, confirmations de vote, reconciliations), lancer en permanence :
+
+```bash
+php /chemin/vers/backend/laravel/artisan queue:work --queue=default --sleep=1 --tries=3 --timeout=120 >> /dev/null 2>&1
+```
+
+Sur LWS, utiliser un superviseur/process manager disponible sur ton offre, ou a defaut une tache cron de relance.
 
 ## 3. Medias locaux sur LWS
 

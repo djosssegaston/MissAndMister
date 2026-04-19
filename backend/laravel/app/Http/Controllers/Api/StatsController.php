@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Cache;
 
 class StatsController extends Controller
 {
+    private const PUBLIC_CACHE_TTL_SECONDS = 30;
+
     public function __construct(
         private StatsService $stats,
         private PaymentService $payments,
@@ -27,7 +29,11 @@ class StatsController extends Controller
     public function publicStats(): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $payload = Cache::remember('public:stats:summary', now()->addSeconds(5), fn () => $this->stats->publicSummary());
+        $payload = Cache::remember(
+            'public:stats:summary',
+            now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS),
+            fn () => $this->stats->publicSummary()
+        );
 
         return response()->json($payload);
     }

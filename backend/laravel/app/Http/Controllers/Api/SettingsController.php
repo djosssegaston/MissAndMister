@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Validator;
 
 class SettingsController extends Controller
 {
+    private const PUBLIC_CACHE_TTL_SECONDS = 30;
+
     private array $booleanKeys = [
         'voting_open',
         'gallery_public',
@@ -129,7 +131,7 @@ class SettingsController extends Controller
 
     public function public(): JsonResponse
     {
-        $payload = Cache::remember('public:settings:payload', now()->addSeconds(5), function () {
+        $payload = Cache::remember('public:settings:payload', now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () {
             $settings = Setting::where('status', 'active')
                 ->whereIn('key', array_merge($this->allowedKeys, $this->runtimeKeys))
                 ->get();

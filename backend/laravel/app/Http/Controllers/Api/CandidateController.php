@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -24,6 +25,7 @@ use Illuminate\Validation\ValidationException;
 class CandidateController extends Controller
 {
     private const PHOTO_UPLOAD_LIMIT_LABEL = '20 Mo';
+    private const PUBLIC_CACHE_TTL_SECONDS = 30;
 
     public function __construct(
         private CandidateRepository $candidates,
@@ -44,7 +46,13 @@ class CandidateController extends Controller
         $this->payments->scheduleWarmPaymentStateForReadModels();
         $perPage = max(1, min((int) $request->integer('per_page', 120), 200));
         $category = trim((string) $request->query('category', ''));
-        return response()->json($this->candidates->paginatePublic($perPage, $category !== '' ? $category : null));
+        $cacheKey = 'legacy:candidates:index:' . md5(json_encode([$perPage, strtolower($category)]));
+
+        $payload = Cache::remember($cacheKey, now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () use ($perPage, $category) {
+            return $this->candidates->paginatePublic($perPage, $category !== '' ? $category : null)->toArray();
+        });
+
+        return response()->json($payload);
     }
 
     // Admin listing (all statuses)
