@@ -1,6 +1,7 @@
 const UPSTREAM_API_BASE_URL = 'https://api.missmisteruniversitybenin.com/api';
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const PUBLIC_CACHE_CONTROL = 'public, s-maxage=120, stale-while-revalidate=86400';
+const DYNAMIC_PUBLIC_CACHE_CONTROL = 'public, s-maxage=5, stale-while-revalidate=30';
 const PRIVATE_CACHE_CONTROL = 'no-store';
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -8,6 +9,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const shouldRetryStatus = (status) => RETRYABLE_STATUS_CODES.has(Number(status || 0));
 const isCacheablePublicRequest = (method, path) => method === 'GET' && String(path || '').startsWith('public/');
+const usesDynamicPublicCache = (path = '') => (
+  /^public\/(candidates(?:\/|$)|stats(?:\/|$)|settings(?:\/|$))/i.test(String(path || ''))
+);
 const expectsJsonPayload = (path) => (
   String(path || '').startsWith('public/')
   || /^payments\/[^/]+\/sync$/i.test(String(path || ''))
@@ -108,6 +112,10 @@ const buildResponseHeaders = (upstreamResponse, cacheControl) => {
   return headers;
 };
 
+const getPublicCacheControl = (path = '') => (
+  usesDynamicPublicCache(path) ? DYNAMIC_PUBLIC_CACHE_CONTROL : PUBLIC_CACHE_CONTROL
+);
+
 const fetchWithTimeout = async (url, init, timeoutMs = REQUEST_TIMEOUT_MS) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -144,7 +152,7 @@ const proxyRequest = async (request) => {
       });
 
       const contentType = upstreamResponse.headers.get('content-type') || '';
-      const cacheControl = cacheablePublicRequest ? PUBLIC_CACHE_CONTROL : PRIVATE_CACHE_CONTROL;
+      const cacheControl = cacheablePublicRequest ? getPublicCacheControl(upstreamPath) : PRIVATE_CACHE_CONTROL;
 
       if (expectsJsonPayload(upstreamPath)) {
         const text = await upstreamResponse.text();

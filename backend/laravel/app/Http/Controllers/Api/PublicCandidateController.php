@@ -25,7 +25,7 @@ class PublicCandidateController extends Controller
         $category = trim((string) request()->query('category', ''));
         $cacheKey = 'public:candidates:index:' . md5(json_encode([$perPage, strtolower($category)]));
 
-        $payload = Cache::remember($cacheKey, now()->addSeconds(8), function () use ($perPage, $category) {
+        $payload = Cache::remember($cacheKey, now()->addSeconds(5), function () use ($perPage, $category) {
             $paginator = $this->candidates->paginatePublic($perPage, $category !== '' ? $category : null);
             $paginator->setCollection(
                 $paginator->getCollection()->map(fn (Candidate $candidate) => $this->presentListCandidate($candidate))
@@ -42,7 +42,7 @@ class PublicCandidateController extends Controller
         $this->payments->scheduleWarmPaymentStateForReadModels();
         $cacheKey = 'public:candidates:show:' . md5($identifier);
 
-        $payload = Cache::remember($cacheKey, now()->addSeconds(8), function () use ($identifier) {
+        $payload = Cache::remember($cacheKey, now()->addSeconds(5), function () use ($identifier) {
             $candidate = $this->candidates->findActiveByIdentifier($identifier);
 
             if (!$candidate) {
