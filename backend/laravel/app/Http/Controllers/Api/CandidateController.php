@@ -57,7 +57,17 @@ class CandidateController extends Controller
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
         $perPage = max(10, min((int) $request->integer('per_page', 100), 100));
-        return response()->json($this->candidates->paginateAll($perPage));
+        $category = trim((string) $request->query('category', ''));
+        $search = trim((string) $request->query('search', ''));
+        $paginator = $this->candidates->paginateAll(
+            $perPage,
+            $category !== '' ? $category : null,
+            $search !== '' ? $search : null,
+        );
+
+        return response()->json(array_merge($paginator->toArray(), [
+            'summary' => $this->candidates->adminSummary(),
+        ]));
     }
 
     /**

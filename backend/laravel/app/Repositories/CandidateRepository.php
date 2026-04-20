@@ -37,34 +37,9 @@ class CandidateRepository
             ->get();
     }
 
-    public function paginateAll(int $perPage = 100): LengthAwarePaginator
+    public function paginateAll(int $perPage = 100, ?string $category = null, ?string $search = null): LengthAwarePaginator
     {
-        return Candidate::withTrashed()
-            ->select([
-                'id',
-                'category_id',
-                'first_name',
-                'last_name',
-                'public_number',
-                'public_uid',
-                'slug',
-                'email',
-                'university',
-                'age',
-                'city',
-                'bio',
-                'description',
-                'photo_path',
-                'photo_original_path',
-                'photo_variants',
-                'photo_processing_status',
-                'photo_processing_error',
-                'video_path',
-                'is_active',
-                'status',
-                'created_at',
-                'deleted_at',
-            ])
+        return $this->adminListQuery($category, $search)
             ->with('category:id,name')
             ->withSum(['votes as votes_count' => function ($q) {
                 $q->successful();
@@ -75,6 +50,24 @@ class CandidateRepository
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->paginate($perPage);
+    }
+
+    public function adminSummary(): array
+    {
+        $summary = Candidate::withTrashed()
+            ->leftJoin('categories', 'categories.id', '=', 'candidates.category_id')
+            ->selectRaw('COUNT(candidates.id) as total')
+            ->selectRaw("SUM(CASE WHEN LOWER(COALESCE(categories.name, '')) = 'miss' THEN 1 ELSE 0 END) as miss")
+            ->selectRaw("SUM(CASE WHEN LOWER(COALESCE(categories.name, '')) = 'mister' THEN 1 ELSE 0 END) as mister")
+            ->selectRaw("SUM(CASE WHEN candidates.is_active = 1 OR candidates.status = 'active' THEN 1 ELSE 0 END) as active")
+            ->first();
+
+        return [
+            'total' => (int) ($summary?->total ?? 0),
+            'miss' => (int) ($summary?->miss ?? 0),
+            'mister' => (int) ($summary?->mister ?? 0),
+            'active' => (int) ($summary?->active ?? 0),
+        ];
     }
 
     public function find(int $id): ?Candidate
@@ -185,6 +178,63 @@ class CandidateRepository
             })
             ->where(function (Builder $query) {
                 $query->where('is_active', true)->orWhereNull('is_active');
+            });
+    }
+
+    private function adminListQuery(?string $category = null, ?string $search = null): Builder
+    {
+        return Candidate::withTrashed()
+            ->select([
+                'id',
+                'category_id',
+                'first_name',
+                'last_name',
+                'public_number',
+                'public_uid',
+                'slug',
+                'email',
+                'university',
+                'age',
+                'city',
+                'bio',
+                'description',
+                'photo_path',
+                'photo_original_path',
+                'photo_variants',
+                'photo_processing_status',
+                'photo_processing_error',
+                'video_path',
+                'is_active',
+                'status',
+                'created_at',
+                'deleted_at',
+            ])
+            ->when(filled($category), function (Builder $query) use ($category) {
+                $normalizedCategory = strtolower(trim((string) $category));
+
+                $query->whereHas('category', function (Builder $categoryQuery) use ($normalizedCategory) {
+                    $categoryQuery->whereRaw('LOWER(name) = ?', [$normalizedCategory]);
+                });
+            })
+            ->when(filled($search), function (Builder $query) use ($search) {
+                $normalizedSearch = trim((string) $search);
+                $like = '%' . $normalizedSearch . '%';
+
+                $query->where(function (Builder $searchQuery) use ($like, $normalizedSearch) {
+                    $searchQuery
+                        ->where('first_name', 'like', $like)
+                        ->orWhere('last_name', 'like', $like)
+                        ->orWhereRaw("CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) like ?", [$like])
+                        ->orWhere('email', 'like', $like)
+                        ->orWhere('university', 'like', $like)
+                        ->orWhere('city', 'like', $like)
+                        ->orWhere('public_uid', 'like', $like)
+                        ->orWhere('slug', 'like', $like);
+
+                    if (ctype_digit($normalizedSearch)) {
+                        $searchQuery->orWhere('public_number', (int) $normalizedSearch);
+                    }
+                });
             });
     }
 

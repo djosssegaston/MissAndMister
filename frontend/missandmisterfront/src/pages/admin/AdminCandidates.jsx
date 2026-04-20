@@ -4,7 +4,7 @@ import { adminAPI } from '../../services/api';
 import { getCandidateImageSources } from '../../utils/candidateImage';
 import { formatCandidatePublicNumber } from '../../utils/candidatePublic';
 import Loader from '../../components/Loader';
-import { NO_AUTO_REFRESH_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
+import { broadcastLiveUpdate } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminCandidates.css';
 
@@ -32,6 +32,22 @@ const emptyForm = {
   existingVideoUrl: null,
   existingVideoLabel: '',
   active: true,
+};
+
+const ADMIN_CANDIDATES_PAGE_SIZE = 10;
+const EMPTY_ADMIN_SUMMARY = {
+  total: 0,
+  miss: 0,
+  mister: 0,
+  active: 0,
+};
+const EMPTY_ADMIN_PAGINATION = {
+  currentPage: 1,
+  lastPage: 1,
+  total: 0,
+  perPage: ADMIN_CANDIDATES_PAGE_SIZE,
+  from: 0,
+  to: 0,
 };
 
 const MAX_PHOTO_SIZE_BYTES = 20 * 1024 * 1024;
@@ -91,32 +107,6 @@ const buildCandidatePreview = (candidate) => {
   return sources.src || sources.medium || sources.large || sources.original || null;
 };
 
-const compareCandidatesByCategoryAndNumber = (leftCandidate, rightCandidate) => {
-  const leftCategory = String(leftCandidate.category?.name || '').toLowerCase();
-  const rightCategory = String(rightCandidate.category?.name || '').toLowerCase();
-  const categoryCompare = leftCategory.localeCompare(rightCategory, 'fr', { sensitivity: 'base' });
-
-  if (categoryCompare !== 0) {
-    return categoryCompare;
-  }
-
-  const leftNumber = Number(leftCandidate.publicNumber ?? Number.MAX_SAFE_INTEGER);
-  const rightNumber = Number(rightCandidate.publicNumber ?? Number.MAX_SAFE_INTEGER);
-
-  if (leftNumber !== rightNumber) {
-    return leftNumber - rightNumber;
-  }
-
-  return String(leftCandidate.name || '').localeCompare(String(rightCandidate.name || ''), 'fr', { sensitivity: 'base' });
-};
-
-const sortCandidates = (rows = []) => [...rows]
-  .sort(compareCandidatesByCategoryAndNumber)
-  .map((candidate, index) => ({
-    ...candidate,
-    rank: index + 1,
-  }));
-
 const getNextPublicNumberForCategory = (rows = [], categoryId) => rows.reduce((max, candidate) => {
   if (String(candidate.category?.id ?? '') !== String(categoryId ?? '')) {
     return max;
@@ -137,6 +127,38 @@ const hasCategoryNumberConflict = (rows = [], categoryId, publicNumber, ignoreCa
 
   return Number(candidate.publicNumber || 0) === Number(publicNumber || 0);
 });
+
+const buildCategoryQueryValue = (categoryFilter) => (
+  categoryFilter === 'Tous' ? undefined : categoryFilter
+);
+
+const normalizeAdminCandidatesResponse = (payload = {}) => {
+  const rows = Array.isArray(payload?.data) ? payload.data : [];
+  const currentPage = Number(payload?.current_page || 1);
+  const lastPage = Math.max(1, Number(payload?.last_page || 1));
+  const perPage = Math.max(1, Number(payload?.per_page || ADMIN_CANDIDATES_PAGE_SIZE));
+  const total = Math.max(0, Number(payload?.total || rows.length));
+  const from = total === 0 ? 0 : Math.max(1, Number(payload?.from || ((currentPage - 1) * perPage) + 1));
+  const to = total === 0 ? 0 : Math.max(from, Number(payload?.to || from + rows.length - 1));
+
+  return {
+    rows,
+    summary: {
+      total: Number(payload?.summary?.total || 0),
+      miss: Number(payload?.summary?.miss || 0),
+      mister: Number(payload?.summary?.mister || 0),
+      active: Number(payload?.summary?.active || 0),
+    },
+    pagination: {
+      currentPage,
+      lastPage,
+      total,
+      perPage,
+      from,
+      to,
+    },
+  };
+};
 
 const ConfirmModal = ({ message, onConfirm, onCancel }) => (
   <AnimatePresence>
@@ -161,6 +183,7 @@ const ConfirmModal = ({ message, onConfirm, onCancel }) => (
 const AdminCandidates = () => {
   const [candidates, setCandidates] = useState([]);
   const [search,     setSearch]     = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [catFilter,  setCatFilter]  = useState('Tous');
   const [panelOpen,  setPanelOpen]  = useState(false);
   const [editing,    setEditing]    = useState(null);
@@ -174,9 +197,12 @@ const AdminCandidates = () => {
   const [formErrors, setFormErrors] = useState({});
   const [categories, setCategories] = useState([]);
   const [page, setPage] = useState(1);
-  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [summary, setSummary] = useState(EMPTY_ADMIN_SUMMARY);
+  const [pagination, setPagination] = useState(EMPTY_ADMIN_PAGINATION);
   const hasLoadedRef = useRef(false);
-  const perPage = 10;
+  const categoriesLoadedRef = useRef(false);
+  const latestCandidatesRequestRef = useRef(0);
+  const perPage = ADMIN_CANDIDATES_PAGE_SIZE;
   const adminRole = (() => {
     try {
       return JSON.parse(localStorage.getItem('adminUser') || 'null')?.role || 'admin';
@@ -185,14 +211,16 @@ const AdminCandidates = () => {
     }
   })();
   const canDeleteCandidates = adminRole === 'superadmin';
+  const serverCategoryFilter = useMemo(() => buildCategoryQueryValue(catFilter), [catFilter]);
 
-  const mapCandidate = (c, idx = 0, catList = categories) => {
+  const mapCandidate = (c, idx = 0, catList = categories, pageMeta = pagination) => {
     const catId = c.category?.id ?? c.category_id;
     const catName = c.category?.name
       || (catList || []).find(cat => String(cat.id) === String(catId))?.name
       || c.category
       || '—';
     const imageSources = getCandidateImageSources(c, 'medium');
+    const pageOffset = Math.max(0, (Number(pageMeta?.currentPage || 1) - 1) * Number(pageMeta?.perPage || perPage));
 
     return {
       id: c.id,
@@ -205,7 +233,7 @@ const AdminCandidates = () => {
       city: c.city || '',
       email: c.email || c.user?.email || '',
       votes: c.votes_count ?? c.votes ?? 0,
-      rank: c.rank ?? idx + 1,
+      rank: c.rank ?? pageOffset + idx + 1,
       active: c.is_active ?? c.status === 'active',
       photoUrl: imageSources.src || imageSources.medium || imageSources.large || imageSources.original || null,
       photoProcessingStatus: c.photo_processing_status || 'idle',
@@ -217,93 +245,141 @@ const AdminCandidates = () => {
     };
   };
 
-  const fetchAll = async () => {
-    const isInitialLoad = !hasLoadedRef.current;
+  const fetchCategories = async ({ force = false } = {}) => {
+    if (categoriesLoadedRef.current && !force) {
+      return categories;
+    }
+
+    const payload = await adminAPI.getCategories();
+    const nextCategories = payload?.data || payload || [];
+    setCategories(nextCategories);
+    categoriesLoadedRef.current = true;
+
+    return nextCategories;
+  };
+
+  const fetchCandidatesPage = async ({ forceLoading = false, pageOverride = page } = {}) => {
+    const isInitialLoad = forceLoading || !hasLoadedRef.current;
+    const requestId = latestCandidatesRequestRef.current + 1;
+    latestCandidatesRequestRef.current = requestId;
 
     try {
       if (isInitialLoad) {
         setLoading(true);
       }
 
-      const [cats, list] = await Promise.all([
-        adminAPI.getCategories(),
-        adminAPI.getCandidates({ per_page: 100 }),
-      ]);
+      const response = await adminAPI.getCandidates({
+        per_page: perPage,
+        page: pageOverride,
+        category: serverCategoryFilter,
+        search: debouncedSearch || undefined,
+      });
 
-      const catList = cats?.data || cats || [];
-      setCategories(catList);
-      const rows = sortCandidates((list?.data || list || []).map((c, idx) => mapCandidate(c, idx, catList)));
+      if (requestId !== latestCandidatesRequestRef.current) {
+        return;
+      }
+
+      const normalized = normalizeAdminCandidatesResponse(response);
+      const rows = normalized.rows.map((candidate, index) => (
+        mapCandidate(candidate, index, categories, normalized.pagination)
+      ));
+
       setCandidates(rows);
+      setSummary(normalized.summary);
+      setPagination(normalized.pagination);
       setError(null);
-      setAutoRefreshEnabled(true);
       hasLoadedRef.current = true;
     } catch (err) {
       if (err?.isSessionExpired) {
         return;
       }
 
-      setAutoRefreshEnabled(false);
-
       if (isInitialLoad) {
         setError(err.message || 'Erreur de chargement');
       }
     } finally {
-      if (isInitialLoad) {
+      if (isInitialLoad && requestId === latestCandidatesRequestRef.current) {
         hasLoadedRef.current = true;
         setLoading(false);
       }
     }
   };
 
-  useAutoRefresh(fetchAll, {
-    intervalMs: NO_AUTO_REFRESH_INTERVAL_MS,
-    enabled: autoRefreshEnabled,
-    refreshOnFocus: false,
-    refreshOnLiveUpdate: false,
-    refreshOnStorage: false,
-  });
-
   const retryFetchAll = async () => {
     hasLoadedRef.current = false;
-    setAutoRefreshEnabled(true);
-    await fetchAll();
-  };
+    if (page !== 1) {
+      setPage(1);
+      return;
+    }
 
-  const filtered = useMemo(() => candidates.filter(c => {
-    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.university.toLowerCase().includes(search.toLowerCase());
-    const matchCat    = catFilter === 'Tous' || c.category?.name === catFilter;
-    return matchSearch && matchCat;
-  }), [candidates, search, catFilter]);
+    await fetchCandidatesPage({ forceLoading: true, pageOverride: 1 });
+  };
 
   useEffect(() => {
-    setPage(1);
-  }, [search, catFilter, candidates.length]);
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 250);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const paginatedCandidates = useMemo(() => {
-    const start = (page - 1) * perPage;
-    return filtered.slice(start, start + perPage);
-  }, [filtered, page]);
+    return () => window.clearTimeout(timeoutId);
+  }, [search]);
 
-  const openAdd  = () => {
-    const defaultCatId = categories[0]?.id ?? null;
-    const nextPublicNumber = getNextPublicNumberForCategory(candidates, defaultCatId);
-    setForm({ ...emptyForm, categoryId: defaultCatId, publicNumber: String(nextPublicNumber) });
-    setFormErrors({});
-    setError(null);
-    setFeedback(null);
-    setPreview(null);
-    setEditing(null);
-    setPanelOpen(true);
+  useEffect(() => {
+    void fetchCandidatesPage({ forceLoading: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedRef.current) {
+      return;
+    }
+
+    void fetchCandidatesPage();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, serverCategoryFilter, debouncedSearch]);
+
+  const openAdd  = async () => {
+    try {
+      const loadedCategories = await fetchCategories();
+      const defaultCatId = loadedCategories[0]?.id ?? null;
+      const nextPublicNumber = getNextPublicNumberForCategory(candidates, defaultCatId);
+      setForm({ ...emptyForm, categoryId: defaultCatId, publicNumber: String(nextPublicNumber) });
+      setFormErrors({});
+      setError(null);
+      setFeedback(null);
+      setPreview(null);
+      setEditing(null);
+      setPanelOpen(true);
+    } catch (err) {
+      if (err?.isSessionExpired) {
+        return;
+      }
+
+      setFeedback({
+        type: 'error',
+        message: err?.message || 'Impossible de charger les catégories du formulaire.',
+      });
+    }
   };
-  const openEdit = c  => {
-    setForm(buildCandidateForm(c));
-    setFormErrors({});
-    setError(null);
-    setFeedback(null);
-    setPreview(buildCandidatePreview(c));
-    setEditing(c.id);
-    setPanelOpen(true);
+  const openEdit = async (candidate)  => {
+    try {
+      await fetchCategories();
+      setForm(buildCandidateForm(candidate));
+      setFormErrors({});
+      setError(null);
+      setFeedback(null);
+      setPreview(buildCandidatePreview(candidate));
+      setEditing(candidate.id);
+      setPanelOpen(true);
+    } catch (err) {
+      if (err?.isSessionExpired) {
+        return;
+      }
+
+      setFeedback({
+        type: 'error',
+        message: err?.message || 'Impossible de charger les catégories du formulaire.',
+      });
+    }
   };
 
   const updateField = (name, value) => {
@@ -417,7 +493,14 @@ const AdminCandidates = () => {
       onConfirm: async () => {
         try {
           await adminAPI.deleteCandidate(cand.id);
-          setCandidates(previousCandidates => sortCandidates(previousCandidates.filter(c => c.id !== cand.id)));
+          const nextPage = candidates.length === 1 && page > 1 ? page - 1 : page;
+
+          if (nextPage !== page) {
+            setPage(nextPage);
+          } else {
+            await fetchCandidatesPage();
+          }
+
           setFeedback({ type: 'success', message: `${cand.name} a été désactivé avec succès.` });
           broadcastLiveUpdate('candidates');
         } catch (err) {
@@ -439,7 +522,7 @@ const AdminCandidates = () => {
       onConfirm: async () => {
         try {
           await adminAPI.toggleCandidateStatus(cand.id, nextState);
-          setCandidates(previousCandidates => sortCandidates(previousCandidates.map(c => c.id === cand.id ? { ...c, active: nextState } : c)));
+          await fetchCandidatesPage();
           setFeedback({
             type: 'success',
             message: `${cand.name} est maintenant ${nextState ? 'actif' : 'inactif'}.`,
@@ -523,10 +606,10 @@ const AdminCandidates = () => {
           }
         }
 
-        const updated = mapCandidate(workingCandidate, candidates.findIndex(c => c.id === editing));
-        setCandidates(previousCandidates => sortCandidates(previousCandidates.map(c => c.id === editing ? updated : c)));
+        const updated = mapCandidate(workingCandidate, 0, categories, pagination);
 
         if (Object.keys(mediaErrors).length > 0) {
+          await fetchCandidatesPage();
           setFormErrors(mediaErrors);
           setForm(buildCandidateForm(updated));
           setPreview(buildCandidatePreview(updated));
@@ -543,6 +626,7 @@ const AdminCandidates = () => {
             ? 'Candidat mis à jour. La photo est en cours de traitement automatique.'
             : 'Candidat mis à jour avec succès.',
         });
+        await fetchCandidatesPage();
         broadcastLiveUpdate('candidates');
       } else {
         const res = await adminAPI.createCandidate(payload);
@@ -583,10 +667,10 @@ const AdminCandidates = () => {
           }
         }
 
-        const created = mapCandidate(workingCandidate, candidates.length);
-        setCandidates(previousCandidates => sortCandidates([created, ...previousCandidates]));
+        const created = mapCandidate(workingCandidate, 0, categories, pagination);
 
         if (Object.keys(mediaErrors).length > 0) {
+          await fetchCandidatesPage();
           setEditing(created.id);
           setFormErrors(mediaErrors);
           setForm(buildCandidateForm(created));
@@ -604,6 +688,7 @@ const AdminCandidates = () => {
             ? 'Candidat créé. La photo est en cours de traitement automatique.'
             : 'Candidat créé avec succès.',
         });
+        await fetchCandidatesPage();
         broadcastLiveUpdate('candidates');
       }
 
@@ -689,13 +774,7 @@ const AdminCandidates = () => {
       message: 'Supprimer définitivement la vidéo actuelle de ce candidat ?',
       onConfirm: async () => {
         try {
-          const response = await adminAPI.updateCandidate(editing, { video_path: null });
-          const workingCandidate = response?.candidate || response || {};
-          const updated = mapCandidate(workingCandidate, candidates.findIndex(c => c.id === editing));
-
-          setCandidates((previousCandidates) => sortCandidates(previousCandidates.map((candidate) => (
-            candidate.id === editing ? updated : candidate
-          ))));
+          await adminAPI.updateCandidate(editing, { video_path: null });
           setForm((previousForm) => ({
             ...previousForm,
             video: null,
@@ -704,6 +783,7 @@ const AdminCandidates = () => {
             existingVideoUrl: null,
             existingVideoLabel: '',
           }));
+          await fetchCandidatesPage();
           setFeedback({ type: 'success', message: 'La vidéo du candidat a été supprimée.' });
           broadcastLiveUpdate('candidates');
         } catch (err) {
@@ -722,10 +802,10 @@ const AdminCandidates = () => {
   };
 
   const stats = [
-    { label:'Total',  value: candidates.length,                                    color:'#D4AF37' },
-    { label:'Miss',   value: candidates.filter(c => c.category?.name?.toLowerCase() === 'miss').length,   color:'#f472b6' },
-    { label:'Mister', value: candidates.filter(c => c.category?.name?.toLowerCase() === 'mister').length, color:'#60a5fa' },
-    { label:'Actifs', value: candidates.filter(c => c.active).length,               color:'#4ADE80' },
+    { label:'Total',  value: summary.total,  color:'#D4AF37' },
+    { label:'Miss',   value: summary.miss,   color:'#f472b6' },
+    { label:'Mister', value: summary.mister, color:'#60a5fa' },
+    { label:'Actifs', value: summary.active, color:'#4ADE80' },
   ];
 
   if (loading) {
@@ -783,11 +863,11 @@ const AdminCandidates = () => {
             <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
             <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
-          <input className="ag-input acand-search" placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} />
+          <input className="ag-input acand-search" placeholder="Rechercher…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
         <div className="acand-cat-tabs">
           {['Tous','Miss','Mister'].map(t => (
-            <button key={t} className={`acand-tab ${catFilter === t ? 'active' : ''}`} onClick={() => setCatFilter(t)}>{t}</button>
+            <button key={t} className={`acand-tab ${catFilter === t ? 'active' : ''}`} onClick={() => { setCatFilter(t); setPage(1); }}>{t}</button>
           ))}
         </div>
       </div>
@@ -810,7 +890,7 @@ const AdminCandidates = () => {
               </tr>
             </thead>
             <tbody>
-              {paginatedCandidates.map(c => (
+              {candidates.map(c => (
                 <motion.tr key={c.id} initial={{ opacity:0 }} animate={{ opacity:1 }}>
                   <td data-label="N°"><span className="acand-num">{c.number === '—' ? '—' : `#${c.number}`}</span></td>
                   <td data-label="Candidat">
@@ -860,7 +940,7 @@ const AdminCandidates = () => {
                   </td>
                 </motion.tr>
               ))}
-              {filtered.length === 0 && (
+              {candidates.length === 0 && (
                 <tr><td colSpan={9} style={{ textAlign:'center', padding:'2rem', color:'var(--ag-text-3)' }}>Aucun candidat trouvé</td></tr>
               )}
             </tbody>
@@ -871,18 +951,18 @@ const AdminCandidates = () => {
             className="ag-btn ag-btn-ghost"
             type="button"
             onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
-            disabled={page <= 1}
+            disabled={pagination.currentPage <= 1}
           >
             En arrière
           </button>
           <span className="acand-page-indicator">
-            Page {Math.min(page, totalPages)} / {totalPages}
+            Page {pagination.currentPage} / {pagination.lastPage} · {pagination.from}-{pagination.to} sur {pagination.total}
           </span>
           <button
             className="ag-btn ag-btn-outline"
             type="button"
-            onClick={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))}
-            disabled={page >= totalPages}
+            onClick={() => setPage((currentPage) => Math.min(pagination.lastPage, currentPage + 1))}
+            disabled={pagination.currentPage >= pagination.lastPage}
           >
             En suivant
           </button>
