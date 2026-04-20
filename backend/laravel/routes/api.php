@@ -39,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
 // Public data
 Route::prefix('public')->middleware('throttle:public-read')->group(function () {
     Route::get('init-data', [PublicInitController::class, 'show']);
+    Route::get('last-update', [PublicInitController::class, 'lastUpdate']);
     Route::get('candidates', [PublicCandidateController::class, 'index']);
     Route::get('candidates/{identifier}', [PublicCandidateController::class, 'show']);
     Route::get('media/{path}', [PublicMediaController::class, 'show'])->where('path', '.*');

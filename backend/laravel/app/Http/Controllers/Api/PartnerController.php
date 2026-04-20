@@ -84,6 +84,7 @@ class PartnerController extends Controller
             'is_active' => $isActive,
             'published_at' => $isActive ? now() : null,
         ]);
+        $this->publicApi->invalidatePublicData();
 
         return response()->json([
             'success' => true,
@@ -147,6 +148,7 @@ class PartnerController extends Controller
         }
 
         $partnerLogo->save();
+        $this->publicApi->invalidatePublicData();
 
         if ($previousPath && $previousPath !== $partnerLogo->logo_path) {
             $this->deleteLogo($previousPath, $previousMeta);
@@ -164,6 +166,7 @@ class PartnerController extends Controller
         abort_unless((request()->user()?->role ?? null) === 'superadmin', 403);
         $this->deleteLogo($partnerLogo->logo_path, (array) ($partnerLogo->logo_meta ?? []));
         $partnerLogo->delete();
+        $this->publicApi->invalidatePublicData();
 
         return response()->json([
             'success' => true,

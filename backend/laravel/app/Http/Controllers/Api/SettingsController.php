@@ -112,6 +112,7 @@ class SettingsController extends Controller
         }
 
         $this->persistRuntimeSettings($runtimeSettings);
+        $this->publicApi->invalidatePublicData();
 
         return response()->json($result, 201);
     }
@@ -126,6 +127,7 @@ class SettingsController extends Controller
         ])->validate();
 
         $setting->update($data);
+        $this->publicApi->invalidatePublicData();
         return response()->json($this->format($setting));
     }
 

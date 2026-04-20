@@ -5,6 +5,7 @@ namespace App\Services\CandidateImages;
 use App\Contracts\CandidateFaceDetector;
 use App\Models\Candidate;
 use App\Services\Media\CloudinaryMediaService;
+use App\Services\PublicApiPayloadService;
 use App\Support\CandidateFaceBox;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -18,6 +19,7 @@ class CandidateImagePipeline
     public function __construct(
         private readonly CandidateFaceDetector $faceDetector,
         private readonly CloudinaryMediaService $cloudinaryMedia,
+        private readonly PublicApiPayloadService $publicApi,
     ) {
     }
 
@@ -140,6 +142,8 @@ class CandidateImagePipeline
         if (!empty($stalePaths)) {
             $storage->delete($stalePaths);
         }
+
+        $this->publicApi->invalidatePublicData();
     }
 
     public function processTemporaryUpload(Candidate $candidate, string $absolutePath, ?string $originalFilename = null): void
@@ -239,6 +243,7 @@ class CandidateImagePipeline
 
         $this->deleteCloudinaryPhotoAssets($previousMeta);
         $this->deleteLocalPhotoAssets(array_merge($previousVariants, [$previousOriginalPath]));
+        $this->publicApi->invalidatePublicData();
     }
 
     public function markFailed(Candidate $candidate, string $message): void

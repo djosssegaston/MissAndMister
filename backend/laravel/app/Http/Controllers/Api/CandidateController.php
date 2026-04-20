@@ -81,6 +81,7 @@ class CandidateController extends Controller
         $data['status'] = ($data['is_active'] ?? true) ? 'active' : 'inactive';
 
         $candidate = $this->candidateAccounts->create($data);
+        $this->publicApi->invalidatePublicData();
 
         return response()->json([
             'success' => true,
@@ -120,6 +121,7 @@ class CandidateController extends Controller
             $updated->forceFill(['video_meta' => null])->save();
             $updated->refresh();
         }
+        $this->publicApi->invalidatePublicData();
 
         return response()->json([
             'success' => true,
@@ -138,6 +140,7 @@ class CandidateController extends Controller
     {
         $this->authorize('delete', $candidate);
         $this->candidateAccounts->deactivate($candidate);
+        $this->publicApi->invalidatePublicData();
 
         return response()->json([
             'message' => 'Candidat désactivé',
@@ -322,6 +325,7 @@ class CandidateController extends Controller
         if ($previousVideoPath && $previousVideoPath !== $path) {
             $this->deleteStoredVideo($previousVideoPath, $previousVideoMeta);
         }
+        $this->publicApi->invalidatePublicData();
 
         return response()->json([
             'success' => true,
@@ -339,6 +343,7 @@ class CandidateController extends Controller
             'is_active' => ['required', 'boolean'],
         ]);
         $this->candidateAccounts->syncStatus($candidate, $data['is_active']);
+        $this->publicApi->invalidatePublicData();
 
         return response()->json([
             'success' => true,
@@ -356,6 +361,7 @@ class CandidateController extends Controller
             'is_active' => ['required', 'boolean'],
         ]);
         $this->candidateAccounts->syncStatus($candidate, $validated['is_active']);
+        $this->publicApi->invalidatePublicData();
 
         return response()->json([
             'success' => true,

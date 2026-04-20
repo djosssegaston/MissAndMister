@@ -1371,6 +1371,12 @@ export const publicAPI = {
       timeout: 30000,
     });
   },
+
+  getLastUpdate: async () => {
+    return fetchPublicAPI('/public/last-update', {
+      timeout: 10000,
+    });
+  },
 };
 
 // Export par défaut

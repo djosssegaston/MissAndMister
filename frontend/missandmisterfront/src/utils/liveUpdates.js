@@ -122,7 +122,23 @@ export const useAutoRefresh = (
         return;
       }
 
-      if (event.key === LIVE_UPDATE_STORAGE_KEY || event.key === 'settings_updated_at') {
+      if (event.key === LIVE_UPDATE_STORAGE_KEY) {
+        let payload = null;
+
+        try {
+          payload = JSON.parse(event.newValue || 'null');
+        } catch {
+          payload = null;
+        }
+
+        if (!payload || shouldRunForScope(payload.scope)) {
+          void runRefresh();
+        }
+
+        return;
+      }
+
+      if (event.key === 'settings_updated_at') {
         void runRefresh();
       }
     };

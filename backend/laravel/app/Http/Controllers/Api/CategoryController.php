@@ -4,12 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Services\PublicApiPayloadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
+    public function __construct(
+        private PublicApiPayloadService $publicApi,
+    ) {
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -34,6 +40,7 @@ class CategoryController extends Controller
         $data['slug'] = Str::slug($data['name']);
 
         $category = Category::create($data);
+        $this->publicApi->invalidatePublicData();
 
         return response()->json($category, 201);
     }
@@ -64,6 +71,7 @@ class CategoryController extends Controller
         }
 
         $category->update($data);
+        $this->publicApi->invalidatePublicData();
 
         return response()->json($category);
     }
@@ -75,6 +83,7 @@ class CategoryController extends Controller
     {
         abort_unless((request()->user()?->role ?? null) === 'superadmin', 403);
         $category->delete();
+        $this->publicApi->invalidatePublicData();
         return response()->json(['message' => 'Category deleted']);
     }
 }

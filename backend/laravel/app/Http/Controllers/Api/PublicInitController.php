@@ -21,4 +21,9 @@ class PublicInitController extends Controller
 
         return response()->json($this->publicApi->initDataPayload());
     }
+
+    public function lastUpdate(): JsonResponse
+    {
+        return response()->json($this->publicApi->updateSignalPayload());
+    }
 }

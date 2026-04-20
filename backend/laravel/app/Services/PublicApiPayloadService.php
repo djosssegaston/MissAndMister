@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 class PublicApiPayloadService
 {
     private const CACHE_VERSION_KEY = 'public:payloads:version';
+    private const CACHE_UPDATED_AT_KEY = 'public:payloads:updated_at';
     private const PUBLIC_CACHE_TTL_SECONDS = 60;
     private const PUBLIC_CANDIDATES_PER_PAGE = 50;
 
@@ -150,13 +151,30 @@ class PublicApiPayloadService
                 'stats' => $this->statsPayload(),
                 'candidates' => $this->allCandidatesPayload(),
                 'partners' => $this->partnersPayload()['data'],
+                'meta' => [
+                    'update_signal' => $this->updateSignalPayload(),
+                ],
             ];
         });
     }
 
-    public function invalidateVotingData(): void
+    public function updateSignalPayload(): array
+    {
+        return [
+            'version' => $this->currentCacheVersion(),
+            'timestamp' => $this->currentUpdateTimestamp(),
+        ];
+    }
+
+    public function invalidatePublicData(): void
     {
         Cache::forever(self::CACHE_VERSION_KEY, $this->currentCacheVersion() + 1);
+        Cache::forever(self::CACHE_UPDATED_AT_KEY, $this->freshUpdateTimestamp());
+    }
+
+    public function invalidateVotingData(): void
+    {
+        $this->invalidatePublicData();
     }
 
     public function versionedCacheKey(string $suffix): string
@@ -248,5 +266,20 @@ class PublicApiPayloadService
         $version = (int) Cache::get(self::CACHE_VERSION_KEY, 1);
 
         return $version > 0 ? $version : 1;
+    }
+
+    private function currentUpdateTimestamp(): int
+    {
+        $timestamp = (int) Cache::get(self::CACHE_UPDATED_AT_KEY, 0);
+
+        return $timestamp > 0 ? $timestamp : 0;
+    }
+
+    private function freshUpdateTimestamp(): int
+    {
+        $current = $this->currentUpdateTimestamp();
+        $next = (int) round(microtime(true) * 1000);
+
+        return $next > $current ? $next : ($current + 1);
     }
 }

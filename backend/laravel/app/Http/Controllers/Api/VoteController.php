@@ -8,6 +8,7 @@ use App\Models\Candidate;
 use App\Models\Payment;
 use App\Models\Vote;
 use App\Services\PaymentService;
+use App\Services\PublicApiPayloadService;
 use App\Services\VoteService;
 use App\Services\VotingWindowService;
 use App\Repositories\VoteRepository;
@@ -25,6 +26,7 @@ class VoteController extends Controller
         private PaymentService $payments,
         private VoteRepository $votes,
         private VotingWindowService $votingWindow,
+        private PublicApiPayloadService $publicApi,
     )
     {
     }
@@ -170,6 +172,7 @@ class VoteController extends Controller
             $vote->update($data);
             $vote->refresh();
         }
+        $this->publicApi->invalidateVotingData();
 
         return response()->json($vote->load(['user:id,name,email', 'candidate:id,first_name,last_name,category_id', 'candidate.category:id,name']));
     }
@@ -195,6 +198,7 @@ class VoteController extends Controller
 
             $vote->forceDelete();
         });
+        $this->publicApi->invalidateVotingData();
 
         return response()->json([
             'message' => $paymentSucceeded
