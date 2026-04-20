@@ -170,6 +170,10 @@ const Gallery = () => {
   useAutoRefresh(loadGallery, {
     enabled: isGalleryPublic,
     intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS,
+    minGapMs: 30000,
+    refreshOnFocus: false,
+    refreshOnLiveUpdate: false,
+    refreshOnStorage: false,
   });
 
   const retryLoadGallery = async () => {

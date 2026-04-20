@@ -52,5 +52,17 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute(60)->by(optional($request->user())->id ?: $request->ip()),
             ];
         });
+
+        RateLimiter::for('public-read', function (Request $request) {
+            return [
+                Limit::perMinute(90)->by($request->ip()),
+            ];
+        });
+
+        RateLimiter::for('webhook-fedapay', function (Request $request) {
+            return [
+                Limit::perMinute(240)->by($request->ip()),
+            ];
+        });
     }
 }

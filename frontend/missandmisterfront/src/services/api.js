@@ -62,6 +62,10 @@ const CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY = 'mmub_candidate_public_endpoint_out
 const CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_MS = 1000 * 60 * 15;
 const READ_TRANSPORT_COOLDOWN_KEY = 'mmub_read_transport_cooldown_until_v1';
 const READ_TRANSPORT_COOLDOWN_MS = 1000 * 60;
+const ENABLE_PARALLEL_PUBLIC_READ_TRANSPORT = String(
+  import.meta.env.VITE_ENABLE_PARALLEL_PUBLIC_READ_TRANSPORT || 'false'
+).toLowerCase() === 'true';
+const inFlightPublicGetRequests = new Map();
 
 // Timeout global pour les appels API (en ms)
 const API_TIMEOUT = (() => {
@@ -511,6 +515,10 @@ const shouldRetryRequest = (method = 'GET', error, attempt, maxRetries = MAX_API
 };
 
 const shouldRaceBaseUrls = (endpoint = '', config = {}) => {
+  if (!ENABLE_PARALLEL_PUBLIC_READ_TRANSPORT) {
+    return false;
+  }
+
   const method = getRequestMethod(config);
 
   if (!RETRYABLE_METHODS.has(method) || !isPublicReadEndpoint(endpoint, method)) {
@@ -782,6 +790,13 @@ const fetchPublicAPI = async (endpoint, options = {}) => {
   const hasFormData = isFormDataBody(requestOptions.body);
   const method = getRequestMethod(requestOptions);
   const canUseCacheFallback = isPublicReadEndpoint(endpoint, method);
+  const dedupKey = canUseCacheFallback && method === 'GET' ? `${method}:${endpoint}` : '';
+  const inFlightRequest = dedupKey ? inFlightPublicGetRequests.get(dedupKey) : null;
+
+  if (inFlightRequest) {
+    return inFlightRequest;
+  }
+
   const cachedResponse = canUseCacheFallback ? readCachedPublicResponse(endpoint) : null;
   if (canUseCacheFallback && cachedResponse && isReadTransportCoolingDown()) {
     return cachedResponse;
@@ -800,21 +815,35 @@ const fetchPublicAPI = async (endpoint, options = {}) => {
     },
   };
 
+  const requestPromise = (async () => {
+    try {
+      const data = await performApiRequest(endpoint, config, { timeout });
+
+      if (canUseCacheFallback) {
+        writeCachedPublicResponse(endpoint, data);
+      }
+
+      return data;
+    } catch (error) {
+      if (canUseCacheFallback && cachedResponse && (error?.isNetworkError || error?.isTransportError || error?.code === 'REQUEST_TIMEOUT')) {
+        return cachedResponse;
+      }
+
+      console.error('API Error:', error);
+      throw error;
+    }
+  })();
+
+  if (dedupKey) {
+    inFlightPublicGetRequests.set(dedupKey, requestPromise);
+  }
+
   try {
-    const data = await performApiRequest(endpoint, config, { timeout });
-
-    if (canUseCacheFallback) {
-      writeCachedPublicResponse(endpoint, data);
+    return await requestPromise;
+  } finally {
+    if (dedupKey) {
+      inFlightPublicGetRequests.delete(dedupKey);
     }
-
-    return data;
-  } catch (error) {
-    if (canUseCacheFallback && cachedResponse && (error?.isNetworkError || error?.isTransportError || error?.code === 'REQUEST_TIMEOUT')) {
-      return cachedResponse;
-    }
-
-    console.error('API Error:', error);
-    throw error;
   }
 };
 

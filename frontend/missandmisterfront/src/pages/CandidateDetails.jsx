@@ -80,6 +80,10 @@ const CandidateDetails = () => {
   useAutoRefresh(fetchCandidate, {
     enabled: Boolean(identifier),
     intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS,
+    minGapMs: 30000,
+    refreshOnFocus: false,
+    refreshOnLiveUpdate: false,
+    refreshOnStorage: false,
   });
 
   const retryFetchCandidate = async () => {

@@ -79,7 +79,13 @@ const Candidates = () => {
     }
   };
 
-  useAutoRefresh(fetchCandidates, { intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS });
+  useAutoRefresh(fetchCandidates, {
+    intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS,
+    minGapMs: 30000,
+    refreshOnFocus: false,
+    refreshOnLiveUpdate: false,
+    refreshOnStorage: false,
+  });
 
   const retryFetchCandidates = async () => {
     hasLoadedRef.current = false;

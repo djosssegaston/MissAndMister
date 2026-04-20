@@ -36,7 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // Public data
-Route::prefix('public')->group(function () {
+Route::prefix('public')->middleware('throttle:public-read')->group(function () {
     Route::get('candidates', [PublicCandidateController::class, 'index']);
     Route::get('candidates/{identifier}', [PublicCandidateController::class, 'show']);
     Route::get('media/{path}', [PublicMediaController::class, 'show'])->where('path', '.*');
@@ -46,8 +46,8 @@ Route::prefix('public')->group(function () {
 });
 
 // Legacy public endpoints (kept for compatibility)
-Route::get('candidates', [CandidateController::class, 'index']);
-Route::get('candidates/{candidate}', [CandidateController::class, 'show']);
+Route::get('candidates', [CandidateController::class, 'index'])->middleware('throttle:public-read');
+Route::get('candidates/{candidate}', [CandidateController::class, 'show'])->middleware('throttle:public-read');
 Route::post('votes', [VoteController::class, 'store'])->middleware('throttle:60,1');
 
 Route::middleware(['auth:sanctum', 'force_password_change'])->group(function () {
@@ -55,7 +55,7 @@ Route::middleware(['auth:sanctum', 'force_password_change'])->group(function () 
     Route::get('profile', [UserController::class, 'profile']);
 });
 
-Route::post('payment/webhook', [PaymentController::class, 'webhook']);
+Route::post('payment/webhook', [PaymentController::class, 'webhook'])->middleware('throttle:webhook-fedapay');
 Route::get('payments/{reference}/sync', [PaymentController::class, 'sync']);
 
 // Admin-only routes
@@ -100,4 +100,4 @@ Route::middleware(['auth:sanctum', 'force_password_change', 'role:user'])->group
 });
 
 // Public settings (dates, toggles, price, etc.)
-Route::get('public/settings', [SettingsController::class, 'public']);
+Route::get('public/settings', [SettingsController::class, 'public'])->middleware('throttle:public-read');
