@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Validator;
 
 class SettingsController extends Controller
 {
-    private const PUBLIC_CACHE_TTL_SECONDS = 30;
+    private const PUBLIC_CACHE_TTL_SECONDS = 60;
 
     private array $booleanKeys = [
         'voting_open',

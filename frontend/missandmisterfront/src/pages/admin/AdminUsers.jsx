@@ -55,7 +55,7 @@ const AdminUsers = () => {
         setLoading(true);
       }
 
-      const res = await adminAPI.getUsers({ per_page: 200 });
+      const res = await adminAPI.getUsers({ per_page: 100 });
       const data = res?.data || res || [];
       setUsers(data);
       setError(null);

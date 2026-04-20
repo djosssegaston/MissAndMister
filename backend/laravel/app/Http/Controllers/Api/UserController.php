@@ -38,7 +38,7 @@ class UserController extends Controller
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $perPage = max(25, min((int) request()->integer('per_page', 200), 500));
+        $perPage = max(25, min((int) request()->integer('per_page', 100), 100));
         $actor = request()->user();
 
         // Utilisateurs inscrits

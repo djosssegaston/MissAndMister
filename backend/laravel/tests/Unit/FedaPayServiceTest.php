@@ -39,4 +39,18 @@ class FedaPayServiceTest extends TestCase
         $this->assertSame('whsec_from_config', $service->webhookSecret());
         $this->assertSame('live', $service->environment());
     }
+
+    public function test_it_accepts_timestamped_webhook_signature_header_format(): void
+    {
+        config()->set('services.fedapay.webhook_secret', 'whsec_test');
+
+        $service = app(FedaPayService::class);
+        $payload = '{"name":"transaction.updated","data":{"entity":{"id":"123"}}}';
+        $timestamp = '1776594709';
+        $signature = hash_hmac('sha256', $timestamp . '.' . $payload, 'whsec_test');
+
+        $this->assertTrue(
+            $service->verifyWebhookSignature($payload, "t={$timestamp},s={$signature}")
+        );
+    }
 }

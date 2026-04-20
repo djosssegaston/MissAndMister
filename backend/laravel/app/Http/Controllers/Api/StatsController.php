@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Cache;
 
 class StatsController extends Controller
 {
-    private const PUBLIC_CACHE_TTL_SECONDS = 30;
+    private const PUBLIC_CACHE_TTL_SECONDS = 60;
 
     public function __construct(
         private StatsService $stats,

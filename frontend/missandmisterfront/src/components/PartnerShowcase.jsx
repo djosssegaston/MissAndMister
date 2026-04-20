@@ -4,7 +4,7 @@ import { partnersAPI } from '../services/api';
 import Loader from './Loader';
 import WhatsAppIcon from './WhatsAppIcon';
 import { resolveMediaUrl } from '../utils/mediaUrl';
-import { useAutoRefresh } from '../utils/liveUpdates';
+import { PUBLIC_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import { PARTNER_WHATSAPP_URL } from '../utils/siteContact';
 import './PartnerShowcase.css';
 
@@ -114,7 +114,7 @@ const PartnerShowcase = ({
     }
   };
 
-  useAutoRefresh(fetchPartners, { intervalMs: 45000 });
+  useAutoRefresh(fetchPartners, { intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS });
 
   const retryFetchPartners = async () => {
     hasLoadedRef.current = false;

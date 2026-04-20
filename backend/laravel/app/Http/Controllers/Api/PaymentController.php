@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessFedapayWebhookJob;
 use App\Models\Payment;
 use App\Repositories\PaymentRepository;
 use App\Services\FedaPayService;
+use App\Services\FedapayWebhookService;
 use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +20,7 @@ class PaymentController extends Controller
         private PaymentService $payments,
         private PaymentRepository $paymentRepo,
         private FedaPayService $fedapay,
+        private FedapayWebhookService $fedapayWebhooks,
     ) {
     }
 
@@ -135,15 +138,48 @@ class PaymentController extends Controller
         ]));
         $lockKey = 'fedapay:webhook:process:' . $fingerprint;
 
-        if (!Cache::add($lockKey, now()->timestamp, 120)) {
-            return response()->json(['message' => 'Webhook already processed']);
+        if (!Cache::add($lockKey, now()->timestamp, 600)) {
+            return response()->json([
+                'message' => 'Webhook already queued',
+                'result' => 'duplicate',
+            ]);
+        }
+
+        if (!$this->shouldProcessWebhookAsynchronously()) {
+            try {
+                $result = $this->fedapayWebhooks->processWebhookPayload($payload, $eventName, $transactionId, $reference);
+            } catch (\Throwable $exception) {
+                Cache::forget($lockKey);
+                logger()->warning('FedaPay webhook processing failed', [
+                    'event' => $eventName,
+                    'transaction_id' => $transactionId,
+                    'reference' => $reference,
+                    'status' => $status !== '' ? $status : null,
+                    'error' => $exception->getMessage(),
+                ]);
+
+                return response()->json(['message' => 'Webhook processing failed'], 500);
+            }
+
+            return response()->json([
+                'message' => 'Webhook processed',
+                'result' => $result['result'] ?? 'processed',
+                'outcome' => $result['outcome'] ?? null,
+            ]);
         }
 
         try {
-            $result = $this->processWebhookPayload($payload, $eventName, $transactionId, $reference);
+            ProcessFedapayWebhookJob::dispatchAfterResponse(
+                $payload,
+                $eventName,
+                $transactionId,
+                $reference,
+                $status,
+                $fingerprint,
+                $lockKey,
+            )->onQueue((string) config('services.fedapay.webhook_queue', 'default'));
         } catch (\Throwable $exception) {
-            Cache::forget($lockKey);
-            logger()->warning('FedaPay webhook processing failed', [
+            logger()->warning('FedaPay webhook queue dispatch failed', [
                 'event' => $eventName,
                 'transaction_id' => $transactionId,
                 'reference' => $reference,
@@ -151,103 +187,34 @@ class PaymentController extends Controller
                 'error' => $exception->getMessage(),
             ]);
 
-            // Return a non-2xx response so FedaPay can retry the event delivery.
-            return response()->json(['message' => 'Webhook processing failed'], 500);
+            try {
+                $result = $this->fedapayWebhooks->processWebhookPayload($payload, $eventName, $transactionId, $reference);
+
+                return response()->json([
+                    'message' => 'Webhook processed',
+                    'result' => $result['result'] ?? 'processed',
+                    'outcome' => $result['outcome'] ?? null,
+                ]);
+            } catch (\Throwable $fallbackException) {
+                Cache::forget($lockKey);
+
+                logger()->warning('FedaPay webhook fallback processing failed', [
+                    'event' => $eventName,
+                    'transaction_id' => $transactionId,
+                    'reference' => $reference,
+                    'status' => $status !== '' ? $status : null,
+                    'error' => $fallbackException->getMessage(),
+                ]);
+
+                return response()->json(['message' => 'Webhook processing failed'], 500);
+            }
         }
 
         return response()->json([
-            'message' => 'Webhook processed',
-            'result' => $result['result'] ?? 'processed',
-            'outcome' => $result['outcome'] ?? null,
+            'message' => 'Webhook accepted',
+            'result' => 'queued',
+            'outcome' => 'processing',
         ]);
-    }
-
-    private function processWebhookPayload(
-        array $payload,
-        string $eventName,
-        ?string $transactionId,
-        ?string $reference,
-    ): array {
-        $payment = null;
-        $remoteTransaction = null;
-        $payloadStatus = $this->extractWebhookStatus($payload);
-
-        if ($transactionId !== null) {
-            $payment = $this->paymentRepo->findByTransactionId($transactionId);
-        }
-
-        if (!$payment && $reference !== null) {
-            $payment = $this->paymentRepo->findByReference($reference);
-        }
-
-        $shouldFetchRemoteTransaction = $transactionId !== null && (!$payment || $payloadStatus === '');
-        if ($shouldFetchRemoteTransaction) {
-            try {
-                $remoteTransaction = $this->fedapay->retrieveTransaction($transactionId);
-            } catch (\Throwable $exception) {
-                logger()->warning('FedaPay transaction lookup failed during webhook sync', [
-                    'payment_id' => $payment?->id,
-                    'transaction_id' => $transactionId,
-                    'error' => $exception->getMessage(),
-                ]);
-            }
-        }
-
-        if (!$payment && $remoteTransaction) {
-            $syncedPayment = $this->payments->syncRemoteSuccessfulTransaction($remoteTransaction);
-            if ($syncedPayment) {
-                return [
-                    'result' => 'synced_without_local_match',
-                    'outcome' => $syncedPayment->status,
-                    'payment_id' => $syncedPayment->id,
-                ];
-            }
-        }
-
-        if (!$payment) {
-            logger()->warning('FedaPay webhook received but no local payment matched', [
-                'event' => $eventName,
-                'transaction_id' => $transactionId,
-                'reference' => $reference,
-                'status' => $payloadStatus !== '' ? $payloadStatus : null,
-            ]);
-
-            return [
-                'result' => 'unmatched',
-                'outcome' => 'processing',
-            ];
-        }
-
-        $outcome = $this->resolveWebhookOutcome($payload, $remoteTransaction, $eventName);
-
-        $updatedPayment = $this->applyOutcome($payment, $outcome, $remoteTransaction ?: $payload, $eventName);
-
-        return [
-            'result' => 'applied',
-            'outcome' => $updatedPayment->status,
-            'payment_id' => $updatedPayment->id,
-        ];
-    }
-
-    private function applyOutcome(Payment $payment, string $outcome, array $payload = [], ?string $eventName = null): Payment
-    {
-        if ($outcome === 'succeeded') {
-            $payment = $this->payments->confirm($payment->reference, $payload);
-
-            return $payment->fresh(['vote']);
-        }
-
-        if ($outcome === 'failed') {
-            return $this->payments
-                ->markPaymentAsFailed($payment, $payload, $eventName ?: 'transaction.failed')
-                ->fresh(['vote']);
-        }
-
-        if ($outcome === 'processing') {
-            $payment = $this->paymentRepo->updateStatus($payment, 'processing', $payload);
-        }
-
-        return $payment->fresh(['vote']);
     }
 
     private function extractEventName(array $payload): string
@@ -326,50 +293,13 @@ class PaymentController extends Controller
         return null;
     }
 
-    private function resolveWebhookOutcome(array $payload, ?array $remoteTransaction, string $eventName): string
+    private function shouldProcessWebhookAsynchronously(): bool
     {
-        $status = strtolower((string) (
-            data_get($remoteTransaction, 'status')
-            ?: $this->extractWebhookStatus($payload)
-            ?: ''
-        ));
-
-        $approvedIndicators = ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred'];
-        $failureIndicators = ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected', 'refunded'];
-        $processingIndicators = ['pending', 'processing', 'created', 'initiated'];
-
-        if (
-            in_array($status, $approvedIndicators, true)
-            || str_contains($eventName, 'approved')
-            || str_contains($eventName, 'success')
-            || str_contains($eventName, 'paid')
-            || str_contains($eventName, 'transferred')
-        ) {
-            return 'succeeded';
+        if (app()->environment('testing')) {
+            return (bool) config('services.fedapay.webhook_async', false);
         }
 
-        if (
-            in_array($status, $failureIndicators, true)
-            || str_contains($eventName, 'canceled')
-            || str_contains($eventName, 'cancelled')
-            || str_contains($eventName, 'declined')
-            || str_contains($eventName, 'failed')
-            || str_contains($eventName, 'refunded')
-            || str_contains($eventName, 'expired')
-        ) {
-            return 'failed';
-        }
-
-        if (
-            in_array($status, $processingIndicators, true)
-            || str_contains($eventName, 'pending')
-            || str_contains($eventName, 'created')
-            || str_contains($eventName, 'updated')
-        ) {
-            return 'processing';
-        }
-
-        return 'processing';
+        return (bool) config('services.fedapay.webhook_async', true);
     }
 
     private function extractWebhookStatus(array $payload): string

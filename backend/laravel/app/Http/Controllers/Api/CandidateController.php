@@ -25,7 +25,7 @@ use Illuminate\Validation\ValidationException;
 class CandidateController extends Controller
 {
     private const PHOTO_UPLOAD_LIMIT_LABEL = '20 Mo';
-    private const PUBLIC_CACHE_TTL_SECONDS = 30;
+    private const PUBLIC_CACHE_TTL_SECONDS = 60;
 
     public function __construct(
         private CandidateRepository $candidates,
@@ -44,7 +44,7 @@ class CandidateController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $perPage = max(1, min((int) $request->integer('per_page', 120), 200));
+        $perPage = max(1, min((int) $request->integer('per_page', 120), 120));
         $category = trim((string) $request->query('category', ''));
         $cacheKey = 'legacy:candidates:index:' . md5(json_encode([$perPage, strtolower($category)]));
 
@@ -59,7 +59,7 @@ class CandidateController extends Controller
     public function adminIndex(Request $request): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $perPage = max(1, min((int) $request->integer('per_page', 200), 200));
+        $perPage = max(10, min((int) $request->integer('per_page', 100), 100));
         return response()->json($this->candidates->paginateAll($perPage));
     }
 

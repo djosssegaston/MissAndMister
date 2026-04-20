@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class CandidateRepository
 {
-    public function paginatePublic(int $perPage = 200, ?string $category = null): LengthAwarePaginator
+    public function paginatePublic(int $perPage = 120, ?string $category = null): LengthAwarePaginator
     {
         return $this->publicBaseQuery()
             ->select([
@@ -41,10 +41,35 @@ class CandidateRepository
             ->paginate($perPage);
     }
 
-    public function paginateAll(int $perPage = 200): LengthAwarePaginator
+    public function paginateAll(int $perPage = 100): LengthAwarePaginator
     {
         return Candidate::withTrashed()
-            ->with('category')
+            ->select([
+                'id',
+                'category_id',
+                'first_name',
+                'last_name',
+                'public_number',
+                'public_uid',
+                'slug',
+                'email',
+                'university',
+                'age',
+                'city',
+                'bio',
+                'description',
+                'photo_path',
+                'photo_original_path',
+                'photo_variants',
+                'photo_processing_status',
+                'photo_processing_error',
+                'video_path',
+                'is_active',
+                'status',
+                'created_at',
+                'deleted_at',
+            ])
+            ->with('category:id,name')
             ->withSum(['votes as votes_count' => function ($q) {
                 $q->successful();
             }], 'quantity')
@@ -158,7 +183,7 @@ class CandidateRepository
 
     private function publicBaseQuery(): Builder
     {
-        return Candidate::with('category')
+        return Candidate::with('category:id,name')
             ->where(function (Builder $query) {
                 $query->where('status', 'active')->orWhereNull('status');
             })

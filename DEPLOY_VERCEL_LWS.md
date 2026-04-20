@@ -81,6 +81,16 @@ php artisan config:clear
 php artisan cache:clear
 ```
 
+Commande de stabilisation recommandees apres validation `.env` sur LWS :
+
+```bash
+php artisan optimize:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan optimize
+```
+
 ### Variables d'environnement minimales
 
 Voir le fichier :
@@ -98,6 +108,8 @@ Les variables sensibles a renseigner manuellement :
 - `FEDAPAY_PUBLIC_KEY`
 - `FEDAPAY_SECRET_KEY`
 - `FEDAPAY_WEBHOOK_SECRET`
+- `FEDAPAY_WEBHOOK_ASYNC` (recommande: `true`)
+- `FEDAPAY_WEBHOOK_QUEUE` (recommande: `default`)
 - `PROD_ADMIN_PASSWORD`
 - `STAFF_ADMIN_PASSWORD`
 

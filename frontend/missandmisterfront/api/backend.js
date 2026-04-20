@@ -1,7 +1,7 @@
 const UPSTREAM_API_BASE_URL = 'https://api.missmisteruniversitybenin.com/api';
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const PUBLIC_CACHE_CONTROL = 'public, s-maxage=120, stale-while-revalidate=86400';
-const DYNAMIC_PUBLIC_CACHE_CONTROL = 'public, s-maxage=30, stale-while-revalidate=300';
+const DYNAMIC_PUBLIC_CACHE_CONTROL = 'public, s-maxage=60, stale-while-revalidate=600';
 const PRIVATE_CACHE_CONTROL = 'no-store';
 const REQUEST_TIMEOUT_MS = 30000;
 

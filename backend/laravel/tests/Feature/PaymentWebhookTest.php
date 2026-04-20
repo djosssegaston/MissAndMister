@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ProcessFedapayWebhookJob;
 use App\Models\Candidate;
 use App\Models\Category;
 use App\Models\Payment;
 use App\Models\Vote;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -29,6 +31,7 @@ class PaymentWebhookTest extends TestCase
         config()->set('services.fedapay.webhook_secret', 'whsec_test');
         config()->set('services.fedapay.secret_key', 'sk_test');
         config()->set('services.fedapay.environment', 'sandbox');
+        config()->set('services.fedapay.webhook_async', false);
 
         $category = Category::query()->create([
             'name' => 'Miss',
@@ -97,6 +100,33 @@ class PaymentWebhookTest extends TestCase
 
         $this->assertSame(Payment::STATUS_SUCCEEDED, $payment->status);
         $this->assertSame(Vote::STATUS_CONFIRMED, $vote->status);
+    }
+
+    public function test_webhook_queues_processing_when_async_enabled(): void
+    {
+        config()->set('services.fedapay.webhook_secret', 'whsec_test');
+        config()->set('services.fedapay.webhook_async', true);
+        Queue::fake();
+
+        $payload = [
+            'name' => 'transaction.updated',
+            'data' => [
+                'entity' => [
+                    'id' => 'tx_async_001',
+                    'status' => 'approved',
+                    'merchant_reference' => 'ASYNCREF001',
+                ],
+            ],
+        ];
+
+        $response = $this->postSignedWebhook($payload, 'whsec_test');
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('result', 'queued')
+            ->assertJsonPath('outcome', 'processing');
+
+        Queue::assertPushed(ProcessFedapayWebhookJob::class);
     }
 
     private function postSignedWebhook(array $payload, string $secret): TestResponse

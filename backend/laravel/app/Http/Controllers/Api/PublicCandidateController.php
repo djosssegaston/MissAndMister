@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Cache;
 
 class PublicCandidateController extends Controller
 {
-    private const PUBLIC_CACHE_TTL_SECONDS = 30;
+    private const PUBLIC_CACHE_TTL_SECONDS = 60;
 
     public function __construct(
         private CandidateRepository $candidates,
@@ -23,7 +23,7 @@ class PublicCandidateController extends Controller
     public function index(): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $perPage = max(24, min((int) request()->integer('per_page', 120), 200));
+        $perPage = max(24, min((int) request()->integer('per_page', 120), 120));
         $category = trim((string) request()->query('category', ''));
         $cacheKey = 'public:candidates:index:' . md5(json_encode([$perPage, strtolower($category)]));
 

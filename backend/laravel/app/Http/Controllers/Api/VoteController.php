@@ -37,7 +37,7 @@ class VoteController extends Controller
         abort_unless(request()->user()?->tokenCan('admin'), 403);
         $this->payments->scheduleWarmPaymentStateForReadModels();
         $filters = request()->only(['status', 'candidate_id', 'from', 'to']);
-        $perPage = max(5, min((int) request()->get('per_page', 20), 500));
+        $perPage = max(10, min((int) request()->get('per_page', 50), 100));
         $list = $this->votes->paginateFiltered($filters, $perPage);
 
         return response()->json(array_merge(

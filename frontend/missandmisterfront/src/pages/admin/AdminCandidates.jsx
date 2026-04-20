@@ -227,7 +227,7 @@ const AdminCandidates = () => {
 
       const [cats, list] = await Promise.all([
         adminAPI.getCategories(),
-        adminAPI.getCandidates({ per_page: 200 }),
+        adminAPI.getCandidates({ per_page: 100 }),
       ]);
 
       const catList = cats?.data || cats || [];
