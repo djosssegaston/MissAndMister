@@ -32,6 +32,7 @@ class PaymentService
         private PaymentRepository $payments,
         private TransactionRepository $transactions,
         private FedaPayService $fedapay,
+        private PublicApiPayloadService $publicApi,
     ) {
     }
 
@@ -708,7 +709,9 @@ class PaymentService
         ));
         $ipAddress = trim((string) data_get($payment->meta, 'ip', ''));
 
-        DB::transaction(function () use ($payment, $candidateId, $quantity, $ipAddress): void {
+        $restored = false;
+
+        DB::transaction(function () use ($payment, $candidateId, $quantity, $ipAddress, &$restored): void {
             $lockedPayment = Payment::query()
                 ->with(['vote', 'user'])
                 ->lockForUpdate()
@@ -746,10 +749,12 @@ class PaymentService
 
                 $existingVote->update($votePayload);
                 $vote = $existingVote->fresh();
+                $restored = true;
             } else {
                 $vote = Vote::create(array_merge($votePayload, [
                     'payment_id' => $lockedPayment->id,
                 ]));
+                $restored = true;
             }
 
             ActivityLog::create([
@@ -767,6 +772,10 @@ class PaymentService
                 'status' => 'active',
             ]);
         });
+
+        if ($restored) {
+            $this->publicApi->invalidateVotingData();
+        }
 
         return $payment->fresh(['vote', 'user']);
     }
@@ -900,6 +909,10 @@ class PaymentService
 
         if ($statusChanged && ($payment->vote->user_id ?: $payment->user_id)) {
             SendVoteConfirmationJob::dispatch($payment->vote->id);
+        }
+
+        if ($statusChanged) {
+            $this->publicApi->invalidateVotingData();
         }
 
         return $payment->fresh(['vote', 'user']);

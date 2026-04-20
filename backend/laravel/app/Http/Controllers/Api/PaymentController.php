@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessFedapayWebhookJob;
+use App\Models\Candidate;
 use App\Models\Payment;
 use App\Repositories\PaymentRepository;
 use App\Services\FedaPayService;
@@ -326,6 +327,20 @@ class PaymentController extends Controller
     private function syncResponsePayload(Payment $payment, ?array $remoteTransaction = null): array
     {
         $payment->loadMissing('vote.candidate');
+        $candidateVotesCount = null;
+
+        if ($payment->vote?->candidate_id) {
+            $candidate = Candidate::query()
+                ->whereKey($payment->vote->candidate_id)
+                ->withSum(['votes as votes_count' => function ($query) {
+                    $query->where('status', 'confirmed');
+                }], 'quantity')
+                ->first();
+
+            if ($candidate) {
+                $candidateVotesCount = (int) ($candidate->votes_count ?? 0);
+            }
+        }
 
         return [
             'reference' => $payment->reference,
@@ -342,6 +357,9 @@ class PaymentController extends Controller
             'candidate_public_uid' => $payment->vote?->candidate?->public_uid,
             'candidate_slug' => $payment->vote?->candidate?->slug,
             'candidate_public_number' => $payment->vote?->candidate?->public_number,
+            'candidate_votes_count' => $candidateVotesCount,
+            'votes_count' => $candidateVotesCount,
+            'votes' => $candidateVotesCount,
             'remote_status' => $remoteTransaction ? strtolower((string) Arr::get($remoteTransaction, 'status', '')) : null,
         ];
     }

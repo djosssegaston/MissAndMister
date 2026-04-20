@@ -18,6 +18,7 @@ class VoteService
         private VoteRepository $votes,
         private PaymentService $payments,
         private FraudDetectionService $fraudDetection,
+        private PublicApiPayloadService $publicApi,
     ) {
     }
 
@@ -90,7 +91,7 @@ class VoteService
             return $vote;
         }
 
-        return DB::transaction(function () use ($vote) {
+        $confirmedVote = DB::transaction(function () use ($vote) {
             $vote->loadMissing('payment');
 
             $updates = ['status' => 'confirmed'];
@@ -119,6 +120,10 @@ class VoteService
 
             return $vote;
         });
+
+        $this->publicApi->invalidateVotingData();
+
+        return $confirmedVote;
     }
 
     public function failVote(Vote $vote, ?string $reason = null): Vote

@@ -33,7 +33,7 @@ class PublicCandidateController extends Controller
     public function show(string $identifier): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $payload = cache()->remember('public:candidates:show:' . md5($identifier), now()->addSeconds(60), function () use ($identifier) {
+        $payload = cache()->remember($this->publicApi->versionedCacheKey('candidates:show:' . md5($identifier)), now()->addSeconds(60), function () use ($identifier) {
             $candidate = $this->candidates->findActiveByIdentifier($identifier);
 
             if (!$candidate) {

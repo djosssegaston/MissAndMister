@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { candidatesAPI, paymentAPI } from '../services/api';
+import { paymentAPI } from '../services/api';
 import { getCandidatePublicPath } from '../utils/candidatePublic';
 import { broadcastLiveUpdate } from '../utils/liveUpdates';
 import './PaymentConfirmation.css';
@@ -70,6 +70,7 @@ const PaymentConfirmation = () => {
   const [message, setMessage] = useState('Nous vérifions la confirmation du paiement auprès du serveur sécurisé.');
   const [candidateTotalVotes, setCandidateTotalVotes] = useState(null);
   const [isSyncing, setIsSyncing] = useState(SYNCABLE_STATES.has(queryStatus) && reference !== '');
+  const { refreshPublicBootstrap } = useOutletContext() || {};
   const candidateName = paymentDetails.candidateName;
   const amount = paymentDetails.amount;
   const quantity = paymentDetails.quantity;
@@ -134,41 +135,6 @@ const PaymentConfirmation = () => {
   }, [candidateName, paymentState]);
 
   useEffect(() => {
-    if (paymentState !== 'success') {
-      setCandidateTotalVotes(null);
-      return undefined;
-    }
-
-    const identifier = String(paymentDetails.candidatePublicId || '').trim();
-    if (!identifier) {
-      return undefined;
-    }
-
-    let cancelled = false;
-
-    const fetchCandidateVotes = async () => {
-      try {
-        const payload = await candidatesAPI.getById(identifier);
-        const nextTotalVotes = parseVoteTotal(payload?.votes_count ?? payload?.votes);
-
-        if (!cancelled && nextTotalVotes !== null) {
-          setCandidateTotalVotes(nextTotalVotes);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setCandidateTotalVotes(null);
-        }
-      }
-    };
-
-    void fetchCandidateVotes();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [paymentDetails.candidatePublicId, paymentState]);
-
-  useEffect(() => {
     if (!reference || !SYNCABLE_STATES.has(queryStatus)) {
       return undefined;
     }
@@ -203,6 +169,9 @@ const PaymentConfirmation = () => {
         const paymentStatus = String(payload?.payment_status || '').toLowerCase();
         const voteStatus = String(payload?.vote_status || '').toLowerCase();
         const nextState = buildStateFromStatuses(paymentStatus, voteStatus, 'processing');
+        const nextTotalVotes = parseVoteTotal(
+          payload?.candidate_votes_count ?? payload?.votes_count ?? payload?.votes
+        );
         setPaymentDetails({
           candidateName: String(payload?.candidate_name || 'ce candidat').trim() || 'ce candidat',
           candidatePublicId: String(payload?.candidate_public_uid || payload?.candidate_slug || '').trim(),
@@ -217,8 +186,16 @@ const PaymentConfirmation = () => {
 
         if (nextState === 'success') {
           setPaymentState('success');
+          if (nextTotalVotes !== null) {
+            setCandidateTotalVotes(nextTotalVotes);
+          }
           setMessage('Votre paiement a été confirmé. Nous finalisons l’actualisation du compteur du candidat.');
           broadcastLiveUpdate('votes');
+          try {
+            await refreshPublicBootstrap?.();
+          } catch {
+            // Ignore bootstrap refresh failures: the confirmation message already reflects the new total.
+          }
           setIsSyncing(false);
           stopPolling();
           return;

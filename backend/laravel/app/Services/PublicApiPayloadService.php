@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 
 class PublicApiPayloadService
 {
+    private const CACHE_VERSION_KEY = 'public:payloads:version';
     private const PUBLIC_CACHE_TTL_SECONDS = 60;
     private const PUBLIC_CANDIDATES_PER_PAGE = 50;
 
@@ -51,7 +52,7 @@ class PublicApiPayloadService
 
     public function settingsPayload(): array
     {
-        return Cache::remember('public:settings:payload', now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () {
+        return Cache::remember($this->versionedCacheKey('settings:payload'), now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () {
             $settings = Setting::where('status', 'active')
                 ->whereIn('key', array_merge($this->allowedKeys, $this->runtimeKeys))
                 ->get();
@@ -89,7 +90,7 @@ class PublicApiPayloadService
     public function statsPayload(): array
     {
         return Cache::remember(
-            'public:stats:summary',
+            $this->versionedCacheKey('stats:summary'),
             now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS),
             fn () => $this->stats->publicSummary()
         );
@@ -99,7 +100,7 @@ class PublicApiPayloadService
     {
         $normalizedPerPage = max(12, min($perPage, self::PUBLIC_CANDIDATES_PER_PAGE));
         $normalizedCategory = filled($category) ? strtolower(trim((string) $category)) : '';
-        $cacheKey = 'public:candidates:index:' . md5(json_encode([$normalizedPerPage, $normalizedCategory]));
+        $cacheKey = $this->versionedCacheKey('candidates:index:' . md5(json_encode([$normalizedPerPage, $normalizedCategory])));
 
         return Cache::remember($cacheKey, now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () use ($normalizedPerPage, $normalizedCategory) {
             $paginator = $this->candidates->paginatePublic($normalizedPerPage, $normalizedCategory !== '' ? $normalizedCategory : null);
@@ -114,7 +115,7 @@ class PublicApiPayloadService
     public function allCandidatesPayload(?string $category = null): array
     {
         $normalizedCategory = filled($category) ? strtolower(trim((string) $category)) : '';
-        $cacheKey = 'public:candidates:collection:' . md5($normalizedCategory);
+        $cacheKey = $this->versionedCacheKey('candidates:collection:' . md5($normalizedCategory));
 
         return Cache::remember($cacheKey, now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () use ($normalizedCategory) {
             return $this->candidates
@@ -127,7 +128,7 @@ class PublicApiPayloadService
 
     public function partnersPayload(): array
     {
-        return Cache::remember('public:partners:list', now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () {
+        return Cache::remember($this->versionedCacheKey('partners:list'), now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () {
             $items = PartnerLogo::query()
                 ->select(['id', 'name', 'website_url', 'logo_path', 'logo_meta', 'sort_order', 'is_active'])
                 ->where('is_active', true)
@@ -143,7 +144,7 @@ class PublicApiPayloadService
 
     public function initDataPayload(): array
     {
-        return Cache::remember('public:init-data:payload', now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () {
+        return Cache::remember($this->versionedCacheKey('init-data:payload'), now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () {
             return [
                 'settings' => $this->settingsPayload(),
                 'stats' => $this->statsPayload(),
@@ -151,6 +152,16 @@ class PublicApiPayloadService
                 'partners' => $this->partnersPayload()['data'],
             ];
         });
+    }
+
+    public function invalidateVotingData(): void
+    {
+        Cache::forever(self::CACHE_VERSION_KEY, $this->currentCacheVersion() + 1);
+    }
+
+    public function versionedCacheKey(string $suffix): string
+    {
+        return 'public:v' . $this->currentCacheVersion() . ':' . ltrim($suffix, ':');
     }
 
     private function presentListCandidate(Candidate $candidate): array
@@ -230,5 +241,12 @@ class PublicApiPayloadService
     private function extractRuntimeSettings(array $settings): array
     {
         return array_intersect_key($settings, array_flip($this->runtimeKeys));
+    }
+
+    private function currentCacheVersion(): int
+    {
+        $version = (int) Cache::get(self::CACHE_VERSION_KEY, 1);
+
+        return $version > 0 ? $version : 1;
     }
 }
