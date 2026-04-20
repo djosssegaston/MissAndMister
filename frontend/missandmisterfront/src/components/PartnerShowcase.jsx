@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { partnersAPI } from '../services/api';
+import { useOutletContext } from 'react-router-dom';
 import Loader from './Loader';
 import WhatsAppIcon from './WhatsAppIcon';
 import { resolveMediaUrl } from '../utils/mediaUrl';
-import { PUBLIC_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import { PARTNER_WHATSAPP_URL } from '../utils/siteContact';
 import './PartnerShowcase.css';
 
@@ -85,41 +84,19 @@ const PartnerShowcase = ({
   contactButtonVariant = 'whatsapp',
   className = '',
 }) => {
+  const {
+    publicPartners = [],
+    bootstrapLoading = false,
+    bootstrapError = null,
+    refreshPublicBootstrap,
+  } = useOutletContext() || {};
   const [partners, setPartners] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const hasLoadedRef = useRef(false);
+  const loading = bootstrapLoading && (!Array.isArray(publicPartners) || publicPartners.length === 0);
+  const error = partners.length === 0 ? (bootstrapError?.message || null) : null;
 
-  const fetchPartners = async () => {
-    const isInitialLoad = !hasLoadedRef.current;
-
-    try {
-      if (isInitialLoad) {
-        setLoading(true);
-      }
-
-      const response = await partnersAPI.getAll();
-      setPartners((response?.data || []).map(normalizePartner));
-      setError(null);
-      hasLoadedRef.current = true;
-    } catch (partnersError) {
-      if (isInitialLoad) {
-        setError(partnersError.message || 'Impossible de charger les partenaires pour le moment.');
-      }
-    } finally {
-      if (isInitialLoad) {
-        hasLoadedRef.current = true;
-        setLoading(false);
-      }
-    }
-  };
-
-  useAutoRefresh(fetchPartners, { intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS });
-
-  const retryFetchPartners = async () => {
-    hasLoadedRef.current = false;
-    await fetchPartners();
-  };
+  useEffect(() => {
+    setPartners((Array.isArray(publicPartners) ? publicPartners : []).map(normalizePartner));
+  }, [publicPartners]);
 
   const activePartners = useMemo(
     () => partners.filter((partner) => partner.logoUrl),
@@ -161,7 +138,7 @@ const PartnerShowcase = ({
             <div className="partners-state-card partners-error-card">
               <h3>Erreur de chargement</h3>
               <p>{error}</p>
-              <button type="button" className="btn-gold" onClick={retryFetchPartners}>
+              <button type="button" className="btn-gold" onClick={refreshPublicBootstrap}>
                 Réessayer
               </button>
             </div>

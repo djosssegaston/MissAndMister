@@ -4,15 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Services\PublicApiPayloadService;
 use App\Services\VotingWindowService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
 class SettingsController extends Controller
 {
-    private const PUBLIC_CACHE_TTL_SECONDS = 60;
-
     private array $booleanKeys = [
         'voting_open',
         'gallery_public',
@@ -44,8 +42,10 @@ class SettingsController extends Controller
     private array $allowedKeys = [];
     private array $writableKeys = [];
 
-    public function __construct(private VotingWindowService $votingWindow)
-    {
+    public function __construct(
+        private VotingWindowService $votingWindow,
+        private PublicApiPayloadService $publicApi,
+    ) {
         $this->runtimeKeys = $this->votingWindow->runtimeKeys();
         $this->allowedKeys = array_merge($this->booleanKeys, $this->intKeys, $this->dateKeys, [
             'currency',
@@ -131,40 +131,7 @@ class SettingsController extends Controller
 
     public function public(): JsonResponse
     {
-        $payload = Cache::remember('public:settings:payload', now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () {
-            $settings = Setting::where('status', 'active')
-                ->whereIn('key', array_merge($this->allowedKeys, $this->runtimeKeys))
-                ->get();
-
-            $formatted = $this->formatCollection($settings);
-            $normalizedRuntime = $this->votingWindow->normalizeRuntimeSettings($formatted);
-            if ($this->extractRuntimeSettings($formatted) !== $normalizedRuntime) {
-                $this->persistRuntimeSettings($normalizedRuntime);
-                $formatted = array_merge($formatted, $normalizedRuntime);
-            }
-
-            $publicSettings = array_intersect_key($formatted, array_flip($this->allowedKeys));
-            $votingStatus = $this->votingWindow->computeState($formatted);
-
-            return array_merge($publicSettings, [
-                'maintenance_mode' => $votingStatus['maintenance_active'],
-                'maintenance_end_at_iso' => $votingStatus['maintenance_end']?->toIso8601String(),
-                'maintenance_remaining_seconds' => $votingStatus['maintenance_remaining_seconds'],
-                'voting_blocked' => $votingStatus['blocked'],
-                'voting_open_now' => !$votingStatus['blocked'],
-                'voting_block_reason' => $votingStatus['reason'],
-                'voting_block_message' => $votingStatus['message'],
-                'server_time' => $votingStatus['now']->toIso8601String(),
-                'vote_start_at_iso' => $votingStatus['start']?->toIso8601String(),
-                'vote_end_at_iso' => $votingStatus['effective_end']?->toIso8601String(),
-                'vote_end_at_effective_iso' => $votingStatus['effective_end']?->toIso8601String(),
-                'countdown_paused' => $votingStatus['countdown_paused'],
-                'countdown_total_seconds' => $votingStatus['countdown_total_seconds'],
-                'countdown_remaining_seconds' => $votingStatus['countdown_remaining_seconds'],
-            ]);
-        });
-
-        return response()->json($payload);
+        return response()->json($this->publicApi->settingsPayload());
     }
 
     private function resolveGroup(string $key): string

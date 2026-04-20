@@ -1,4 +1,6 @@
 export const PUBLIC_SETTINGS_CACHE_KEY = 'app_public_settings_cache_v1';
+export const PUBLIC_INIT_DATA_CACHE_KEY = 'app_public_init_data_cache_v1';
+const PUBLIC_INIT_DATA_MAX_AGE_MS = 1000 * 60;
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -36,6 +38,45 @@ export const writeCachedPublicSettings = (settings) => {
 
   try {
     localStorage.setItem(PUBLIC_SETTINGS_CACHE_KEY, JSON.stringify(settings));
+  } catch {
+    // Espace local indisponible: on continue sans casser l'interface.
+  }
+};
+
+export const readCachedPublicInitData = () => {
+  if (typeof localStorage === 'undefined') {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PUBLIC_INIT_DATA_CACHE_KEY) || 'null');
+    const savedAt = Number(parsed?.savedAt || 0);
+
+    if (!savedAt || (Date.now() - savedAt) > PUBLIC_INIT_DATA_MAX_AGE_MS) {
+      localStorage.removeItem(PUBLIC_INIT_DATA_CACHE_KEY);
+      return null;
+    }
+
+    return parsed?.data ?? null;
+  } catch {
+    return null;
+  }
+};
+
+export const writeCachedPublicInitData = (data) => {
+  if (typeof localStorage === 'undefined' || !data) {
+    return;
+  }
+
+  try {
+    localStorage.setItem(PUBLIC_INIT_DATA_CACHE_KEY, JSON.stringify({
+      savedAt: Date.now(),
+      data,
+    }));
+
+    if (data.settings) {
+      writeCachedPublicSettings(data.settings);
+    }
   } catch {
     // Espace local indisponible: on continue sans casser l'interface.
   }

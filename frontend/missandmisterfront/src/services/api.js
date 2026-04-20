@@ -56,7 +56,7 @@ const API_BASE_URL = PROXY_API_BASE_URL || DIRECT_API_BASE_URL;
 export const SESSION_EXPIRED_EVENT = 'app:session-expired';
 const PUBLIC_CACHE_STORAGE_KEY = 'mmub_public_api_cache_v1';
 const PUBLIC_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 6;
-const PUBLIC_CANDIDATES_PAGE_SIZE = 120;
+const PUBLIC_CANDIDATES_PAGE_SIZE = 50;
 const ADMIN_LIST_PAGE_SIZE = 100;
 const CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY = 'mmub_candidate_public_endpoint_outage_until_v1';
 const CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_MS = 1000 * 60 * 15;
@@ -1365,6 +1365,14 @@ export const settingsAPI = {
   },
 };
 
+export const publicAPI = {
+  getInitData: async () => {
+    return fetchPublicAPI('/public/init-data', {
+      timeout: 30000,
+    });
+  },
+};
+
 // Export par défaut
 export default {
   auth: authAPI,
@@ -1379,4 +1387,5 @@ export default {
   payment: paymentAPI,
   admin: adminAPI,
   settings: settingsAPI,
+  public: publicAPI,
 };

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PartnerLogo;
+use App\Services\PublicApiPayloadService;
 use App\Services\Media\CloudinaryMediaService;
 use App\Support\MediaUrl;
 use Illuminate\Http\JsonResponse;
@@ -18,20 +19,13 @@ class PartnerController extends Controller
 
     public function __construct(
         private CloudinaryMediaService $cloudinaryMedia,
+        private PublicApiPayloadService $publicApi,
     ) {
     }
 
     public function publicIndex(): JsonResponse
     {
-        $items = PartnerLogo::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
-
-        return response()->json([
-            'data' => $items->map(fn (PartnerLogo $item) => $this->serialize($item))->values(),
-        ]);
+        return response()->json($this->publicApi->partnersPayload());
     }
 
     public function adminIndex(): JsonResponse

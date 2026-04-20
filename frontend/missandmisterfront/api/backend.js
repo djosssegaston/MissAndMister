@@ -10,7 +10,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const shouldRetryStatus = (status) => RETRYABLE_STATUS_CODES.has(Number(status || 0));
 const isCacheablePublicRequest = (method, path) => method === 'GET' && String(path || '').startsWith('public/');
 const usesDynamicPublicCache = (path = '') => (
-  /^public\/(candidates(?:\/|$)|stats(?:\/|$)|settings(?:\/|$))/i.test(String(path || ''))
+  /^public\/(init-data(?:\/|$)|candidates(?:\/|$)|stats(?:\/|$)|settings(?:\/|$)|partners(?:\/|$))/i.test(String(path || ''))
 );
 const expectsJsonPayload = (path) => {
   const normalizedPath = String(path || '');

@@ -4,32 +4,14 @@ namespace App\Repositories;
 
 use App\Models\Candidate;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Builder;
 
 class CandidateRepository
 {
-    public function paginatePublic(int $perPage = 120, ?string $category = null): LengthAwarePaginator
+    public function paginatePublic(int $perPage = 50, ?string $category = null): LengthAwarePaginator
     {
-        return $this->publicBaseQuery()
-            ->select([
-                'id',
-                'category_id',
-                'first_name',
-                'last_name',
-                'public_number',
-                'public_uid',
-                'slug',
-                'university',
-                'photo_path',
-                'photo_variants',
-            ])
-            ->when(filled($category), function (Builder $query) use ($category) {
-                $normalizedCategory = strtolower(trim((string) $category));
-
-                $query->whereHas('category', function (Builder $categoryQuery) use ($normalizedCategory) {
-                    $categoryQuery->whereRaw('LOWER(name) = ?', [$normalizedCategory]);
-                });
-            })
+        return $this->publicListQuery($category)
             ->withSum(['votes as votes_count' => function ($q) {
                 $q->successful();
             }], 'quantity')
@@ -39,6 +21,20 @@ class CandidateRepository
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->paginate($perPage);
+    }
+
+    public function listPublic(?string $category = null): Collection
+    {
+        return $this->publicListQuery($category)
+            ->withSum(['votes as votes_count' => function ($q) {
+                $q->successful();
+            }], 'quantity')
+            ->orderBy('category_id')
+            ->orderByRaw('CASE WHEN public_number IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('public_number')
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get();
     }
 
     public function paginateAll(int $perPage = 100): LengthAwarePaginator
@@ -189,6 +185,30 @@ class CandidateRepository
             })
             ->where(function (Builder $query) {
                 $query->where('is_active', true)->orWhereNull('is_active');
+            });
+    }
+
+    private function publicListQuery(?string $category = null): Builder
+    {
+        return $this->publicBaseQuery()
+            ->select([
+                'id',
+                'category_id',
+                'first_name',
+                'last_name',
+                'public_number',
+                'public_uid',
+                'slug',
+                'university',
+                'photo_path',
+                'photo_variants',
+            ])
+            ->when(filled($category), function (Builder $query) use ($category) {
+                $normalizedCategory = strtolower(trim((string) $category));
+
+                $query->whereHas('category', function (Builder $categoryQuery) use ($normalizedCategory) {
+                    $categoryQuery->whereRaw('LOWER(name) = ?', [$normalizedCategory]);
+                });
             });
     }
 

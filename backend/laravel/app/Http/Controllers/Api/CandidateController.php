@@ -12,12 +12,12 @@ use App\Services\CandidateAccountService;
 use App\Services\CandidateImages\CandidateImagePipeline;
 use App\Services\Media\CloudinaryMediaService;
 use App\Services\PaymentService;
+use App\Services\PublicApiPayloadService;
 use App\Support\MediaUrl;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -25,7 +25,6 @@ use Illuminate\Validation\ValidationException;
 class CandidateController extends Controller
 {
     private const PHOTO_UPLOAD_LIMIT_LABEL = '20 Mo';
-    private const PUBLIC_CACHE_TTL_SECONDS = 60;
 
     public function __construct(
         private CandidateRepository $candidates,
@@ -33,6 +32,7 @@ class CandidateController extends Controller
         private CandidateImagePipeline $candidateImagePipeline,
         private CloudinaryMediaService $cloudinaryMedia,
         private PaymentService $payments,
+        private PublicApiPayloadService $publicApi,
     )
     {
     }
@@ -44,15 +44,12 @@ class CandidateController extends Controller
     public function index(Request $request): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $perPage = max(1, min((int) $request->integer('per_page', 120), 120));
+        $perPage = max(12, min((int) $request->integer('per_page', 50), 50));
         $category = trim((string) $request->query('category', ''));
-        $cacheKey = 'legacy:candidates:index:' . md5(json_encode([$perPage, strtolower($category)]));
 
-        $payload = Cache::remember($cacheKey, now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () use ($perPage, $category) {
-            return $this->candidates->paginatePublic($perPage, $category !== '' ? $category : null)->toArray();
-        });
-
-        return response()->json($payload);
+        return response()->json(
+            $this->publicApi->paginatedCandidatesPayload($perPage, $category !== '' ? $category : null)
+        );
     }
 
     // Admin listing (all statuses)

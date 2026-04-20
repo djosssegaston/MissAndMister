@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { candidatesAPI } from '../services/api';
 import PartnerShowcase from '../components/PartnerShowcase';
 import Loader from '../components/Loader';
 import WhatsAppIcon from '../components/WhatsAppIcon';
@@ -10,7 +9,6 @@ import sessionMobile from '../assets/session_mobil.png';
 import sessionMobileAlt from '../assets/session_mobil1.png';
 import initiatorVisual from '../assets/logo1.jpeg';
 import { getCandidatePublicPath } from '../utils/candidatePublic';
-import { PUBLIC_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import { PARTNER_WHATSAPP_URL, PROJECT_PHONE_DISPLAY } from '../utils/siteContact';
 import { getVotingWindowSnapshot } from '../utils/publicSettings';
 import './Home.css';
@@ -273,57 +271,18 @@ const AnimatedHeroTitle = () => {
 };
 
 const Home = () => {
-  const [candidates, setCandidates] = useState([]);
-  const [stats, setStats] = useState({
-    totalCandidates: 0,
-    totalVotes: 0,
-    totalUsers: 0,
-    totalUniversities: 0
-  });
   const [countdown, setCountdown] = useState({
     days: 0, hours: 0, minutes: 0, seconds: 0, percentLeft: 0,
   });
-  const [loading, setLoading] = useState(true);
   const [showIntro, setShowIntro] = useState(true);
-  const hasLoadedRef = useRef(false);
   const {
     publicSettings = null,
+    publicCandidates = [],
+    publicStats = null,
+    bootstrapLoading = false,
     votingBlocked = false,
   } = useOutletContext() || {};
   const resultsPublicEnabled = Boolean(publicSettings?.results_public);
-
-  const fetchAll = async () => {
-    const isInitialLoad = !hasLoadedRef.current;
-
-    try {
-      if (isInitialLoad) {
-        setLoading(true);
-      }
-
-      const [candidatesResponse, statsResponse] = await Promise.all([
-        candidatesAPI.getAll(),
-        candidatesAPI.getStats(),
-      ]);
-      setCandidates(candidatesResponse?.data || []);
-      setStats(statsResponse || stats);
-      hasLoadedRef.current = true;
-    } catch (fetchError) {
-      console.error('❌ Erreur lors du chargement des données:', fetchError);
-    } finally {
-      if (isInitialLoad) {
-        hasLoadedRef.current = true;
-        setLoading(false);
-      }
-    }
-  };
-
-  useAutoRefresh(fetchAll, {
-    intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS,
-    minGapMs: 30000,
-    refreshOnFocus: false,
-    refreshOnLiveUpdate: false,
-    refreshOnStorage: false,
-  });
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -399,7 +358,14 @@ const Home = () => {
   const paddedMinutes = String(countdown.minutes).padStart(2, '0');
   const paddedSeconds = String(countdown.seconds).padStart(2, '0');
   const countdownProgress = hasCountdown ? countdown.percentLeft : 100;
-  const candidateList = Array.isArray(candidates) ? candidates : [];
+  const stats = publicStats || {
+    totalCandidates: 0,
+    totalVotes: 0,
+    totalUsers: 0,
+    totalUniversities: 0,
+  };
+  const candidateList = Array.isArray(publicCandidates) ? publicCandidates : [];
+  const loading = bootstrapLoading && candidateList.length === 0 && !publicStats;
   const topCandidates = [...candidateList]
     .sort((a, b) => (b.votes_count || 0) - (a.votes_count || 0))
     .slice(0, 6);

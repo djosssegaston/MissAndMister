@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\GalleryController;
 use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PublicInitController;
 use App\Http\Controllers\Api\ResultController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StatsController;
@@ -37,6 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Public data
 Route::prefix('public')->middleware('throttle:public-read')->group(function () {
+    Route::get('init-data', [PublicInitController::class, 'show']);
     Route::get('candidates', [PublicCandidateController::class, 'index']);
     Route::get('candidates/{identifier}', [PublicCandidateController::class, 'show']);
     Route::get('media/{path}', [PublicMediaController::class, 'show'])->where('path', '.*');

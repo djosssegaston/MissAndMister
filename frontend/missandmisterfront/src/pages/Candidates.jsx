@@ -1,10 +1,8 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useOutletContext } from 'react-router-dom';
-import { candidatesAPI } from '../services/api';
 import CandidateCard from '../components/CandidateCard';
 import Loader from '../components/Loader';
-import { PUBLIC_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import './Candidates.css';
 
 const FILTERS = [
@@ -45,52 +43,19 @@ const compareCandidatesByCategoryAndNumber = (leftCandidate, rightCandidate) => 
 };
 
 const Candidates = () => {
-  const [candidates, setCandidates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [filter, setFilter] = useState('miss');
   const [sortBy, setSortBy] = useState('votes_desc');
   const [searchQuery, setSearchQuery] = useState('');
-  const hasLoadedRef = useRef(false);
-  const { votingBlocked = false } = useOutletContext() || {};
-
-  const fetchCandidates = async () => {
-    const isInitialLoad = !hasLoadedRef.current;
-
-    try {
-      if (isInitialLoad) {
-        setLoading(true);
-      }
-
-      const data = await candidatesAPI.getAll();
-      setCandidates(data?.data || []);
-      setError(null);
-      hasLoadedRef.current = true;
-    } catch (err) {
-      console.error('❌ Candidates: Erreur lors du chargement:', err);
-      if (isInitialLoad) {
-        setError(err.message || 'Erreur lors du chargement des candidats');
-      }
-    } finally {
-      if (isInitialLoad) {
-        hasLoadedRef.current = true;
-        setLoading(false);
-      }
-    }
-  };
-
-  useAutoRefresh(fetchCandidates, {
-    intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS,
-    minGapMs: 30000,
-    refreshOnFocus: false,
-    refreshOnLiveUpdate: false,
-    refreshOnStorage: false,
-  });
-
-  const retryFetchCandidates = async () => {
-    hasLoadedRef.current = false;
-    await fetchCandidates();
-  };
+  const {
+    votingBlocked = false,
+    publicCandidates = [],
+    bootstrapLoading = false,
+    bootstrapError = null,
+    refreshPublicBootstrap,
+  } = useOutletContext() || {};
+  const loading = bootstrapLoading && (!Array.isArray(publicCandidates) || publicCandidates.length === 0);
+  const candidates = Array.isArray(publicCandidates) ? publicCandidates : [];
+  const error = candidates.length === 0 ? (bootstrapError?.message || null) : null;
 
   const buildName = (candidate) => `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim();
   const activeFilterLabel = FILTERS.find(({ key }) => key === filter)?.label || 'Miss';
@@ -214,7 +179,7 @@ const Candidates = () => {
               </svg>
               <h3>Erreur de chargement</h3>
               <p>{error}</p>
-              <button className="btn-gold" onClick={retryFetchCandidates}>
+              <button className="btn-gold" onClick={refreshPublicBootstrap}>
                 Réessayer
               </button>
             </div>

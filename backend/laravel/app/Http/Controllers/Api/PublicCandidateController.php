@@ -6,16 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Candidate;
 use App\Repositories\CandidateRepository;
 use App\Services\PaymentService;
+use App\Services\PublicApiPayloadService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Cache;
 
 class PublicCandidateController extends Controller
 {
-    private const PUBLIC_CACHE_TTL_SECONDS = 60;
-
     public function __construct(
         private CandidateRepository $candidates,
         private PaymentService $payments,
+        private PublicApiPayloadService $publicApi,
     )
     {
     }
@@ -23,28 +22,18 @@ class PublicCandidateController extends Controller
     public function index(): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $perPage = max(24, min((int) request()->integer('per_page', 120), 120));
+        $perPage = max(12, min((int) request()->integer('per_page', 50), 50));
         $category = trim((string) request()->query('category', ''));
-        $cacheKey = 'public:candidates:index:' . md5(json_encode([$perPage, strtolower($category)]));
 
-        $payload = Cache::remember($cacheKey, now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () use ($perPage, $category) {
-            $paginator = $this->candidates->paginatePublic($perPage, $category !== '' ? $category : null);
-            $paginator->setCollection(
-                $paginator->getCollection()->map(fn (Candidate $candidate) => $this->presentListCandidate($candidate))
-            );
-
-            return $paginator->toArray();
-        });
-
-        return response()->json($payload);
+        return response()->json(
+            $this->publicApi->paginatedCandidatesPayload($perPage, $category !== '' ? $category : null)
+        );
     }
 
     public function show(string $identifier): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $cacheKey = 'public:candidates:show:' . md5($identifier);
-
-        $payload = Cache::remember($cacheKey, now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () use ($identifier) {
+        $payload = cache()->remember('public:candidates:show:' . md5($identifier), now()->addSeconds(60), function () use ($identifier) {
             $candidate = $this->candidates->findActiveByIdentifier($identifier);
 
             if (!$candidate) {

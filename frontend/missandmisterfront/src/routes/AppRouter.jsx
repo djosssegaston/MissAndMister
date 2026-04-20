@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -27,15 +27,12 @@ import AdminSettings from '../pages/admin/AdminSettings';
 import AdminLayout from '../components/AdminLayout';
 import SessionExpiredModal from '../components/SessionExpiredModal';
 import Loader from '../components/Loader';
-import { settingsAPI } from '../services/api';
-import { PUBLIC_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import {
   computePublicVotingState,
   getMaintenanceSnapshot,
   hasAdminPreviewSession,
-  readCachedPublicSettings,
-  writeCachedPublicSettings,
 } from '../utils/publicSettings';
+import { usePublicBootstrapData } from '../hooks/usePublicBootstrapData';
 
 const getCountdownState = (remainingMs = 0, totalMs = 0) => {
   const remaining = Math.max(0, Number.isFinite(remainingMs) ? remainingMs : 0);
@@ -189,31 +186,45 @@ const ScrollToTop = () => {
 };
 
 const PublicLayout = () => {
-  const cachedSettings = readCachedPublicSettings();
-  const [publicSettings, setPublicSettings] = useState(cachedSettings);
-  const [settingsLoading, setSettingsLoading] = useState(!cachedSettings);
-
-  const fetchPublicSettings = useCallback(async () => {
-    try {
-      const data = await settingsAPI.getPublic();
-      const nextSettings = data || {};
-      setPublicSettings(nextSettings);
-      writeCachedPublicSettings(nextSettings);
-    } catch (error) {
-      console.error('Erreur chargement settings publics:', error);
-    } finally {
-      setSettingsLoading(false);
-    }
-  }, []);
-
-  useAutoRefresh(fetchPublicSettings, { intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS });
+  const {
+    publicSettings,
+    publicCandidates,
+    publicStats,
+    publicPartners,
+    bootstrapLoading,
+    bootstrapError,
+    refreshPublicBootstrap,
+  } = usePublicBootstrapData();
+  const settingsLoading = bootstrapLoading && !publicSettings;
 
   const votingState = useMemo(() => computeVotingState(publicSettings || {}), [publicSettings]);
   const adminPreviewEnabled = hasAdminPreviewSession();
   const maintenancePreviewActive = votingState.maintenanceMode && adminPreviewEnabled;
   const outletContext = useMemo(
-    () => ({ publicSettings, settingsLoading, maintenancePreviewActive, ...votingState }),
-    [publicSettings, settingsLoading, maintenancePreviewActive, votingState],
+    () => ({
+      publicSettings,
+      publicCandidates,
+      publicStats,
+      publicPartners,
+      settingsLoading,
+      bootstrapLoading,
+      bootstrapError,
+      maintenancePreviewActive,
+      refreshPublicBootstrap,
+      ...votingState,
+    }),
+    [
+      bootstrapError,
+      bootstrapLoading,
+      maintenancePreviewActive,
+      publicCandidates,
+      publicPartners,
+      publicSettings,
+      publicStats,
+      refreshPublicBootstrap,
+      settingsLoading,
+      votingState,
+    ],
   );
 
   if (settingsLoading && !publicSettings) {
@@ -232,7 +243,7 @@ const PublicLayout = () => {
   }
 
   if (votingState.maintenanceMode && !adminPreviewEnabled) {
-    return <MaintenanceScreen publicSettings={publicSettings} onCountdownComplete={fetchPublicSettings} />;
+    return <MaintenanceScreen publicSettings={publicSettings} onCountdownComplete={refreshPublicBootstrap} />;
   }
 
   return (

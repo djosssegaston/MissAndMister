@@ -4,17 +4,16 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\PaymentService;
+use App\Services\PublicApiPayloadService;
 use App\Services\StatsService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Cache;
 
 class StatsController extends Controller
 {
-    private const PUBLIC_CACHE_TTL_SECONDS = 60;
-
     public function __construct(
         private StatsService $stats,
         private PaymentService $payments,
+        private PublicApiPayloadService $publicApi,
     )
     {
     }
@@ -29,12 +28,7 @@ class StatsController extends Controller
     public function publicStats(): JsonResponse
     {
         $this->payments->scheduleWarmPaymentStateForReadModels();
-        $payload = Cache::remember(
-            'public:stats:summary',
-            now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS),
-            fn () => $this->stats->publicSummary()
-        );
 
-        return response()->json($payload);
+        return response()->json($this->publicApi->statsPayload());
     }
 }
