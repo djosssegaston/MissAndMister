@@ -3,9 +3,14 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use App\Console\Commands\BackupDatabase;
+use App\Console\Commands\ReconcileFedapayPayments;
+use App\Jobs\CalculateResultsJob;
+use App\Jobs\DetectFraudJob;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,6 +19,16 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->job(new CalculateResultsJob())->hourly();
+        $schedule->job(new DetectFraudJob())->everyFifteenMinutes();
+        $schedule->command(ReconcileFedapayPayments::class, ['--limit' => 50, '--recent-hours' => 2160])
+            ->everyMinute()
+            ->withoutOverlapping();
+        $schedule->command(BackupDatabase::class)->dailyAt('02:00');
+        $schedule->command('queue:prune-batches')->daily();
+        $schedule->command('model:prune', ['--model' => 'App\\Models\\ActivityLog'])->daily();
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureRole::class,
