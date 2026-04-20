@@ -4,7 +4,7 @@ import { useOutletContext } from 'react-router-dom';
 import { galleryAPI } from '../services/api';
 import Loader from '../components/Loader';
 import { resolveMediaUrl } from '../utils/mediaUrl';
-import { PUBLIC_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
+import { NO_AUTO_REFRESH_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import './Gallery.css';
 
 const DEFAULT_CATEGORIES = ['Cérémonie', 'Candidats', 'Coulisses', 'Gala'];
@@ -169,7 +169,7 @@ const Gallery = () => {
 
   useAutoRefresh(loadGallery, {
     enabled: isGalleryPublic,
-    intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS,
+    intervalMs: NO_AUTO_REFRESH_INTERVAL_MS,
     minGapMs: 30000,
     refreshOnFocus: false,
     refreshOnLiveUpdate: false,

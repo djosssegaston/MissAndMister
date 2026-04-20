@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import Loader from '../../components/Loader';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
-import { ADMIN_LIVE_UPDATE_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
+import { NO_AUTO_REFRESH_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminGallery.css';
 
@@ -147,8 +147,11 @@ const AdminGallery = () => {
   };
 
   useAutoRefresh(fetchGallery, {
-    intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS,
+    intervalMs: NO_AUTO_REFRESH_INTERVAL_MS,
     enabled: autoRefreshEnabled,
+    refreshOnFocus: false,
+    refreshOnLiveUpdate: false,
+    refreshOnStorage: false,
   });
 
   const filteredItems = useMemo(() => {

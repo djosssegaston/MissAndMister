@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authAPI, candidateAPI } from '../services/api';
 import { formatCandidatePublicNumber } from '../utils/candidatePublic';
-import { useAutoRefresh } from '../utils/liveUpdates';
+import { NO_AUTO_REFRESH_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import './CandidateDashboard.css';
 
 const MiniChart = ({ data }) => {
@@ -103,7 +103,13 @@ const CandidateDashboard = () => {
     }
   }, [navigate]);
 
-  useAutoRefresh(loadDashboard, { enabled: canLoad });
+  useAutoRefresh(loadDashboard, {
+    enabled: canLoad,
+    intervalMs: NO_AUTO_REFRESH_INTERVAL_MS,
+    refreshOnFocus: false,
+    refreshOnLiveUpdate: false,
+    refreshOnStorage: false,
+  });
 
   const retryLoadDashboard = async () => {
     hasLoadedRef.current = false;

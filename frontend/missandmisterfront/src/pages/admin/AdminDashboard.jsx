@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import logo from '../../assets/logo.jpeg';
 import Loader from '../../components/Loader';
-import { ADMIN_REALTIME_INTERVAL_MS, useAutoRefresh } from '../../utils/liveUpdates';
+import { NO_AUTO_REFRESH_INTERVAL_MS, useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminDashboard.css';
 
@@ -154,8 +154,11 @@ const AdminDashboard = () => {
   };
 
   useAutoRefresh(fetchDashboardData, {
-    intervalMs: ADMIN_REALTIME_INTERVAL_MS,
+    intervalMs: NO_AUTO_REFRESH_INTERVAL_MS,
     enabled: autoRefreshEnabled,
+    refreshOnFocus: false,
+    refreshOnLiveUpdate: false,
+    refreshOnStorage: false,
   });
 
   const retryFetchDashboard = async () => {

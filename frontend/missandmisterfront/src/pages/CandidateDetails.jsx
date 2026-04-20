@@ -7,7 +7,7 @@ import Loader from '../components/Loader';
 import { getCandidateImageSources } from '../utils/candidateImage';
 import { formatCandidatePublicNumber, getCandidatePublicIdentifier, getCandidatePublicPath } from '../utils/candidatePublic';
 import { resolveMediaUrl } from '../utils/mediaUrl';
-import { PUBLIC_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
+import { NO_AUTO_REFRESH_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import './CandidateDetails.css';
 
 const DEFAULT_PRICE_PER_VOTE = 100;
@@ -79,7 +79,7 @@ const CandidateDetails = () => {
 
   useAutoRefresh(fetchCandidate, {
     enabled: Boolean(identifier),
-    intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS,
+    intervalMs: NO_AUTO_REFRESH_INTERVAL_MS,
     minGapMs: 30000,
     refreshOnFocus: false,
     refreshOnLiveUpdate: false,

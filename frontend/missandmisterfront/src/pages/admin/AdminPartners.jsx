@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import Loader from '../../components/Loader';
-import { ADMIN_LIVE_UPDATE_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
+import { NO_AUTO_REFRESH_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import './admin-theme.css';
 import './AdminPartners.css';
@@ -146,8 +146,11 @@ const AdminPartners = () => {
   };
 
   useAutoRefresh(fetchPartners, {
-    intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS,
+    intervalMs: NO_AUTO_REFRESH_INTERVAL_MS,
     enabled: autoRefreshEnabled,
+    refreshOnFocus: false,
+    refreshOnLiveUpdate: false,
+    refreshOnStorage: false,
   });
 
   const retryFetchPartners = async () => {

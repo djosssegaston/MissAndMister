@@ -6,6 +6,7 @@ export const LIVE_UPDATE_INTERVAL_MS = 120000;
 export const ADMIN_LIVE_UPDATE_INTERVAL_MS = 120000;
 export const ADMIN_REALTIME_INTERVAL_MS = 90000;
 export const PUBLIC_LIVE_UPDATE_INTERVAL_MS = 120000;
+export const NO_AUTO_REFRESH_INTERVAL_MS = 0;
 
 const getWindow = () => (typeof window === 'undefined' ? null : window);
 

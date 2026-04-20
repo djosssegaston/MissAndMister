@@ -4,7 +4,7 @@ import { adminAPI } from '../../services/api';
 import { getCandidateImageSources } from '../../utils/candidateImage';
 import { formatCandidatePublicNumber } from '../../utils/candidatePublic';
 import Loader from '../../components/Loader';
-import { ADMIN_LIVE_UPDATE_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
+import { NO_AUTO_REFRESH_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminCandidates.css';
 
@@ -256,8 +256,11 @@ const AdminCandidates = () => {
   };
 
   useAutoRefresh(fetchAll, {
-    intervalMs: ADMIN_LIVE_UPDATE_INTERVAL_MS,
+    intervalMs: NO_AUTO_REFRESH_INTERVAL_MS,
     enabled: autoRefreshEnabled,
+    refreshOnFocus: false,
+    refreshOnLiveUpdate: false,
+    refreshOnStorage: false,
   });
 
   const retryFetchAll = async () => {

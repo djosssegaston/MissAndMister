@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { publicAPI } from '../services/api';
-import { PUBLIC_LIVE_UPDATE_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
+import { NO_AUTO_REFRESH_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
 import {
   readCachedPublicInitData,
   readCachedPublicSettings,
@@ -65,7 +65,7 @@ export const usePublicBootstrapData = () => {
   }, [applyBootstrapPayload]);
 
   useAutoRefresh(fetchPublicBootstrap, {
-    intervalMs: PUBLIC_LIVE_UPDATE_INTERVAL_MS,
+    intervalMs: NO_AUTO_REFRESH_INTERVAL_MS,
     minGapMs: 30000,
     refreshOnFocus: false,
     refreshOnLiveUpdate: false,
