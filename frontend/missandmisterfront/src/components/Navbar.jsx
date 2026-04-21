@@ -14,6 +14,10 @@ const BASE_NAV_LINKS = [
   { to: '/contact',    label: 'Contact' },
 ];
 
+// Temporary switch: keep auth pages available, but hide their navbar entries
+// across desktop and mobile until they should be exposed again.
+const SHOW_PUBLIC_AUTH_NAV_LINKS = false;
+
 const Navbar = ({ votingBlocked = false }) => {
   const location  = useLocation();
   const navigate  = useNavigate();
@@ -25,9 +29,12 @@ const Navbar = ({ votingBlocked = false }) => {
   const token = localStorage.getItem('authToken');
   const user  = (() => { try { return JSON.parse(localStorage.getItem('user')); } catch { return null; } })();
   const isAuthenticated = Boolean(token && user && user.role !== 'admin' && user.role !== 'superadmin');
+  const publicAuthLinks = SHOW_PUBLIC_AUTH_NAV_LINKS
+    ? [{ to: '/login', label: 'Se connecter' }, { to: '/register', label: "S'inscrire" }]
+    : [];
   const navLinks = isAuthenticated
     ? BASE_NAV_LINKS
-    : [...BASE_NAV_LINKS, { to: '/login', label: 'Se connecter' }, { to: '/register', label: "S'inscrire" }];
+    : [...BASE_NAV_LINKS, ...publicAuthLinks];
 
   // Candidat connecté = rôle 'candidate' stocké dans user
   const isCandidate = isAuthenticated && user.role === 'candidate';
