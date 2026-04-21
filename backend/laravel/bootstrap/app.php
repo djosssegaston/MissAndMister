@@ -7,6 +7,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use App\Console\Commands\BackupDatabase;
 use App\Console\Commands\ReconcileFedapayPayments;
 use App\Jobs\CalculateResultsJob;
@@ -36,6 +37,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->shouldRenderJsonWhen(function (Request $request, Throwable $exception): bool {
+            return $request->is('api/*');
+        });
+
         $exceptions->render(function (AuthenticationException $exception, Request $request) {
             if (!$request->is('api/*')) {
                 return null;
@@ -65,5 +70,23 @@ return Application::configure(basePath: dirname(__DIR__))
                     'upload' => ["Le fichier envoyé dépasse la limite actuelle du serveur ({$limit}). La plateforme est configurée pour accepter jusqu’à {$appLimitLabel}."],
                 ],
             ], 413);
+        });
+
+        $exceptions->render(function (Throwable $exception, Request $request) {
+            if (!$request->is('api/*')) {
+                return null;
+            }
+
+            if ($exception instanceof AuthenticationException || $exception instanceof PostTooLargeException) {
+                return null;
+            }
+
+            if ($exception instanceof HttpExceptionInterface && $exception->getStatusCode() < 500) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => 'Une erreur interne est survenue. Veuillez réessayer plus tard.',
+            ], 500);
         });
     })->create();

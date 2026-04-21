@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CandidateController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\GalleryController;
 use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\PaymentController;
@@ -52,6 +53,7 @@ Route::prefix('public')->middleware('throttle:public-read')->group(function () {
 Route::get('candidates', [CandidateController::class, 'index'])->middleware('throttle:public-read');
 Route::get('candidates/{candidate}', [CandidateController::class, 'show'])->middleware('throttle:public-read');
 Route::post('votes', [VoteController::class, 'store'])->middleware('throttle:60,1');
+Route::post('contact', [ContactController::class, 'store'])->middleware('throttle:5,1');
 
 Route::middleware(['auth:sanctum', 'force_password_change'])->group(function () {
     Route::get('payments/{payment}', [PaymentController::class, 'show']);

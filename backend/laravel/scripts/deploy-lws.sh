@@ -113,6 +113,7 @@ echo "Synchronizing backend to ${LWS_SSH_TARGET}:${LWS_REMOTE_DIR}"
 
 RSYNC_ARGS=(
     -az
+    --delete
     --omit-dir-times
     --no-perms
     --exclude=.env

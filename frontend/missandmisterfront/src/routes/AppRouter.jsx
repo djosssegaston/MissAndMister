@@ -9,6 +9,7 @@ import CandidateDetails from '../pages/CandidateDetails';
 import Gallery from '../pages/Gallery';
 import FAQ from '../pages/FAQ';
 import Contact from '../pages/Contact';
+import NotFound from '../pages/NotFound';
 import PaymentConfirmation from '../pages/PaymentConfirmation';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
@@ -380,6 +381,7 @@ const AppRouter = () => (
         <Route path="/payment/confirmation" element={<PaymentConfirmation />} />
         <Route path="/login"          element={<GuestOnly><Login /></GuestOnly>} />
         <Route path="/register"       element={<GuestOnly><Register /></GuestOnly>} />
+        <Route path="*"               element={<NotFound />} />
       </Route>
 
       {/* ── Dashboard candidat (pas de Navbar globale) ── */}
@@ -399,9 +401,6 @@ const AppRouter = () => (
       <Route path="/admin/users"      element={<RequireAdmin><WithAdminLayout><AdminUsers /></WithAdminLayout></RequireAdmin>} />
       <Route path="/admin/votes"      element={<RequireAdmin><WithAdminLayout><AdminVotes /></WithAdminLayout></RequireAdmin>} />
       <Route path="/admin/settings"   element={<RequireAdmin><WithAdminLayout><AdminSettings /></WithAdminLayout></RequireAdmin>} />
-
-      {/* 404 */}
-      <Route path="*" element={<Navigate to="/" replace />} />
 
     </Routes>
   </Router>
