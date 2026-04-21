@@ -10,7 +10,9 @@ import Gallery from '../pages/Gallery';
 import FAQ from '../pages/FAQ';
 import Contact from '../pages/Contact';
 import NotFound from '../pages/NotFound';
+import Privacy from '../pages/Privacy';
 import PaymentConfirmation from '../pages/PaymentConfirmation';
+import Terms from '../pages/Terms';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 import CandidateDashboard from '../pages/CandidateDashboard';
@@ -378,6 +380,8 @@ const AppRouter = () => (
         <Route path="/gallery"        element={<Gallery />} />
         <Route path="/faq"            element={<FAQ />} />
         <Route path="/contact"        element={<Contact />} />
+        <Route path="/terms"          element={<Terms />} />
+        <Route path="/privacy"        element={<Privacy />} />
         <Route path="/payment/confirmation" element={<PaymentConfirmation />} />
         <Route path="/login"          element={<GuestOnly><Login /></GuestOnly>} />
         <Route path="/register"       element={<GuestOnly><Register /></GuestOnly>} />
