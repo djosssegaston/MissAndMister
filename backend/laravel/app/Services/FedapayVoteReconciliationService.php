@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ActivityLog;
+use App\Models\Candidate;
 use App\Models\Payment;
 use App\Models\Vote;
 use Illuminate\Support\Arr;
@@ -51,6 +52,13 @@ class FedapayVoteReconciliationService
             'paid_at' => $this->extractRemotePaidAt($remoteTransaction),
             'candidate_id' => $this->extractRemoteCandidateId($remoteTransaction),
             'candidate_name' => $this->extractRemoteCandidateName($remoteTransaction),
+            'remote_candidate_id' => $this->extractRemoteCandidateId($remoteTransaction),
+            'remote_candidate_name' => $this->extractRemoteCandidateName($remoteTransaction),
+            'local_meta_candidate_id' => $this->extractPaymentCandidateId($payment),
+            'local_meta_candidate_name' => $this->extractPaymentCandidateName($payment),
+            'local_vote_candidate_id' => $vote?->candidate_id,
+            'local_vote_candidate_name' => $this->extractVoteCandidateName($vote),
+            'conflict_type' => $this->determineConflictType($remoteTransaction, $payment, $vote),
         ];
     }
 
@@ -129,7 +137,7 @@ class FedapayVoteReconciliationService
 
         if ($transactionId) {
             $payment = Payment::withTrashed()
-                ->with(['vote'])
+                ->with(['vote.candidate'])
                 ->where('transaction_id', $transactionId)
                 ->first();
 
@@ -144,7 +152,7 @@ class FedapayVoteReconciliationService
 
         if ($reference) {
             $payment = Payment::withTrashed()
-                ->with(['vote'])
+                ->with(['vote.candidate'])
                 ->where('reference', $reference)
                 ->first();
 
@@ -180,7 +188,7 @@ class FedapayVoteReconciliationService
         $candidateId = $this->extractRemoteCandidateId($remoteTransaction);
 
         return Payment::withTrashed()
-            ->with(['vote'])
+            ->with(['vote.candidate'])
             ->where('provider', 'fedapay')
             ->where('amount', $amount)
             ->whereBetween('created_at', [
@@ -288,6 +296,91 @@ class FedapayVoteReconciliationService
         return $remoteCandidateName !== ''
             && $paymentCandidateName !== ''
             && strcasecmp($remoteCandidateName, $paymentCandidateName) !== 0;
+    }
+
+    private function determineConflictType(array $remoteTransaction, ?Payment $payment, ?Vote $vote): ?string
+    {
+        if (!$payment || !$vote) {
+            return null;
+        }
+
+        $types = [];
+        $remoteCandidateId = $this->extractRemoteCandidateId($remoteTransaction);
+        $remoteCandidateName = $this->extractRemoteCandidateName($remoteTransaction);
+        $localMetaCandidateId = $this->extractPaymentCandidateId($payment);
+        $localMetaCandidateName = $this->extractPaymentCandidateName($payment);
+        $localVoteCandidateName = $this->extractVoteCandidateName($vote);
+
+        if ($remoteCandidateId > 0 && (int) $vote->candidate_id !== $remoteCandidateId) {
+            $types[] = 'vote_candidate_id_mismatch';
+        }
+
+        if ($remoteCandidateId > 0 && $localMetaCandidateId > 0 && $localMetaCandidateId !== $remoteCandidateId) {
+            $types[] = 'payment_meta_candidate_id_mismatch';
+        }
+
+        if ($remoteCandidateName !== '' && $localVoteCandidateName !== '' && strcasecmp($remoteCandidateName, $localVoteCandidateName) !== 0) {
+            $types[] = 'vote_candidate_name_mismatch';
+        }
+
+        if ($remoteCandidateName !== '' && $localMetaCandidateName !== '' && strcasecmp($remoteCandidateName, $localMetaCandidateName) !== 0) {
+            $types[] = 'payment_meta_candidate_name_mismatch';
+        }
+
+        if ($types === []) {
+            return null;
+        }
+
+        return implode(', ', $types);
+    }
+
+    private function extractPaymentCandidateId(?Payment $payment): ?int
+    {
+        if (!$payment) {
+            return null;
+        }
+
+        $candidateId = (int) (
+            data_get($payment->meta, 'candidate_id')
+            ?: data_get($payment->payload, 'custom_metadata.candidate_id')
+            ?: data_get($payment->payload, 'fedapay.custom_metadata.candidate_id')
+            ?: 0
+        );
+
+        return $candidateId > 0 ? $candidateId : null;
+    }
+
+    private function extractPaymentCandidateName(?Payment $payment): string
+    {
+        if (!$payment) {
+            return '';
+        }
+
+        return trim((string) (
+            data_get($payment->meta, 'candidate_name')
+            ?: data_get($payment->payload, 'custom_metadata.candidate_name')
+            ?: data_get($payment->payload, 'fedapay.custom_metadata.candidate_name')
+            ?: ''
+        ));
+    }
+
+    private function extractVoteCandidateName(?Vote $vote): string
+    {
+        if (!$vote) {
+            return '';
+        }
+
+        /** @var Candidate|null $candidate */
+        $candidate = $vote->relationLoaded('candidate') ? $vote->candidate : $vote->candidate()->first();
+
+        if (!$candidate) {
+            return '';
+        }
+
+        return trim(implode(' ', array_filter([
+            trim((string) $candidate->first_name),
+            trim((string) $candidate->last_name),
+        ], static fn (string $value) => $value !== '')));
     }
 
     private function extractRemoteTransactionId(array $remoteTransaction): ?string
