@@ -132,8 +132,16 @@ const buildCategoryQueryValue = (categoryFilter) => (
   categoryFilter === 'Tous' ? undefined : categoryFilter
 );
 
+const extractCollectionRows = (payload = null) => {
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+
+  return Array.isArray(payload) ? payload : [];
+};
+
 const normalizeAdminCandidatesResponse = (payload = {}) => {
-  const rows = Array.isArray(payload?.data) ? payload.data : [];
+  const rows = extractCollectionRows(payload);
   const currentPage = Number(payload?.current_page || 1);
   const lastPage = Math.max(1, Number(payload?.last_page || 1));
   const perPage = Math.max(1, Number(payload?.per_page || ADMIN_CANDIDATES_PAGE_SIZE));
@@ -251,7 +259,7 @@ const AdminCandidates = () => {
     }
 
     const payload = await adminAPI.getCategories();
-    const nextCategories = payload?.data || payload || [];
+    const nextCategories = extractCollectionRows(payload);
     setCategories(nextCategories);
     categoriesLoadedRef.current = true;
 
@@ -268,6 +276,18 @@ const AdminCandidates = () => {
         setLoading(true);
       }
 
+      let categoryList = categories;
+
+      if (!categoriesLoadedRef.current) {
+        try {
+          categoryList = await fetchCategories();
+        } catch (categoryError) {
+          if (categoryError?.isSessionExpired) {
+            throw categoryError;
+          }
+        }
+      }
+
       const response = await adminAPI.getCandidates({
         per_page: perPage,
         page: pageOverride,
@@ -281,7 +301,7 @@ const AdminCandidates = () => {
 
       const normalized = normalizeAdminCandidatesResponse(response);
       const rows = normalized.rows.map((candidate, index) => (
-        mapCandidate(candidate, index, categories, normalized.pagination)
+        mapCandidate(candidate, index, categoryList, normalized.pagination)
       ));
 
       setCandidates(rows);
