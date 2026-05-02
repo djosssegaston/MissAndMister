@@ -6,6 +6,14 @@ import { NO_AUTO_REFRESH_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from
 import './admin-theme.css';
 import './AdminUsers.css';
 
+const extractCollectionRows = (payload) => {
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+
+  return Array.isArray(payload) ? payload : [];
+};
+
 const ConfirmModal = ({ message, onConfirm, onCancel }) => (
   <motion.div className="agc-overlay" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }} onClick={onCancel}>
     <motion.div className="agc-modal" initial={{ scale:0.88,y:24 }} animate={{ scale:1,y:0 }} exit={{ scale:0.88,y:24 }} onClick={e => e.stopPropagation()}>
@@ -56,7 +64,7 @@ const AdminUsers = () => {
       }
 
       const res = await adminAPI.getUsers({ per_page: 100 });
-      const data = res?.data || res || [];
+      const data = extractCollectionRows(res);
       setUsers(data);
       setError(null);
       setAutoRefreshEnabled(true);

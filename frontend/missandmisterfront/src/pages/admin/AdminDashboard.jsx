@@ -72,6 +72,14 @@ const EMPTY_STATS = {
   top_candidates: [],
 };
 
+const extractCollectionRows = (payload) => {
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+
+  return Array.isArray(payload) ? payload : [];
+};
+
 const formatCurrencyAmount = (value) => {
   const numericValue = Number(value || 0);
   const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
@@ -104,10 +112,14 @@ const AdminDashboard = () => {
       ]);
 
       const nextStats = statsResult.status === 'fulfilled'
-        ? (statsResult.value || EMPTY_STATS)
+        ? {
+            ...EMPTY_STATS,
+            ...(statsResult.value && typeof statsResult.value === 'object' ? statsResult.value : {}),
+            top_candidates: Array.isArray(statsResult.value?.top_candidates) ? statsResult.value.top_candidates : [],
+          }
         : null;
       const nextRecentVotes = votesResult.status === 'fulfilled'
-        ? (votesResult.value?.data || votesResult.value || [])
+        ? extractCollectionRows(votesResult.value)
           .filter((vote) => !vote.payment?.status || vote.payment?.status === 'succeeded')
           .slice(0, 5)
         : null;
@@ -193,6 +205,7 @@ const AdminDashboard = () => {
   }
 
   const dashboardStats = stats || EMPTY_STATS;
+  const topCandidates = Array.isArray(dashboardStats.top_candidates) ? dashboardStats.top_candidates : [];
 
   return (
     <div className="admin-page adash">
@@ -253,8 +266,8 @@ const AdminDashboard = () => {
             </Link>
           </div>
           <div className="ag-card-body adash-top-body">
-            {dashboardStats.top_candidates && dashboardStats.top_candidates.length > 0 ? (
-              dashboardStats.top_candidates.map((c, i) => (
+            {topCandidates.length > 0 ? (
+              topCandidates.map((c, i) => (
                 <motion.div key={c.candidate_id} className="adash-top-row"
                   initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 + i * 0.07 }}>
                   <span className="adash-medal">{i < 3 ? MEDALS[i] : <span className="adash-rank">#{i + 1}</span>}</span>
@@ -273,7 +286,7 @@ const AdminDashboard = () => {
                     <div className="adash-top-bar-bg">
                       <motion.div className="adash-top-bar-fill"
                         initial={{ width: 0 }}
-                        animate={{ width: `${Math.min((c.votes / (dashboardStats.top_candidates[0]?.votes || 1)) * 100, 100)}%` }}
+                        animate={{ width: `${Math.min((c.votes / (topCandidates[0]?.votes || 1)) * 100, 100)}%` }}
                         transition={{ duration: 0.9, delay: 0.4 + i * 0.07, ease: 'easeOut' }}
                       />
                     </div>

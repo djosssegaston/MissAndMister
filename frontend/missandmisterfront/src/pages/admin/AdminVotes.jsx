@@ -54,6 +54,14 @@ const buildSummaryFromVotes = (rows = []) => ({
   revenue: rows.filter((vote) => vote.isCountable).reduce((sum, vote) => sum + vote.amount, 0),
 });
 
+const extractCollectionRows = (payload) => {
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+
+  return Array.isArray(payload) ? payload : [];
+};
+
 const ConfirmModal = ({ message, onConfirm, onCancel }) => (
   <div className="agc-overlay" onClick={onCancel}>
     <div className="agc-modal" onClick={e => e.stopPropagation()}>
@@ -152,7 +160,7 @@ const AdminVotes = () => {
       }
 
       const res = await adminAPI.getVotes({ per_page: 100 });
-      const data = res?.data || res || [];
+      const data = extractCollectionRows(res);
       const mappedVotes = data.map(mapVote);
 
       setVotes(mappedVotes);
