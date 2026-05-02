@@ -21,6 +21,7 @@ const getRuntimeHostname = () => {
 
 export const isProductionProxyHost = (hostname = getRuntimeHostname()) => (
   PRODUCTION_PROXY_HOSTS.has(hostname)
+  || String(hostname || '').endsWith('.vercel.app')
 );
 
 // In production we prefer the same-origin Vercel proxy first so the browser

@@ -555,8 +555,7 @@ const shouldSkipCrossOriginDirectTransport = (baseUrl = '', endpoint = '', confi
     return true;
   }
 
-  const headers = config?.headers || {};
-  return Object.keys(headers).some((key) => key.toLowerCase() === 'authorization');
+  return false;
 };
 
 const shouldRetryAlternateAdminLoginEndpoint = (error) => {
@@ -940,15 +939,18 @@ const fetchAPIWithExplicitToken = async (endpoint, token, options = {}) => {
 const resolveAuthSessionFromPayload = async (payload = {}, scope = 'user') => {
   const fallbackRole = scope === 'admin' ? 'admin' : 'user';
   const token = String(payload?.token || '').trim();
+  const payloadMessage = String(payload?.message || '').trim();
 
   if (!token) {
-    throw new Error('Le serveur n’a pas renvoyé de jeton de session valide.');
+    throw new Error(payloadMessage || 'Le serveur n’a pas renvoyé de jeton de session valide.');
   }
 
   const embeddedUser = normalizeSessionUser(payload?.user, fallbackRole);
   if (embeddedUser) {
     return { token, user: embeddedUser };
   }
+
+  let lastProfileError = null;
 
   try {
     const me = await fetchAPIWithExplicitToken('/auth/me', token, {
@@ -961,10 +963,15 @@ const resolveAuthSessionFromPayload = async (payload = {}, scope = 'user') => {
       return { token, user: resolvedUser };
     }
   } catch (error) {
+    lastProfileError = error;
     console.warn('Unable to resolve authenticated user profile from token.', error);
   }
 
-  throw new Error('La session a été ouverte mais le profil utilisateur n’a pas pu être récupéré. Réessayez dans quelques secondes.');
+  throw new Error(
+    lastProfileError?.message
+      || payloadMessage
+      || 'La session a été ouverte mais le profil utilisateur n’a pas pu être récupéré. Réessayez dans quelques secondes.'
+  );
 };
 
 const parseDownloadFilename = (contentDisposition = '', fallback = 'download.bin') => {
