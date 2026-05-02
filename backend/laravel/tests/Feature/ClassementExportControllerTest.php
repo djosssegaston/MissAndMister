@@ -18,6 +18,12 @@ class ClassementExportControllerTest extends TestCase
             ->assertStatus(401);
     }
 
+    public function test_test_pdf_auth_route_requires_authentication(): void
+    {
+        $this->getJson('/api/test-pdf-auth?category=Miss')
+            ->assertStatus(401);
+    }
+
     public function test_export_route_requires_admin_ability(): void
     {
         Sanctum::actingAs(new Admin([
@@ -121,7 +127,7 @@ class ClassementExportControllerTest extends TestCase
             ->zeroOrMoreTimes();
         $this->app->instance(ClassementPdfExportService::class, $service);
 
-        $response = $this->get('/api/test-pdf?category=Miss');
+        $response = $this->get('/api/test-pdf-auth?category=Miss');
 
         try {
             $response
@@ -131,6 +137,22 @@ class ClassementExportControllerTest extends TestCase
         } finally {
             File::deleteDirectory($tempDirectory);
         }
+    }
+
+    public function test_test_pdf_auth_route_requires_admin_role(): void
+    {
+        Sanctum::actingAs(new Admin([
+            'name' => 'Simple User',
+            'email' => 'user@example.com',
+            'role' => 'user',
+            'status' => 'active',
+        ]), ['user']);
+
+        $this->getJson('/api/test-pdf-auth?category=Miss')
+            ->assertStatus(403)
+            ->assertJson([
+                'message' => 'Forbidden',
+            ]);
     }
 
     private function createZipFixture(string $zipPath): void

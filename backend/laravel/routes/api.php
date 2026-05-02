@@ -100,6 +100,7 @@ Route::middleware(['auth:sanctum', 'role:admin,superadmin'])->prefix('admin')->g
 });
 
 Route::middleware(['auth:sanctum', 'role:admin,superadmin'])->get('test-pdf', [ClassementExportController::class, 'testPdf']);
+Route::middleware('auth:sanctum')->get('test-pdf-auth', [ClassementExportController::class, 'testPdf']);
 
 Route::middleware(['auth:sanctum', 'force_password_change', 'role:candidate'])->group(function () {
     Route::get('candidate/dashboard', [CandidateController::class, 'dashboard']);

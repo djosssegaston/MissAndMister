@@ -998,7 +998,7 @@ const fetchAPIBlob = async (endpoint, options = {}) => {
   const method = getRequestMethod(requestOptions);
 
   const defaultHeaders = {
-    'Accept': 'application/zip, application/pdf, application/octet-stream',
+    'Accept': 'application/zip, application/pdf, application/octet-stream, application/json',
     ...(shouldSendJsonContentType(method, requestOptions.body, hasFormData) ? { 'Content-Type': 'application/json' } : {}),
     ...(token && { Authorization: `Bearer ${token}` }),
   };
@@ -1435,6 +1435,7 @@ export const adminAPI = {
 
   exportClassementPdf: async () => {
     return fetchAPIBlob('/admin/export-classement-pdf', {
+      cache: 'no-store',
       timeout: 120000,
     });
   },

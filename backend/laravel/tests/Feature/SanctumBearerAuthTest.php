@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Admin;
 use App\Models\User;
+use App\Services\ClassementPdfExportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Mockery;
 use Tests\TestCase;
 
 class SanctumBearerAuthTest extends TestCase
@@ -85,5 +88,49 @@ class SanctumBearerAuthTest extends TestCase
         $this->withHeader('Authorization', 'Bearer ' . $token)
             ->getJson('/api/admin/categories')
             ->assertOk();
+    }
+
+    public function test_admin_bearer_token_can_access_test_pdf_auth_route(): void
+    {
+        $admin = Admin::query()->create([
+            'name' => 'Admin Principal',
+            'email' => 'admin@example.com',
+            'phone' => '+22901020304',
+            'password' => Hash::make('Secret123!'),
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+
+        $tempDirectory = storage_path('app/testing/sanctum-pdf-auth-' . uniqid('', true));
+        File::ensureDirectoryExists($tempDirectory);
+        $pdfPath = $tempDirectory . DIRECTORY_SEPARATOR . 'classement_miss_2026.pdf';
+        file_put_contents($pdfPath, '%PDF-1.4 test');
+
+        $service = Mockery::mock(ClassementPdfExportService::class);
+        $service->shouldReceive('createSingleCategoryPdf')
+            ->once()
+            ->with('Miss')
+            ->andReturn([
+                'pdf_path' => $pdfPath,
+                'download_name' => 'classement_miss_2026.pdf',
+                'temp_directory' => $tempDirectory,
+                'category' => 'Miss',
+            ]);
+        $service->shouldReceive('cleanupExportArtifacts')
+            ->zeroOrMoreTimes();
+        $this->app->instance(ClassementPdfExportService::class, $service);
+
+        $token = $admin->createToken('admin_token', ['admin'])->plainTextToken;
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->get('/api/test-pdf-auth?category=Miss');
+
+        try {
+            $response
+                ->assertOk()
+                ->assertDownload('classement_miss_2026.pdf')
+                ->assertHeader('content-type', 'application/pdf');
+        } finally {
+            File::deleteDirectory($tempDirectory);
+        }
     }
 }
