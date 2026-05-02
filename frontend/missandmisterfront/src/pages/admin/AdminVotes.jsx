@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { adminAPI } from '../../services/api';
+import { adminAPI, candidatesAPI } from '../../services/api';
 import Loader from '../../components/Loader';
 import { useToast } from '../../components/Toast';
 import { NO_AUTO_REFRESH_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
@@ -46,6 +46,10 @@ const EMPTY_SUMMARY = {
   revenue: 0,
 };
 
+const CLASSEMENT_PERCENTAGE_CAP = 40;
+const CLASSEMENT_PERCENTAGE_THRESHOLD = 200;
+const CLASSEMENT_EXPORT_PAGE_SIZE = 500;
+
 const buildSummaryFromVotes = (rows = []) => ({
   counted_votes: rows.filter((vote) => vote.isCountable).reduce((sum, vote) => sum + (vote.qty || 0), 0),
   valid_votes: rows.filter((vote) => vote.isCountable).reduce((sum, vote) => sum + (vote.qty || 0), 0),
@@ -61,6 +65,87 @@ const extractCollectionRows = (payload) => {
 
   return Array.isArray(payload) ? payload : [];
 };
+
+const normalizeWhitespace = (value = '') => String(value || '').replace(/\s+/g, ' ').trim();
+
+const formatClassementPercentage = (value) => Number(value || 0).toLocaleString('fr-FR', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const calculateClassementPercentage = (votes) => {
+  const safeVotes = Math.max(0, Number(votes || 0));
+
+  if (safeVotes >= CLASSEMENT_PERCENTAGE_THRESHOLD) {
+    return CLASSEMENT_PERCENTAGE_CAP;
+  }
+
+  return Math.round(((safeVotes / CLASSEMENT_PERCENTAGE_THRESHOLD) * CLASSEMENT_PERCENTAGE_CAP) * 100) / 100;
+};
+
+const normalizeCategoryName = (value = '') => {
+  const normalized = normalizeWhitespace(value).toLowerCase();
+
+  if (normalized === 'mister') {
+    return 'Mister';
+  }
+
+  if (normalized === 'miss') {
+    return 'Miss';
+  }
+
+  return normalizeWhitespace(value) || 'Sans catégorie';
+};
+
+const buildCandidateFullName = (candidate = {}) => normalizeWhitespace([
+  candidate.last_name,
+  candidate.first_name,
+].filter(Boolean).join(' ')) || 'Candidat sans nom';
+
+const getCandidatePublicNumber = (candidate = {}) => {
+  const publicNumber = Number(candidate?.public_number);
+  return Number.isFinite(publicNumber) && publicNumber > 0 ? publicNumber : Number.MAX_SAFE_INTEGER;
+};
+
+const buildClassementRows = (candidates = [], categoryName = '') => candidates
+  .map((candidate) => {
+    const votes = Math.max(0, Number(candidate?.votes_count || 0));
+
+    return {
+      fullName: buildCandidateFullName(candidate),
+      university: normalizeWhitespace(candidate?.university || '') || '—',
+      votes,
+      percentage: calculateClassementPercentage(votes),
+      publicNumber: getCandidatePublicNumber(candidate),
+      category: normalizeCategoryName(candidate?.category?.name || categoryName),
+    };
+  })
+  .sort((left, right) => {
+    if (left.votes !== right.votes) {
+      return right.votes - left.votes;
+    }
+
+    if (left.publicNumber !== right.publicNumber) {
+      return left.publicNumber - right.publicNumber;
+    }
+
+    return left.fullName.localeCompare(right.fullName, 'fr', { sensitivity: 'base' });
+  })
+  .map((row, index) => ({
+    ...row,
+    rank: index + 1,
+  }));
+
+const escapeCsvCell = (value) => {
+  const normalized = String(value ?? '');
+  if (/[;"\n\r]/.test(normalized)) {
+    return `"${normalized.replace(/"/g, '""')}"`;
+  }
+
+  return normalized;
+};
+
+const toCsvLine = (cells = []) => cells.map(escapeCsvCell).join(';');
 
 const ConfirmModal = ({ message, onConfirm, onCancel }) => (
   <div className="agc-overlay" onClick={onCancel}>
@@ -94,6 +179,7 @@ const AdminVotes = () => {
   const [sortBy, setSortBy] = useState('date_desc');
   const [loading, setLoading] = useState(true);
   const [exportLoading, setExportLoading] = useState(false);
+  const [csvExportLoading, setCsvExportLoading] = useState(false);
   const [error, setError] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [selected, setSelected] = useState(new Set());
@@ -293,14 +379,86 @@ const AdminVotes = () => {
     });
   };
 
-  const exportCSV = () => {
-    const header = ['ID','Candidat','Catégorie','Votant','Votes','Montant','Opérateur','Statut','Date','IP'];
-    const rows   = votes.map(v => [v.id, v.candidate, v.category, v.voter, v.qty, v.amount, v.operator, v.status, v.date, v.ip]);
-    const csv    = '\uFEFF' + [header, ...rows].map(r => r.join(';')).join('\n');
-    const blob   = new Blob([csv], { type:'text/csv;charset=utf-8;' });
-    const url    = URL.createObjectURL(blob);
-    const a      = document.createElement('a'); a.href = url; a.download = 'votes_export.csv'; a.click();
-    URL.revokeObjectURL(url);
+  const exportCSV = async () => {
+    try {
+      setCsvExportLoading(true);
+      setError(null);
+
+      const categories = ['Miss', 'Mister'];
+      const groupedCandidates = await Promise.all(categories.map(async (category) => {
+        const candidates = [];
+        let currentPage = 1;
+        let lastPage = 1;
+
+        do {
+          const response = await candidatesAPI.getAll({
+            category,
+            page: currentPage,
+            per_page: CLASSEMENT_EXPORT_PAGE_SIZE,
+          });
+
+          const rows = extractCollectionRows(response);
+          candidates.push(...rows);
+
+          const resolvedLastPage = Number(response?.last_page || 1);
+          lastPage = Number.isFinite(resolvedLastPage) && resolvedLastPage > 0 ? resolvedLastPage : 1;
+          currentPage += 1;
+        } while (currentPage <= lastPage);
+
+        return {
+          category,
+          rows: buildClassementRows(candidates, category),
+        };
+      }));
+
+      const csvLines = [];
+
+      groupedCandidates.forEach(({ category, rows }, groupIndex) => {
+        if (groupIndex > 0) {
+          csvLines.push('');
+          csvLines.push('');
+        }
+
+        csvLines.push(toCsvLine([`Classement ${category}`]));
+        csvLines.push(toCsvLine(['Nom Prenom', 'Université', 'Votes', 'Pourcentage (/40%)', 'Rang']));
+
+        if (rows.length === 0) {
+          csvLines.push(toCsvLine(['Aucune donnée disponible', '', '', '', '']));
+          return;
+        }
+
+        rows.forEach((row) => {
+          csvLines.push(toCsvLine([
+            row.fullName,
+            row.university,
+            row.votes,
+            formatClassementPercentage(row.percentage),
+            row.rank,
+          ]));
+        });
+      });
+
+      const csv = `\uFEFF${csvLines.join('\n')}`;
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'classement_miss_mister_2026.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+
+      showToast('Le classement CSV a été généré et téléchargé.', 'success');
+    } catch (err) {
+      if (err?.isSessionExpired) {
+        return;
+      }
+
+      const message = err?.message || 'Impossible de générer le classement CSV pour le moment.';
+      setError(message);
+      showToast(message, 'error');
+    } finally {
+      setCsvExportLoading(false);
+    }
   };
 
   const exportClassementPdf = async () => {
@@ -401,9 +559,9 @@ const AdminVotes = () => {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             {exportLoading ? 'Génération PDF…' : 'Classement PDF'}
           </button>
-          <button className="ag-btn ag-btn-outline" onClick={exportCSV}>
+          <button className="ag-btn ag-btn-outline" onClick={exportCSV} disabled={csvExportLoading}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            Exporter CSV
+            {csvExportLoading ? 'Génération CSV…' : 'Classement CSV'}
           </button>
         </div>
       </div>
