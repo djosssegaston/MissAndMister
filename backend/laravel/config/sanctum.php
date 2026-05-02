@@ -34,7 +34,26 @@ return [
     |
     */
 
-    'guard' => ['web'],
+    /*
+    |--------------------------------------------------------------------------
+    | Sanctum Guards
+    |--------------------------------------------------------------------------
+    |
+    | This SPA authenticates with Bearer tokens stored client-side, not with
+    | first-party session cookies. Leaving this list empty makes Sanctum skip
+    | session guards entirely and authenticate directly from the Authorization
+    | header, which avoids production failures when the session backend is not
+    | available for API requests.
+    |
+    | If you later need first-party cookie authentication again, set:
+    | SANCTUM_GUARDS=web
+    |
+    */
+
+    'guard' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('SANCTUM_GUARDS', ''))
+    ))),
 
     /*
     |--------------------------------------------------------------------------
