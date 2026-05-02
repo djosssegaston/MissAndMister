@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authAPI } from '../services/api';
@@ -30,6 +30,8 @@ const AdminLayout = ({ children }) => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [logoutPending, setLogoutPending] = useState(false);
+  const sidebarRef = useRef(null);
+  const topbarBurgerRef = useRef(null);
 
   // Vérifier l'authentification au montage du composant
   useEffect(() => {
@@ -101,9 +103,31 @@ const AdminLayout = ({ children }) => {
 
   const sidebarExpanded = isMobileViewport ? mobileSidebarOpen : !desktopSidebarCollapsed;
 
+  const closeMobileSidebar = () => {
+    if (!isMobileViewport) {
+      return;
+    }
+
+    const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
+
+    if (activeElement instanceof HTMLElement && sidebarRef.current?.contains(activeElement)) {
+      if (topbarBurgerRef.current instanceof HTMLElement) {
+        topbarBurgerRef.current.focus();
+      } else {
+        activeElement.blur();
+      }
+    }
+
+    setMobileSidebarOpen(false);
+  };
+
   const handleSidebarToggle = () => {
     if (isMobileViewport) {
-      setMobileSidebarOpen((previousState) => !previousState);
+      if (mobileSidebarOpen) {
+        closeMobileSidebar();
+      } else {
+        setMobileSidebarOpen(true);
+      }
       return;
     }
 
@@ -112,7 +136,7 @@ const AdminLayout = ({ children }) => {
 
   const handleSidebarLinkClick = () => {
     if (isMobileViewport) {
-      setMobileSidebarOpen(false);
+      closeMobileSidebar();
     }
   };
 
@@ -140,8 +164,10 @@ const AdminLayout = ({ children }) => {
     <div className="admin-layout">
       {/* ── SIDEBAR ── */}
       <aside
+        id="admin-sidebar"
+        ref={sidebarRef}
         className={`admin-sidebar ${sidebarExpanded ? 'open' : 'collapsed'} ${isMobileViewport ? 'mobile' : 'desktop'} ${mobileSidebarOpen ? 'mobile-open' : ''}`}
-        aria-hidden={isMobileViewport && !mobileSidebarOpen}
+        inert={isMobileViewport && !mobileSidebarOpen ? '' : undefined}
       >
         <div className="sidebar-header">
           <div className="sidebar-logo">
@@ -160,6 +186,7 @@ const AdminLayout = ({ children }) => {
             onClick={handleSidebarToggle}
             aria-label={sidebarExpanded ? 'Réduire le menu' : 'Ouvrir le menu'}
             aria-expanded={sidebarExpanded}
+            aria-controls="admin-sidebar"
             type="button"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -225,7 +252,7 @@ const AdminLayout = ({ children }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setMobileSidebarOpen(false)}
+            onClick={closeMobileSidebar}
           />
         )}
       </AnimatePresence>
@@ -236,11 +263,13 @@ const AdminLayout = ({ children }) => {
         <div className="admin-topbar">
           <div className="topbar-left">
             <button
+              ref={topbarBurgerRef}
               className={`topbar-burger ${sidebarExpanded ? 'active' : ''}`}
               onClick={handleSidebarToggle}
               type="button"
               aria-label={sidebarExpanded ? 'Fermer le menu latéral' : 'Ouvrir le menu latéral'}
               aria-expanded={sidebarExpanded}
+              aria-controls="admin-sidebar"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 {sidebarExpanded && isMobileViewport ? (
