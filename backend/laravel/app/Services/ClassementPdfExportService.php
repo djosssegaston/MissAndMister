@@ -77,26 +77,33 @@ class ClassementPdfExportService
 
     public function generateCategoryPdf(string $categoryName): string
     {
-        $rows = $this->buildClassement($categoryName);
+        try {
+            $rows = $this->buildClassement($categoryName);
 
-        $pdf = Pdf::setOption([
-            'defaultFont' => 'DejaVu Sans',
-            'dpi' => 144,
-            'isPhpEnabled' => false,
-            'isRemoteEnabled' => false,
-            'isJavascriptEnabled' => false,
-            'isHtml5ParserEnabled' => true,
-        ])->loadView('pdf.classement', [
-            'categoryName' => strtoupper($categoryName),
-            'editionLabel' => self::EDITION_LABEL,
-            'subtitle' => self::SUBTITLE,
-            'rows' => $rows,
-            'generatedAt' => now(),
-            'signatory' => self::SIGNATORY,
-            'logoDataUri' => $this->resolveLogoDataUri(),
-        ])->setPaper('a4', 'portrait');
+            $pdf = Pdf::setOption([
+                'defaultFont' => 'DejaVu Sans',
+                'dpi' => 144,
+                'isPhpEnabled' => false,
+                'isRemoteEnabled' => false,
+                'isJavascriptEnabled' => false,
+                'isHtml5ParserEnabled' => true,
+            ])->loadView('pdf.classement', [
+                'categoryName' => strtoupper($categoryName),
+                'editionLabel' => self::EDITION_LABEL,
+                'subtitle' => self::SUBTITLE,
+                'rows' => $rows,
+                'generatedAt' => now(),
+                'signatory' => self::SIGNATORY,
+                'logoDataUri' => $this->resolveLogoDataUri(),
+            ])->setPaper('a4', 'portrait');
 
-        return $pdf->output();
+            return $pdf->output();
+        } catch (\Throwable $exception) {
+            throw new \RuntimeException(
+                sprintf('Impossible de générer le PDF de classement pour la catégorie %s.', $categoryName),
+                previous: $exception,
+            );
+        }
     }
 
     public function createClassementZip(): array
@@ -104,13 +111,22 @@ class ClassementPdfExportService
         $tempDirectory = storage_path('app/tmp/classement-exports/' . Str::ulid());
         File::ensureDirectoryExists($tempDirectory);
 
+        if (!class_exists(ZipArchive::class)) {
+            throw new \RuntimeException('L’extension ZIP n’est pas disponible sur le serveur.');
+        }
+
         $files = [
             'classement_miss_2026.pdf' => $this->generateCategoryPdf('Miss'),
             'classement_mister_2026.pdf' => $this->generateCategoryPdf('Mister'),
         ];
 
         foreach ($files as $filename => $binaryContent) {
-            file_put_contents($tempDirectory . DIRECTORY_SEPARATOR . $filename, $binaryContent);
+            $targetPath = $tempDirectory . DIRECTORY_SEPARATOR . $filename;
+            $writtenBytes = @file_put_contents($targetPath, $binaryContent);
+
+            if ($writtenBytes === false) {
+                throw new \RuntimeException(sprintf('Impossible d’écrire le fichier temporaire %s.', $filename));
+            }
         }
 
         $zipPath = $tempDirectory . DIRECTORY_SEPARATOR . 'classement_miss_mister_2026.zip';

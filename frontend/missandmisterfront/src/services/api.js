@@ -1001,28 +1001,50 @@ const fetchAPIBlob = async (endpoint, options = {}) => {
   };
 
   try {
-    const response = await fetchWithTimeout(buildApiUrl(API_BASE_URL, endpoint), config, timeout);
-    const contentType = response.headers.get('content-type') || '';
+    const baseUrlCandidates = getAvailableApiBaseUrls(endpoint, config);
+    let lastError = null;
 
-    if (!response.ok) {
-      const data = await parseResponseBody(response);
-      throw buildApiError(response, data);
-    }
+    for (let index = 0; index < baseUrlCandidates.length; index += 1) {
+      const { baseUrl } = baseUrlCandidates[index];
 
-    if (contentType.includes('text/html') || contentType.includes('application/json')) {
-      const data = await parseResponseBody(response);
-      if (data?._isUnexpectedHtml) {
-        throw buildUnexpectedHtmlError(response, data);
+      try {
+        const response = await fetchWithTimeout(buildApiUrl(baseUrl, endpoint), config, timeout);
+        const contentType = response.headers.get('content-type') || '';
+
+        if (!response.ok) {
+          const data = await parseResponseBody(response);
+          throw buildApiError(response, data);
+        }
+
+        if (contentType.includes('text/html') || contentType.includes('application/json')) {
+          const data = await parseResponseBody(response);
+          if (data?._isUnexpectedHtml) {
+            throw buildUnexpectedHtmlError(response, data);
+          }
+
+          throw new Error(data?.message || 'Le serveur n’a pas renvoyé un fichier téléchargeable.');
+        }
+
+        rememberSuccessfulBaseUrl(baseUrl);
+
+        return {
+          blob: await response.blob(),
+          filename: parseDownloadFilename(response.headers.get('content-disposition') || '', 'classement_miss_mister_2026.zip'),
+          contentType,
+        };
+      } catch (error) {
+        lastError = error;
+        const hasAlternativeBaseUrl = index < baseUrlCandidates.length - 1;
+
+        if (hasAlternativeBaseUrl && (error?.isTransportError || error?.isNetworkError || error?.isRetryable)) {
+          continue;
+        }
+
+        throw error;
       }
-
-      throw new Error(data?.message || 'Le serveur n’a pas renvoyé un fichier téléchargeable.');
     }
 
-    return {
-      blob: await response.blob(),
-      filename: parseDownloadFilename(response.headers.get('content-disposition') || '', 'classement_miss_mister_2026.zip'),
-      contentType,
-    };
+    throw lastError || new Error('Impossible de télécharger le fichier pour le moment.');
   } catch (error) {
     if (error.status === 401) {
       const scope = getSessionScope(endpoint);

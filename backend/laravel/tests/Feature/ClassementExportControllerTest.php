@@ -69,6 +69,30 @@ class ClassementExportControllerTest extends TestCase
         }
     }
 
+    public function test_export_route_returns_json_error_when_generation_fails(): void
+    {
+        Sanctum::actingAs(new Admin([
+            'name' => 'Admin',
+            'email' => 'admin@example.com',
+            'role' => 'admin',
+            'status' => 'active',
+        ]), ['admin']);
+
+        $service = Mockery::mock(ClassementPdfExportService::class);
+        $service->shouldReceive('createClassementZip')
+            ->once()
+            ->andThrow(new \RuntimeException('PDF generation failed'));
+        $service->shouldReceive('cleanupExportArtifacts')
+            ->zeroOrMoreTimes();
+        $this->app->instance(ClassementPdfExportService::class, $service);
+
+        $this->getJson('/api/admin/export-classement-pdf')
+            ->assertStatus(500)
+            ->assertJson([
+                'message' => 'Impossible de générer le classement PDF pour le moment.',
+            ]);
+    }
+
     private function createZipFixture(string $zipPath): void
     {
         $zip = new ZipArchive();
