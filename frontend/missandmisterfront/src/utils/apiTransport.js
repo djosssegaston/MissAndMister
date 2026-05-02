@@ -3,7 +3,7 @@ const PRODUCTION_PROXY_HOSTS = new Set([
   'www.missmisteruniversitybenin.com',
 ]);
 
-const TRANSPORT_STORAGE_KEY = 'mmub_api_transport_mode_v4';
+const TRANSPORT_STORAGE_KEY = 'mmub_api_transport_mode_v5';
 const VALID_TRANSPORT_MODES = new Set(['proxy', 'direct']);
 
 const normalizeTransportMode = (value = '') => {
@@ -28,12 +28,10 @@ export const isPreviewVercelHost = (hostname = getRuntimeHostname()) => (
   String(hostname || '').endsWith('.vercel.app')
 );
 
-// On the production custom domain we keep the same-origin proxy first.
-// On preview deployments we prefer the direct API first because preview
-// proxies are more likely to be protected or unavailable.
-export const getDefaultTransportMode = (hostname = getRuntimeHostname()) => (
-  PRODUCTION_PROXY_HOSTS.has(hostname) ? 'proxy' : 'direct'
-);
+// Public reads should behave the same on preview and production. We now
+// prefer the direct API first everywhere, while keeping the proxy as a
+// transparent fallback when the upstream host is temporarily protected.
+export const getDefaultTransportMode = () => 'direct';
 
 export const getStoredTransportMode = () => {
   if (typeof sessionStorage === 'undefined') {

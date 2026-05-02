@@ -1,5 +1,5 @@
-export const PUBLIC_SETTINGS_CACHE_KEY = 'app_public_settings_cache_v1';
-export const PUBLIC_INIT_DATA_CACHE_KEY = 'app_public_init_data_cache_v1';
+export const PUBLIC_SETTINGS_CACHE_KEY = 'app_public_settings_cache_v2';
+export const PUBLIC_INIT_DATA_CACHE_KEY = 'app_public_init_data_cache_v2';
 const PUBLIC_INIT_DATA_MAX_AGE_MS = 1000 * 60;
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
