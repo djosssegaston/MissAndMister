@@ -86,8 +86,15 @@ class ClassementPdfExportService
             $dompdfTempDir = $this->ensureWritableDirectory(storage_path(self::DOMPDF_TEMP_ROOT));
             $dompdfFontDir = $this->ensureWritableDirectory(storage_path(self::DOMPDF_FONT_ROOT));
 
+            logger()->info('Classement PDF category generation started', [
+                'category' => $categoryName,
+                'rows_count' => $rows->count(),
+                'dompdf_temp_dir' => $dompdfTempDir,
+                'dompdf_font_dir' => $dompdfFontDir,
+            ]);
+
             $pdf = $this->withPdfRuntimeTuning(function () use ($rows, $categoryName, $dompdfTempDir, $dompdfFontDir) {
-                return Pdf::setOption([
+                return Pdf::setOption(array_merge(config('dompdf.options', []), [
                     'defaultFont' => 'DejaVu Sans',
                     'dpi' => 144,
                     'isPhpEnabled' => false,
@@ -98,15 +105,8 @@ class ClassementPdfExportService
                     'fontDir' => $dompdfFontDir,
                     'fontCache' => $dompdfFontDir,
                     'chroot' => base_path(),
-                ])->loadView('pdf.classement', [
-                    'categoryName' => strtoupper($categoryName),
-                    'editionLabel' => self::EDITION_LABEL,
-                    'subtitle' => self::SUBTITLE,
-                    'rows' => $rows,
-                    'generatedAt' => now(),
-                    'signatory' => self::SIGNATORY,
-                    'logoDataUri' => $this->resolveLogoDataUri(),
-                ])->setPaper('a4', 'portrait');
+                ]))->loadView('pdf.classement', $this->buildPdfViewPayload($categoryName, $rows))
+                    ->setPaper('a4', 'portrait');
             });
 
             return $pdf->output();
@@ -126,6 +126,10 @@ class ClassementPdfExportService
         $zipPath = $tempDirectory . DIRECTORY_SEPARATOR . 'classement_miss_mister_2026.zip';
         $pdfPaths = [];
 
+        logger()->info('Classement PDF export zip build started', [
+            'temp_directory' => $tempDirectory,
+        ]);
+
         try {
             foreach ([
                 'Miss' => 'classement_miss_2026.pdf',
@@ -142,10 +146,38 @@ class ClassementPdfExportService
             throw $exception;
         }
 
+        logger()->info('Classement PDF export zip build completed', [
+            'zip_path' => $zipPath,
+            'files' => array_keys($pdfPaths),
+        ]);
+
         return [
             'zip_path' => $zipPath,
             'download_name' => 'classement_miss_mister_2026.zip',
             'temp_directory' => $tempDirectory,
+        ];
+    }
+
+    public function createSingleCategoryPdf(string $categoryName): array
+    {
+        $normalizedCategory = $this->normalizeCategoryName($categoryName);
+        $tempRoot = $this->ensureWritableDirectory(storage_path(self::TEMP_ROOT));
+        $tempDirectory = $this->ensureWritableDirectory($tempRoot . DIRECTORY_SEPARATOR . Str::ulid());
+        $filename = sprintf('classement_%s_2026.pdf', strtolower($normalizedCategory));
+        $pdfPath = $tempDirectory . DIRECTORY_SEPARATOR . $filename;
+
+        try {
+            $this->writeFileOrFail($pdfPath, $this->generateCategoryPdf($normalizedCategory));
+        } catch (\Throwable $exception) {
+            $this->cleanupExportArtifacts($tempDirectory);
+            throw $exception;
+        }
+
+        return [
+            'pdf_path' => $pdfPath,
+            'download_name' => $filename,
+            'temp_directory' => $tempDirectory,
+            'category' => $normalizedCategory,
         ];
     }
 
@@ -185,6 +217,20 @@ class ClassementPdfExportService
             'dompdf_font_root_exists' => is_dir($dompdfFontRoot),
             'dompdf_font_root_writable' => is_dir($dompdfFontRoot) && is_writable($dompdfFontRoot),
             'logo_data_uri_available' => $this->resolveLogoDataUri() !== null,
+            'dompdf_config_present' => config()->has('dompdf.options'),
+        ];
+    }
+
+    public function buildPdfViewPayload(string $categoryName, Collection $rows): array
+    {
+        return [
+            'categoryName' => strtoupper($categoryName),
+            'editionLabel' => self::EDITION_LABEL,
+            'subtitle' => self::SUBTITLE,
+            'rows' => $rows,
+            'generatedAt' => now(),
+            'signatory' => self::SIGNATORY,
+            'logoDataUri' => $this->resolveLogoDataUri(),
         ];
     }
 
@@ -280,6 +326,13 @@ class ClassementPdfExportService
         } catch (\Throwable $exception) {
             throw new \RuntimeException('Impossible de créer l’archive ZIP des classements.', previous: $exception);
         }
+    }
+
+    private function normalizeCategoryName(string $categoryName): string
+    {
+        $normalized = strtolower(trim($categoryName));
+
+        return $normalized === 'mister' ? 'Mister' : 'Miss';
     }
 
     private function withPdfRuntimeTuning(callable $callback)

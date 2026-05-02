@@ -84,6 +84,7 @@ Route::middleware(['auth:sanctum', 'role:admin,superadmin'])->prefix('admin')->g
     Route::get('votes', [VoteController::class, 'index']);
     Route::get('votes/export', [VoteController::class, 'export']);
     Route::get('export-classement-pdf', ClassementExportController::class);
+    Route::get('test-pdf', [ClassementExportController::class, 'testPdf']);
     Route::get('votes/{id}', [VoteController::class, 'show']);
     Route::patch('votes/{id}', [VoteController::class, 'update']);
     Route::delete('votes/{id}', [VoteController::class, 'destroy']);
@@ -97,6 +98,8 @@ Route::middleware(['auth:sanctum', 'role:admin,superadmin'])->prefix('admin')->g
     Route::apiResource('settings', SettingsController::class)->only(['index', 'store', 'update']);
     Route::get('activity', [AdminController::class, 'activity']);
 });
+
+Route::middleware(['auth:sanctum', 'role:admin,superadmin'])->get('test-pdf', [ClassementExportController::class, 'testPdf']);
 
 Route::middleware(['auth:sanctum', 'force_password_change', 'role:candidate'])->group(function () {
     Route::get('candidate/dashboard', [CandidateController::class, 'dashboard']);

@@ -93,6 +93,46 @@ class ClassementExportControllerTest extends TestCase
             ]);
     }
 
+    public function test_isolated_test_pdf_route_returns_pdf_download_for_admin(): void
+    {
+        Sanctum::actingAs(new Admin([
+            'name' => 'Admin',
+            'email' => 'admin@example.com',
+            'role' => 'admin',
+            'status' => 'active',
+        ]), ['admin']);
+
+        $tempDirectory = storage_path('app/testing/classement-test-pdf-' . uniqid('', true));
+        File::ensureDirectoryExists($tempDirectory);
+        $pdfPath = $tempDirectory . DIRECTORY_SEPARATOR . 'classement_miss_2026.pdf';
+        file_put_contents($pdfPath, '%PDF-1.4 test');
+
+        $service = Mockery::mock(ClassementPdfExportService::class);
+        $service->shouldReceive('createSingleCategoryPdf')
+            ->once()
+            ->with('Miss')
+            ->andReturn([
+                'pdf_path' => $pdfPath,
+                'download_name' => 'classement_miss_2026.pdf',
+                'temp_directory' => $tempDirectory,
+                'category' => 'Miss',
+            ]);
+        $service->shouldReceive('cleanupExportArtifacts')
+            ->zeroOrMoreTimes();
+        $this->app->instance(ClassementPdfExportService::class, $service);
+
+        $response = $this->get('/api/test-pdf?category=Miss');
+
+        try {
+            $response
+                ->assertOk()
+                ->assertDownload('classement_miss_2026.pdf')
+                ->assertHeader('content-type', 'application/pdf');
+        } finally {
+            File::deleteDirectory($tempDirectory);
+        }
+    }
+
     private function createZipFixture(string $zipPath): void
     {
         $zip = new ZipArchive();

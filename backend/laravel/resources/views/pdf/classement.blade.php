@@ -2,7 +2,15 @@
 <html lang="fr">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>Classement {{ $categoryName }} - Miss & Mister University Benin</title>
+    @php
+        $safeCategoryName = $categoryName ?? 'INCONNUE';
+        $safeEditionLabel = $editionLabel ?? '1ère Édition 2026';
+        $safeSubtitle = $subtitle ?? 'Tendance des votes & classement - présélection';
+        $safeRows = $rows ?? collect();
+        $safeSignatory = $signatory ?? 'Delphin DOSSA EZOUN-AGNAN';
+        $safeLogoDataUri = $logoDataUri ?? null;
+    @endphp
+    <title>Classement {{ $safeCategoryName }} - Miss & Mister University Benin</title>
     <style>
         @page {
             margin: 115px 38px 120px 38px;
@@ -218,25 +226,25 @@
     <header>
         <div class="header-inner">
             <div class="header-logo">
-                @if($logoDataUri)
-                    <img src="{{ $logoDataUri }}" alt="Logo Miss & Mister University Benin">
+                @if($safeLogoDataUri)
+                    <img src="{{ $safeLogoDataUri }}" alt="Logo Miss & Mister University Benin">
                 @endif
             </div>
             <div class="header-copy">
                 <p class="header-title">MISS &amp; MISTER UNIVERSITY BENIN</p>
-                <p class="header-edition">{{ $editionLabel }}</p>
-                <p class="header-subtitle">{{ $subtitle }}</p>
+                <p class="header-edition">{{ $safeEditionLabel }}</p>
+                <p class="header-subtitle">{{ $safeSubtitle }}</p>
             </div>
         </div>
     </header>
 
     <footer>
-        <div class="footer-copy">Concours Miss &amp; Mister University Bénin {{ $editionLabel }}</div>
+        <div class="footer-copy">Concours Miss &amp; Mister University Bénin {{ $safeEditionLabel }}</div>
         <div class="footer-copy page-counter"></div>
     </footer>
 
     <main>
-        <div class="section-kicker">Classement {{ $categoryName }}</div>
+        <div class="section-kicker">Classement {{ $safeCategoryName }}</div>
 
         <table>
             <thead>
@@ -249,13 +257,13 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse($rows as $row)
+                @forelse($safeRows as $row)
                     <tr>
-                        <td class="col-name name-cell">{{ $row['full_name'] }}</td>
-                        <td class="col-university">{{ $row['university'] }}</td>
-                        <td class="col-votes">{{ number_format($row['votes'], 0, ',', ' ') }}</td>
-                        <td class="col-percentage">{{ number_format($row['percentage'], 2, ',', ' ') }}</td>
-                        <td class="col-rank"><span class="rank-badge">{{ $row['rank'] }}</span></td>
+                        <td class="col-name name-cell">{{ $row['full_name'] ?? 'Candidat sans nom' }}</td>
+                        <td class="col-university">{{ $row['university'] ?? '—' }}</td>
+                        <td class="col-votes">{{ number_format((float) ($row['votes'] ?? 0), 0, ',', ' ') }}</td>
+                        <td class="col-percentage">{{ number_format((float) ($row['percentage'] ?? 0), 2, ',', ' ') }}</td>
+                        <td class="col-rank"><span class="rank-badge">{{ $row['rank'] ?? '—' }}</span></td>
                     </tr>
                 @empty
                     <tr>
@@ -269,7 +277,7 @@
             <div class="signature-spacer"></div>
             <div class="signature-block">
                 <p class="signature-title">Promoteur :</p>
-                <p class="signature-name">{{ $signatory }}</p>
+                <p class="signature-name">{{ $safeSignatory }}</p>
                 <div class="signature-line"></div>
                 <div class="stamp-box">Espace cachet</div>
             </div>
