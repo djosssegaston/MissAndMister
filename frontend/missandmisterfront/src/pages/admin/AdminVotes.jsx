@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { adminAPI, candidatesAPI } from '../../services/api';
+import { adminAPI, publicAPI } from '../../services/api';
 import Loader from '../../components/Loader';
 import { useToast } from '../../components/Toast';
 import { NO_AUTO_REFRESH_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
@@ -48,7 +48,6 @@ const EMPTY_SUMMARY = {
 
 const CLASSEMENT_PERCENTAGE_CAP = 40;
 const CLASSEMENT_PERCENTAGE_THRESHOLD = 200;
-const CLASSEMENT_EXPORT_PAGE_SIZE = 500;
 
 const buildSummaryFromVotes = (rows = []) => ({
   counted_votes: rows.filter((vote) => vote.isCountable).reduce((sum, vote) => sum + (vote.qty || 0), 0),
@@ -135,6 +134,28 @@ const buildClassementRows = (candidates = [], categoryName = '') => candidates
     ...row,
     rank: index + 1,
   }));
+
+const buildCandidateIdentityKey = (candidate = {}) => (
+  candidate?.public_uid
+  || candidate?.slug
+  || candidate?.public_number
+  || candidate?.id
+  || `${candidate?.last_name || ''}-${candidate?.first_name || ''}-${candidate?.category?.name || ''}`
+);
+
+const dedupeCandidates = (candidates = []) => {
+  const seen = new Set();
+
+  return candidates.filter((candidate) => {
+    const key = String(buildCandidateIdentityKey(candidate) ?? '').trim();
+    if (!key || seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
 
 const escapeCsvCell = (value) => {
   const normalized = String(value ?? '');
@@ -385,30 +406,14 @@ const AdminVotes = () => {
       setError(null);
 
       const categories = ['Miss', 'Mister'];
-      const groupedCandidates = await Promise.all(categories.map(async (category) => {
-        const candidates = [];
-        let currentPage = 1;
-        let lastPage = 1;
-
-        do {
-          const response = await candidatesAPI.getAll({
-            category,
-            page: currentPage,
-            per_page: CLASSEMENT_EXPORT_PAGE_SIZE,
-          });
-
-          const rows = extractCollectionRows(response);
-          candidates.push(...rows);
-
-          const resolvedLastPage = Number(response?.last_page || 1);
-          lastPage = Number.isFinite(resolvedLastPage) && resolvedLastPage > 0 ? resolvedLastPage : 1;
-          currentPage += 1;
-        } while (currentPage <= lastPage);
-
-        return {
+      const initData = await publicAPI.getInitData();
+      const publicCandidates = dedupeCandidates(Array.isArray(initData?.candidates) ? initData.candidates : []);
+      const groupedCandidates = categories.map((category) => ({
+        category,
+        rows: buildClassementRows(
+          publicCandidates.filter((candidate) => normalizeCategoryName(candidate?.category?.name || '') === category),
           category,
-          rows: buildClassementRows(candidates, category),
-        };
+        ),
       }));
 
       const csvLines = [];
