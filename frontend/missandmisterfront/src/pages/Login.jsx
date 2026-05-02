@@ -36,19 +36,20 @@ const Login = () => {
     setIsLoading(true);
     try {
       const response = await authAPI.login(formData);
+      const session = await authAPI.resolveSession(response, 'user');
       
       // Store token and user data
-      localStorage.setItem('authToken', response.token);
-      localStorage.setItem('user', JSON.stringify({ ...response.user, role: response.user.role || 'user' }));
+      localStorage.setItem('authToken', session.token);
+      localStorage.setItem('user', JSON.stringify(session.user));
       
       showToast('Connexion réussie !', 'success');
       
       // Redirect based on user role
-      if (response.user.role === 'admin' || response.user.role === 'superadmin') {
+      if (session.user.role === 'admin' || session.user.role === 'superadmin') {
         navigate('/admin/dashboard');
-      } else if (response.user.must_change_password) {
+      } else if (session.user.must_change_password) {
         navigate('/change-password');
-      } else if (response.user.role === 'candidate') {
+      } else if (session.user.role === 'candidate') {
         navigate('/dashboard');
       } else {
         navigate('/');

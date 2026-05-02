@@ -25,10 +25,11 @@ const AdminLogin = () => {
 
     try {
       const response = await authAPI.adminLogin(formData);
+      const session = await authAPI.resolveSession(response, 'admin');
       
       // Stocker le token d'authentification dans un espace séparé pour éviter tout mélange avec les sessions users
-      localStorage.setItem('adminAuthToken', response.token);
-      localStorage.setItem('adminUser', JSON.stringify({ ...response.user, role: response.user.role || 'admin' }));
+      localStorage.setItem('adminAuthToken', session.token);
+      localStorage.setItem('adminUser', JSON.stringify(session.user));
       // On isole les sessions : si une session user existe, on ne l'écrase pas ici
       
       navigate('/admin/dashboard');

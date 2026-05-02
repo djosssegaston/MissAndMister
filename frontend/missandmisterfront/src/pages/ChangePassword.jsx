@@ -62,12 +62,13 @@ const ChangePassword = () => {
         password: formData.password,
         password_confirmation: formData.confirm,
       });
+      const session = await authAPI.resolveSession(response, storedUser?.role === 'admin' || storedUser?.role === 'superadmin' ? 'admin' : 'user');
 
-      localStorage.setItem('authToken', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('authToken', session.token);
+      localStorage.setItem('user', JSON.stringify(session.user));
 
       showToast('Mot de passe mis à jour avec succès', 'success');
-      navigate(response.user.role === 'candidate' ? '/dashboard' : '/');
+      navigate(session.user.role === 'candidate' ? '/dashboard' : '/');
     } catch (error) {
       if (error?.isSessionExpired) {
         return;

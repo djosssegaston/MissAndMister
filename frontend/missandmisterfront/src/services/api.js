@@ -124,6 +124,17 @@ const cleanHeaders = (headers = {}) => Object.fromEntries(
   Object.entries(headers).filter(([, value]) => value !== undefined && value !== null)
 );
 
+const normalizeSessionUser = (user = null, fallbackRole = 'user') => {
+  if (!user || typeof user !== 'object') {
+    return null;
+  }
+
+  return {
+    ...user,
+    role: user.role || fallbackRole,
+  };
+};
+
 const isPublicReadEndpoint = (endpoint = '', method = 'GET') => {
   if (String(method || 'GET').toUpperCase() !== 'GET') {
     return false;
@@ -890,6 +901,72 @@ const fetchAPI = async (endpoint, options = {}) => {
   }
 };
 
+const fetchAPIWithExplicitToken = async (endpoint, token, options = {}) => {
+  const { timeout = API_TIMEOUT, skipSessionExpiredHandling = false, ...requestOptions } = options;
+  const hasFormData = isFormDataBody(requestOptions.body);
+  const method = getRequestMethod(requestOptions);
+  const normalizedToken = String(token || '').trim();
+
+  const defaultHeaders = {
+    'Accept': 'application/json',
+    ...(shouldSendJsonContentType(method, requestOptions.body, hasFormData) ? { 'Content-Type': 'application/json' } : {}),
+    ...(normalizedToken ? { Authorization: `Bearer ${normalizedToken}` } : {}),
+  };
+
+  const config = {
+    ...requestOptions,
+    method,
+    headers: {
+      ...cleanHeaders(defaultHeaders),
+      ...cleanHeaders(requestOptions.headers || {}),
+    },
+  };
+
+  try {
+    return await performApiRequest(endpoint, config, { timeout });
+  } catch (error) {
+    if (error.status === 401 && !skipSessionExpiredHandling) {
+      error.message = SESSION_EXPIRED_MESSAGE;
+    }
+
+    if (!error.isExpectedAuthTeardown) {
+      console.error('API Error:', error);
+    }
+
+    throw error;
+  }
+};
+
+const resolveAuthSessionFromPayload = async (payload = {}, scope = 'user') => {
+  const fallbackRole = scope === 'admin' ? 'admin' : 'user';
+  const token = String(payload?.token || '').trim();
+
+  if (!token) {
+    throw new Error('Le serveur n’a pas renvoyé de jeton de session valide.');
+  }
+
+  const embeddedUser = normalizeSessionUser(payload?.user, fallbackRole);
+  if (embeddedUser) {
+    return { token, user: embeddedUser };
+  }
+
+  try {
+    const me = await fetchAPIWithExplicitToken('/auth/me', token, {
+      timeout: 30000,
+      skipSessionExpiredHandling: true,
+    });
+    const resolvedUser = normalizeSessionUser(me, fallbackRole);
+
+    if (resolvedUser) {
+      return { token, user: resolvedUser };
+    }
+  } catch (error) {
+    console.warn('Unable to resolve authenticated user profile from token.', error);
+  }
+
+  throw new Error('La session a été ouverte mais le profil utilisateur n’a pas pu être récupéré. Réessayez dans quelques secondes.');
+};
+
 const parseDownloadFilename = (contentDisposition = '', fallback = 'download.bin') => {
   const encodedMatch = String(contentDisposition || '').match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
   if (encodedMatch?.[1]) {
@@ -1021,6 +1098,10 @@ export const authAPI = {
     }
 
     throw lastError || new Error('Impossible de contacter le serveur pour le moment. Reessayez dans quelques secondes.');
+  },
+
+  resolveSession: async (payload, scope = 'user') => {
+    return resolveAuthSessionFromPayload(payload, scope);
   },
 
   // Déconnexion
