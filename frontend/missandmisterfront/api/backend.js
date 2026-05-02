@@ -56,6 +56,32 @@ const looksLikeHtmlPayload = (text = '', contentType = '') => {
   );
 };
 
+const validateJsonPayload = (text = '') => {
+  const normalizedText = String(text || '').replace(/^\uFEFF/, '').trim();
+
+  if (!normalizedText) {
+    return {
+      ok: false,
+      detail: 'Réponse JSON vide.',
+    };
+  }
+
+  try {
+    JSON.parse(normalizedText);
+
+    return {
+      ok: true,
+      body: normalizedText,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      detail: error instanceof Error ? error.message : 'Réponse JSON invalide.',
+      body: normalizedText.slice(0, 400),
+    };
+  }
+};
+
 const buildUpstreamUrl = (requestUrl) => {
   const url = new URL(requestUrl);
   const upstreamPath = String(url.searchParams.get('path') || '')
@@ -193,12 +219,36 @@ const proxyRequest = async (request) => {
           });
         }
 
+        const validatedJson = validateJsonPayload(text);
+
+        if (!validatedJson.ok) {
+          lastFailure = new Error('Invalid JSON payload from upstream.');
+          lastFailure.status = upstreamResponse.status || 502;
+
+          if (retryableReadRequest && attempt < maxAttempts && shouldRetryStatus(upstreamResponse.status)) {
+            await sleep(300 * attempt);
+            continue;
+          }
+
+          return new Response(JSON.stringify({
+            message: 'Le backend a renvoyé un JSON invalide.',
+            detail: validatedJson.detail,
+          }), {
+            status: 502,
+            headers: {
+              'content-type': 'application/json; charset=utf-8',
+              'cache-control': PRIVATE_CACHE_CONTROL,
+              'x-proxy-by': 'vercel-backend-proxy',
+            },
+          });
+        }
+
         if (shouldRetryStatus(upstreamResponse.status) && retryableReadRequest && attempt < maxAttempts) {
           await sleep(300 * attempt);
           continue;
         }
 
-        return new Response(text, {
+        return new Response(validatedJson.body, {
           status: upstreamResponse.status,
           headers: buildResponseHeaders(upstreamResponse, cacheControl),
         });

@@ -108,3 +108,12 @@ Route::middleware(['auth:sanctum', 'force_password_change', 'role:user'])->group
 
 // Public settings (dates, toggles, price, etc.)
 Route::get('public/settings', [SettingsController::class, 'public'])->middleware('throttle:public-read');
+
+// Lightweight JSON probe to verify that the API stack returns a valid payload.
+Route::get('test', function () {
+    return response()->json([
+        'ok' => true,
+        'service' => 'miss-and-mister-api',
+        'timestamp' => now()->toIso8601String(),
+    ]);
+})->middleware('throttle:public-read');
