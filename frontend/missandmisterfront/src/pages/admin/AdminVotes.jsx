@@ -414,16 +414,11 @@ const AdminVotes = () => {
       const csvLines = [];
 
       groupedCandidates.forEach(({ category, rows }, groupIndex) => {
-        if (groupIndex > 0) {
-          csvLines.push('');
-          csvLines.push('');
+        if (groupIndex === 0) {
+          csvLines.push(toCsvLine(['Nom et Prenom', 'Universite', 'Categorie', 'Votes', 'Pourcentage (/40%)', 'Rang']));
         }
 
-        csvLines.push(toCsvLine([`Classement ${category}`]));
-        csvLines.push(toCsvLine(['Nom Prenom', 'Université', 'Votes', 'Pourcentage (/40%)', 'Rang']));
-
         if (rows.length === 0) {
-          csvLines.push(toCsvLine(['Aucune donnée disponible', '', '', '', '']));
           return;
         }
 
@@ -431,6 +426,7 @@ const AdminVotes = () => {
           csvLines.push(toCsvLine([
             row.fullName,
             row.university,
+            row.category || category,
             row.votes,
             formatClassementPercentage(row.percentage),
             row.rank,
