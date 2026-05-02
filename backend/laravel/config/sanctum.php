@@ -45,15 +45,14 @@ return [
     | header, which avoids production failures when the session backend is not
     | available for API requests.
     |
-    | If you later need first-party cookie authentication again, set:
-    | SANCTUM_GUARDS=web
+    | This project relies on Bearer tokens for API auth in production. We keep
+    | the guard list empty on purpose so Sanctum never falls back to the "web"
+    | session guard on shared hosting, where that path has already caused 500s
+    | on protected API routes like /api/me.
     |
     */
 
-    'guard' => array_values(array_filter(array_map(
-        'trim',
-        explode(',', (string) env('SANCTUM_GUARDS', ''))
-    ))),
+    'guard' => [],
 
     /*
     |--------------------------------------------------------------------------

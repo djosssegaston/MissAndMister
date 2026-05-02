@@ -482,13 +482,19 @@ const buildUnexpectedHtmlError = (response, data) => {
   return error;
 };
 
-const getAvailableApiBaseUrls = () => {
+const getAvailableApiBaseUrls = (endpoint = '', config = {}) => {
+  const method = getRequestMethod(config);
+  const isPublicRead = isPublicReadEndpoint(endpoint, method);
   const baseUrlsByMode = {
     proxy: PROXY_API_BASE_URL,
     direct: DIRECT_API_BASE_URL,
   };
 
-  return getOrderedTransportModes(Object.keys(baseUrlsByMode))
+  const orderedModes = isPublicRead
+    ? getOrderedTransportModes(Object.keys(baseUrlsByMode))
+    : ['direct', 'proxy'];
+
+  return orderedModes
     .map((mode) => ({ mode, baseUrl: baseUrlsByMode[mode] }))
     .filter(({ baseUrl }) => Boolean(baseUrl));
 };
@@ -538,24 +544,6 @@ const shouldRaceBaseUrls = (endpoint = '', config = {}) => {
 
   const headers = config?.headers || {};
   return !Object.keys(headers).some((key) => key.toLowerCase() === 'authorization');
-};
-
-const shouldSkipCrossOriginDirectTransport = (baseUrl = '', endpoint = '', config = {}) => {
-  if (!PROXY_API_BASE_URL || !isProductionProxyHost()) {
-    return false;
-  }
-
-  if (!isAbsoluteHttpUrl(baseUrl) || isSameOriginAbsoluteUrl(baseUrl)) {
-    return false;
-  }
-
-  const method = getRequestMethod(config);
-
-  if (isPublicReadEndpoint(endpoint, method)) {
-    return true;
-  }
-
-  return false;
 };
 
 const shouldRetryAlternateAdminLoginEndpoint = (error) => {
@@ -746,8 +734,7 @@ const performApiRequest = async (endpoint, config, { timeout = API_TIMEOUT, maxR
     let lastError = null;
 
     try {
-      const baseUrlCandidates = getAvailableApiBaseUrls()
-        .filter(({ baseUrl }) => !shouldSkipCrossOriginDirectTransport(baseUrl, endpoint, config));
+      const baseUrlCandidates = getAvailableApiBaseUrls(endpoint, config);
 
       if (baseUrlCandidates.length > 1 && shouldRaceBaseUrls(endpoint, config)) {
         return await executeParallelReadRequest(baseUrlCandidates);

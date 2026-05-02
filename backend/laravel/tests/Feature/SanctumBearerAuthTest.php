@@ -26,6 +26,27 @@ class SanctumBearerAuthTest extends TestCase
             ]);
     }
 
+    public function test_protected_api_route_returns_401_without_token_even_without_json_accept_header(): void
+    {
+        $this->get('/api/me')
+            ->assertStatus(401)
+            ->assertJson([
+                'message' => 'Unauthenticated',
+            ]);
+    }
+
+    public function test_vercel_preview_origin_is_allowed_for_api_cors_preflight(): void
+    {
+        $this->call('OPTIONS', '/api/auth/login', [], [], [], [
+            'HTTP_ORIGIN' => 'https://miss-and-mister-preview-test.vercel.app',
+            'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
+            'HTTP_ACCESS_CONTROL_REQUEST_HEADERS' => 'content-type,accept,authorization',
+        ])
+            ->assertNoContent()
+            ->assertHeader('Access-Control-Allow-Origin', 'https://miss-and-mister-preview-test.vercel.app')
+            ->assertHeader('Access-Control-Allow-Credentials', 'true');
+    }
+
     public function test_user_can_access_api_me_with_bearer_token(): void
     {
         $user = User::factory()->create([

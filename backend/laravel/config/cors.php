@@ -24,9 +24,11 @@ return [
         'https://www.missmisteruniversitybenin.com',
     ]))))),
 
-    // Keep patterns opt-in only; a raw fallback like .* can crash preg_match
-    // on some shared-hosting setups depending on how the CORS package evaluates it.
-    'allowed_origins_patterns' => array_filter(array_map('trim', explode(',', env('CORS_ALLOWED_ORIGINS_PATTERN', '')))),
+    // Keep patterns narrowly scoped. Vercel preview URLs need direct API access
+    // when the same-origin proxy is unavailable for auth or transport fallback.
+    'allowed_origins_patterns' => array_filter(array_map('trim', explode(',', env('CORS_ALLOWED_ORIGINS_PATTERN', implode(',', [
+        '^https://.*\\.vercel\\.app$',
+    ]))))),
 
     'allowed_headers' => ['*'],
 

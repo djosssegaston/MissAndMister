@@ -31,6 +31,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('model:prune', ['--model' => 'App\\Models\\ActivityLog'])->daily();
     })
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->redirectGuestsTo(static function (Request $request): ?string {
+            if ($request->is('api/*')) {
+                return null;
+            }
+
+            $frontendUrl = rtrim((string) config('app.frontend_url'), '/');
+
+            return $frontendUrl !== ''
+                ? "{$frontendUrl}/login"
+                : '/login';
+        });
+
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureRole::class,
             'force_password_change' => \App\Http\Middleware\ForcePasswordChange::class,
