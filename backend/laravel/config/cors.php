@@ -1,5 +1,36 @@
 <?php
 
+$defaultAllowedOrigins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'https://missmisteruniversitybenin.com',
+    'https://www.missmisteruniversitybenin.com',
+];
+
+$defaultAllowedOriginPatterns = [
+    '#^https://.*\.vercel\.app$#',
+];
+
+$parseCorsList = static function (string $key, array $fallback): array {
+    $raw = env($key);
+
+    if (is_array($raw)) {
+        $normalized = array_values(array_filter(array_map(
+            static fn ($value) => trim((string) $value),
+            $raw,
+        ), static fn (string $value) => $value !== ''));
+
+        return $normalized !== [] ? $normalized : $fallback;
+    }
+
+    $normalized = array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) $raw),
+    ), static fn (string $value) => $value !== ''));
+
+    return $normalized !== [] ? $normalized : $fallback;
+};
+
 return [
     'paths' => [
         'api/*',
@@ -10,25 +41,18 @@ return [
     'allowed_methods' => ['*'],
 
     /*
-     * CORS origins are now configurable via env so it matches the URL you
-     * actually use (localhost, LAN IP, production domain, etc.).
-     * Examples:
-     * CORS_ALLOWED_ORIGINS=http://localhost:5173,http://192.168.1.20:5173,https://app.example.com
-     * CORS_ALLOWED_ORIGINS_PATTERN=https?://.*\\.example\\.com
+     * Keep the production frontend domain always allowed by default and only
+     * let environment variables extend or replace the list when they contain
+     * real values. This avoids blank env overrides wiping Vercel preview CORS.
      */
-    // Default: allow common dev hosts plus the production frontend domain; override via env.
-    'allowed_origins' => array_filter(array_map('trim', explode(',', env('CORS_ALLOWED_ORIGINS', implode(',', [
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-        'https://missmisteruniversitybenin.com',
-        'https://www.missmisteruniversitybenin.com',
-    ]))))),
+    'allowed_origins' => $parseCorsList('CORS_ALLOWED_ORIGINS', $defaultAllowedOrigins),
 
-    // Keep patterns narrowly scoped. Vercel preview URLs need direct API access
-    // when the same-origin proxy is unavailable for auth or transport fallback.
-    'allowed_origins_patterns' => array_filter(array_map('trim', explode(',', env('CORS_ALLOWED_ORIGINS_PATTERN', implode(',', [
-        '^https://.*\\.vercel\\.app$',
-    ]))))),
+    /*
+     * Vercel preview URLs need direct API access when the same-origin proxy is
+     * unavailable or returns a protected/error page. An empty env value should
+     * not disable this fallback pattern.
+     */
+    'allowed_origins_patterns' => $parseCorsList('CORS_ALLOWED_ORIGINS_PATTERN', $defaultAllowedOriginPatterns),
 
     'allowed_headers' => ['*'],
 

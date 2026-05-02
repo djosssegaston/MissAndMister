@@ -35,6 +35,18 @@ const getRuntimeProxyApiBaseUrl = () => {
   return isProductionProxyHost(window.location.hostname) ? '/backend-api' : '';
 };
 
+const getDefaultDirectApiBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    const runtimeHostname = window.location?.hostname || '';
+
+    if (isProductionProxyHost(runtimeHostname)) {
+      return 'https://api.missmisteruniversitybenin.com/api';
+    }
+  }
+
+  return 'http://localhost:8000/api';
+};
+
 const buildApiUrl = (baseUrl, endpoint) => `${baseUrl}${endpoint}`;
 const isAbsoluteHttpUrl = (value = '') => /^https?:\/\//i.test(String(value || ''));
 const isSameOriginAbsoluteUrl = (value = '') => {
@@ -50,7 +62,7 @@ const isSameOriginAbsoluteUrl = (value = '') => {
 };
 
 // Configuration de l'API
-const DIRECT_API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL || 'http://localhost:8000/api');
+const DIRECT_API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL || getDefaultDirectApiBaseUrl());
 const PROXY_API_BASE_URL = getRuntimeProxyApiBaseUrl();
 const API_BASE_URL = PROXY_API_BASE_URL || DIRECT_API_BASE_URL;
 export const SESSION_EXPIRED_EVENT = 'app:session-expired';
@@ -58,9 +70,9 @@ const PUBLIC_CACHE_STORAGE_KEY = 'mmub_public_api_cache_v1';
 const PUBLIC_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 6;
 const PUBLIC_CANDIDATES_PAGE_SIZE = 50;
 const ADMIN_LIST_PAGE_SIZE = 100;
-const CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY = 'mmub_candidate_public_endpoint_outage_until_v1';
+const CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY = 'mmub_candidate_public_endpoint_outage_until_v2';
 const CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_MS = 1000 * 60 * 15;
-const READ_TRANSPORT_COOLDOWN_KEY = 'mmub_read_transport_cooldown_until_v1';
+const READ_TRANSPORT_COOLDOWN_KEY = 'mmub_read_transport_cooldown_until_v2';
 const READ_TRANSPORT_COOLDOWN_MS = 1000 * 60;
 const ENABLE_PARALLEL_PUBLIC_READ_TRANSPORT = String(
   import.meta.env.VITE_ENABLE_PARALLEL_PUBLIC_READ_TRANSPORT || 'false'
