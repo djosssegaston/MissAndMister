@@ -36,6 +36,24 @@ class ClassementExportController extends Controller
                 ]
             )->deleteFileAfterSend(true);
         } catch (\Throwable $exception) {
+            $diagnostics = [];
+
+            if (method_exists($this->classementExports, 'runtimeDiagnostics')) {
+                try {
+                    $diagnostics = $this->classementExports->runtimeDiagnostics();
+                } catch (\Throwable) {
+                    $diagnostics = [];
+                }
+            }
+
+            logger()->error('Classement PDF export failed', [
+                'message' => $exception->getMessage(),
+                'exception' => get_class($exception),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+                'diagnostics' => $diagnostics,
+            ]);
+
             report($exception);
             $this->classementExports->cleanupExportArtifacts($export['temp_directory'] ?? null);
 
