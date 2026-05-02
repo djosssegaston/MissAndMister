@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import Loader from '../../components/Loader';
+import { useToast } from '../../components/Toast';
 import { NO_AUTO_REFRESH_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminVotes.css';
@@ -84,12 +85,14 @@ const AdminVotes = () => {
   const [minAmount, setMinAmount] = useState('');
   const [sortBy, setSortBy] = useState('date_desc');
   const [loading, setLoading] = useState(true);
+  const [exportLoading, setExportLoading] = useState(false);
   const [error, setError] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const hasLoadedRef = useRef(false);
+  const { showToast } = useToast();
   const adminRole = (() => {
     try {
       return JSON.parse(localStorage.getItem('adminUser') || 'null')?.role || 'admin';
@@ -292,6 +295,33 @@ const AdminVotes = () => {
     URL.revokeObjectURL(url);
   };
 
+  const exportClassementPdf = async () => {
+    try {
+      setExportLoading(true);
+      setError(null);
+
+      const { blob, filename } = await adminAPI.exportClassementPdf();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || 'classement_miss_mister_2026.zip';
+      link.click();
+      URL.revokeObjectURL(url);
+
+      showToast('Le classement PDF a été généré et téléchargé.', 'success');
+    } catch (err) {
+      if (err?.isSessionExpired) {
+        return;
+      }
+
+      const message = err?.message || 'Impossible de générer le classement PDF pour le moment.';
+      setError(message);
+      showToast(message, 'error');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const toggleSelectAll = (checked) => {
     if (checked) {
       setSelected(new Set(sorted.map(v => v.id)));
@@ -358,6 +388,10 @@ const AdminVotes = () => {
         <div className="avotes-header-actions">
           <button className="ag-btn ag-btn-outline" onClick={() => { setSearch(''); setStatus('Tous'); setCat('Tous'); setOperator('Tous'); setDateFrom(''); setDateTo(''); setMinAmount(''); }}>
             Réinitialiser
+          </button>
+          <button className="ag-btn ag-btn-outline" onClick={exportClassementPdf} disabled={exportLoading}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            {exportLoading ? 'Génération PDF…' : 'Classement PDF'}
           </button>
           <button className="ag-btn ag-btn-outline" onClick={exportCSV}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>

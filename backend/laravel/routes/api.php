@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CandidateController;
+use App\Http\Controllers\Api\ClassementExportController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\GalleryController;
@@ -82,6 +83,7 @@ Route::middleware(['auth:sanctum', 'role:admin,superadmin'])->prefix('admin')->g
     Route::get('payments', [PaymentController::class, 'index']);
     Route::get('votes', [VoteController::class, 'index']);
     Route::get('votes/export', [VoteController::class, 'export']);
+    Route::get('export-classement-pdf', ClassementExportController::class);
     Route::get('votes/{id}', [VoteController::class, 'show']);
     Route::patch('votes/{id}', [VoteController::class, 'update']);
     Route::delete('votes/{id}', [VoteController::class, 'destroy']);

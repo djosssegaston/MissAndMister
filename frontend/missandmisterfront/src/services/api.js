@@ -890,6 +890,88 @@ const fetchAPI = async (endpoint, options = {}) => {
   }
 };
 
+const parseDownloadFilename = (contentDisposition = '', fallback = 'download.bin') => {
+  const encodedMatch = String(contentDisposition || '').match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+  if (encodedMatch?.[1]) {
+    try {
+      return decodeURIComponent(encodedMatch[1]).replace(/^["']|["']$/g, '');
+    } catch {
+      // Ignore malformed RFC5987 filenames and fall back to plain filename parsing.
+    }
+  }
+
+  const plainMatch = String(contentDisposition || '').match(/filename\s*=\s*("?)([^";]+)\1/i);
+  if (plainMatch?.[2]) {
+    return plainMatch[2].trim();
+  }
+
+  return fallback;
+};
+
+const fetchAPIBlob = async (endpoint, options = {}) => {
+  const token = resolveAuthToken(endpoint);
+  const { timeout = API_TIMEOUT, skipSessionExpiredHandling = false, ...requestOptions } = options;
+  const hasFormData = isFormDataBody(requestOptions.body);
+  const method = getRequestMethod(requestOptions);
+
+  const defaultHeaders = {
+    'Accept': 'application/zip, application/pdf, application/octet-stream',
+    ...(shouldSendJsonContentType(method, requestOptions.body, hasFormData) ? { 'Content-Type': 'application/json' } : {}),
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+
+  const config = {
+    ...requestOptions,
+    method,
+    headers: {
+      ...cleanHeaders(defaultHeaders),
+      ...cleanHeaders(requestOptions.headers || {}),
+    },
+  };
+
+  try {
+    const response = await fetchWithTimeout(buildApiUrl(API_BASE_URL, endpoint), config, timeout);
+    const contentType = response.headers.get('content-type') || '';
+
+    if (!response.ok) {
+      const data = await parseResponseBody(response);
+      throw buildApiError(response, data);
+    }
+
+    if (contentType.includes('text/html') || contentType.includes('application/json')) {
+      const data = await parseResponseBody(response);
+      if (data?._isUnexpectedHtml) {
+        throw buildUnexpectedHtmlError(response, data);
+      }
+
+      throw new Error(data?.message || 'Le serveur n’a pas renvoyé un fichier téléchargeable.');
+    }
+
+    return {
+      blob: await response.blob(),
+      filename: parseDownloadFilename(response.headers.get('content-disposition') || '', 'classement_miss_mister_2026.zip'),
+      contentType,
+    };
+  } catch (error) {
+    if (error.status === 401) {
+      const scope = getSessionScope(endpoint);
+      clearStoredSession(scope);
+      if (!skipSessionExpiredHandling && !areSessionExpiredNotificationsMuted()) {
+        error.message = SESSION_EXPIRED_MESSAGE;
+        dispatchSessionExpired({ scope, message: error.message });
+      } else {
+        error.isExpectedAuthTeardown = true;
+      }
+    }
+
+    if (!error.isExpectedAuthTeardown) {
+      console.error('API Error:', error);
+    }
+
+    throw error;
+  }
+};
+
 // ===== AUTHENTIFICATION =====
 export const authAPI = {
   // Inscription
@@ -1239,6 +1321,12 @@ export const adminAPI = {
   deleteVote: async (id) => {
     return fetchAPI(`/admin/votes/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  exportClassementPdf: async () => {
+    return fetchAPIBlob('/admin/export-classement-pdf', {
+      timeout: 120000,
     });
   },
 

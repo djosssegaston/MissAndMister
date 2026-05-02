@@ -15,6 +15,10 @@ const usesDynamicPublicCache = (path = '') => (
 const expectsJsonPayload = (path) => {
   const normalizedPath = String(path || '');
 
+  if (/^admin\/export-classement-pdf$/i.test(normalizedPath)) {
+    return false;
+  }
+
   return (
     /^public\//i.test(normalizedPath)
     || /^admin\//i.test(normalizedPath)
@@ -101,6 +105,8 @@ const buildResponseHeaders = (upstreamResponse, cacheControl) => {
   const headers = new Headers();
   const passthroughHeaders = [
     'content-type',
+    'content-disposition',
+    'content-length',
     'etag',
     'last-modified',
     'content-language',
