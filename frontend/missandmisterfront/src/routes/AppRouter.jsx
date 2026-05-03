@@ -108,8 +108,9 @@ const MaintenanceScreen = ({ publicSettings, onCountdownComplete }) => {
         <span className="maintenance-pill">Maintenance en cours</span>
         <h1>Plateforme temporairement indisponible</h1>
         <p>
-          Les votes et l&apos;accès public sont momentanément suspendus.
-          Le site redeviendra accessible automatiquement dès la fin de cette maintenance.
+          Les votes et l&apos;accès public sont momentanément suspendus .
+          Le service fedapay est actuellement en maintenance, ce qui impacte notre capacité à traiter les paiements et à garantir une expérience de vote fluide. Nous travaillons en étroite collaboration avec fedapay pour résoudre cette situation dans les plus brefs délais.
+          {/* Le site redeviendra accessible automatiquement dès la fin de cette maintenance. */}
         </p>
 
         <div className="maintenance-countdown-shell">
