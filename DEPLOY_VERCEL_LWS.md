@@ -47,8 +47,11 @@ Ce script :
 - synchronise le backend vers LWS via `rsync` + `ssh`
 - preserve le `.env`, `storage/`, `vendor/` et les medias deja presents sur le serveur
 - lance `php artisan optimize:clear` sur LWS
+- lance `php artisan storage:link --force` sur LWS
+- lance `php artisan migrate --force` sur LWS par defaut
 - verifie ensuite :
   - `https://api.missmisteruniversitybenin.com/up`
+  - `https://api.missmisteruniversitybenin.com/api/test`
   - `https://api.missmisteruniversitybenin.com/api/public/settings`
 
 Si tu as aussi modifie des variables admin dans le vrai `.env` serveur et que tu veux reappliquer le bootstrap :
@@ -64,13 +67,21 @@ Variables modifiables si besoin :
 - `LWS_REMOTE_DIR`
 - `LWS_PHP_BIN`
 - `LWS_HEALTH_URL`
+- `LWS_API_TEST_URL`
 - `LWS_SETTINGS_URL`
+
+Si tu dois exceptionnellement deployer sans appliquer les migrations :
+
+```bash
+cd backend/laravel
+composer deploy:lws -- --skip-migrations
+```
 
 ### Points importants
 
 - le dossier public a exposer est `backend/laravel/public`
 - si LWS ne permet pas de pointer directement le domaine vers `public`, le fichier `.htaccess` a la racine Laravel redirige vers `public/`
-- apres deploiement, il faut executer :
+- apres un premier deploiement manuel ou si tu ne passes pas par le script, il faut executer :
 
 ```bash
 php artisan key:generate --show

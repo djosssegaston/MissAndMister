@@ -74,4 +74,11 @@ class AuthSessionTest extends TestCase
         $this->assertNotNull(PersonalAccessToken::findToken($secondToken));
         $this->assertSame(1, $admin->fresh()->tokens()->count());
     }
+
+    public function test_admin_login_missing_credentials_returns_validation_error(): void
+    {
+        $this->postJson('/api/auth/admin-login', [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['email', 'password']);
+    }
 }

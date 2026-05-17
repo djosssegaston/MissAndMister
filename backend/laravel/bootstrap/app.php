@@ -4,9 +4,11 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use App\Console\Commands\BackupDatabase;
 use App\Console\Commands\ReconcileFedapayPayments;
@@ -89,7 +91,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            if ($exception instanceof AuthenticationException || $exception instanceof PostTooLargeException) {
+            if (
+                $exception instanceof AuthenticationException
+                || $exception instanceof AuthorizationException
+                || $exception instanceof PostTooLargeException
+                || $exception instanceof ValidationException
+            ) {
                 return null;
             }
 

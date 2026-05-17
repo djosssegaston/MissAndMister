@@ -9,11 +9,13 @@ LWS_SSH_TARGET="${LWS_SSH_TARGET:-missm2781953@webdb10}"
 LWS_REMOTE_DIR="${LWS_REMOTE_DIR:-/home/htdocs/api.missmisteruniversitybenin.com/backend/laravel}"
 LWS_PHP_BIN="${LWS_PHP_BIN:-php}"
 LWS_HEALTH_URL="${LWS_HEALTH_URL:-https://api.missmisteruniversitybenin.com/up}"
+LWS_API_TEST_URL="${LWS_API_TEST_URL:-https://api.missmisteruniversitybenin.com/api/test}"
 LWS_SETTINGS_URL="${LWS_SETTINGS_URL:-https://api.missmisteruniversitybenin.com/api/public/settings}"
 
 DRY_RUN=0
 RUN_BOOTSTRAP=0
 SKIP_HEALTH_CHECK=0
+SKIP_MIGRATIONS=0
 
 usage() {
     cat <<'EOF'
@@ -22,6 +24,7 @@ Usage: bash backend/laravel/scripts/deploy-lws.sh [options]
 Options:
   --dry-run                Show what would be synchronized without changing LWS
   --bootstrap-production   Run php artisan app:bootstrap-production on LWS after sync
+  --skip-migrations        Skip php artisan migrate --force on LWS
   --skip-health-check      Skip HTTP checks after deployment
   --help                   Show this help
 
@@ -30,6 +33,7 @@ Environment overrides:
   LWS_REMOTE_DIR           Remote Laravel directory
   LWS_PHP_BIN              PHP binary on LWS (default: php)
   LWS_HEALTH_URL           Health endpoint to verify after deploy
+  LWS_API_TEST_URL         Lightweight API endpoint to verify after deploy
   LWS_SETTINGS_URL         Public settings endpoint to verify after deploy
 EOF
 }
@@ -41,6 +45,9 @@ while (($# > 0)); do
             ;;
         --bootstrap-production)
             RUN_BOOTSTRAP=1
+            ;;
+        --skip-migrations)
+            SKIP_MIGRATIONS=1
             ;;
         --skip-health-check)
             SKIP_HEALTH_CHECK=1
@@ -97,6 +104,9 @@ run_health_checks() {
     echo "Checking ${LWS_HEALTH_URL}"
     curl -fsS --max-time 20 "$LWS_HEALTH_URL" >/dev/null
 
+    echo "Checking ${LWS_API_TEST_URL}"
+    curl -fsS --max-time 20 "$LWS_API_TEST_URL" >/dev/null
+
     echo "Checking ${LWS_SETTINGS_URL}"
     curl -fsS --max-time 20 "$LWS_SETTINGS_URL" >/dev/null
 }
@@ -142,7 +152,12 @@ fi
 REMOTE_COMMANDS=(
     "cd '$LWS_REMOTE_DIR'"
     "$LWS_PHP_BIN artisan optimize:clear"
+    "$LWS_PHP_BIN artisan storage:link --force"
 )
+
+if [[ "$SKIP_MIGRATIONS" -eq 0 ]]; then
+    REMOTE_COMMANDS+=("$LWS_PHP_BIN artisan migrate --force")
+fi
 
 if [[ "$RUN_BOOTSTRAP" -eq 1 ]]; then
     REMOTE_COMMANDS+=("$LWS_PHP_BIN artisan app:bootstrap-production")
