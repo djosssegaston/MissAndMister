@@ -109,8 +109,9 @@ const MaintenanceScreen = ({ publicSettings, onCountdownComplete }) => {
         <h1>Plateforme temporairement indisponible</h1>
         <p>
           Les votes et l&apos;accès public sont momentanément suspendus .
-          Le service fedapay est actuellement en maintenance, ce qui impacte notre capacité à traiter les paiements et à garantir une expérience de vote fluide. Nous travaillons en étroite collaboration avec fedapay pour résoudre cette situation dans les plus brefs délais.
-          {/* Le site redeviendra accessible automatiquement dès la fin de cette maintenance. */}
+          Nous remercions tout les votants qui ont participé avec enthousiasme et soutien envers les candidats durant cette phase de pré-selection.
+
+          Le site redeviendra accessible automatiquement dès le lancement des prochaines votes. MERCI de votre compréhension et à très bientôt pour la suite du concours Miss & Mister University Benin!
         </p>
 
         <div className="maintenance-countdown-shell">
