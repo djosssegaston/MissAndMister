@@ -848,78 +848,27 @@ const Home = () => {
       </section>
     )}
 
-    {/* ══════════════════════════════════════════ COMMENT VOTER */}
+    {/*
+      ══════════════════════════════════════════ PARCOURS DU CONCOURS (pré-sélection)
+      COMMENTÉ – à réactiver quand la phase de pré-sélection sera lancée.
+      Affiche les 10 étapes (PROGRAM_STEPS) avec animations framer-motion.
+
     <section className="home-how section">
-      <div className="container">
-        <motion.div className="section-header text-center"
-          initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false, amount: 0.2 }}>
-          <h2>Le <span className="text-gold">parcours</span> du concours <span className="text-gold">(phase de pré-sélection)</span></h2>
-          <div className="section-divider centered" />
-        </motion.div>
-
-        <div className="steps-grid">
-          {PROGRAM_STEPS.map((s, i) => (
-            <motion.div key={i} className="step-card"
-              {...buildRevealProps(i)}
-              whileHover={{ y: -6 }}>
-              <div className="step-num">{s.step}</div>
-              <div className="step-icon">{s.icon}</div>
-              <h3>{s.title}</h3>
-              <p>{s.desc}</p>
-              {i < PROGRAM_STEPS.length - 1 && <div className="step-connector" />}
-            </motion.div>
-          ))}
-        </div>
-      </div>
+      ...
     </section>
+      ══════════════════════════════════════════
+    */}
 
-    {/* ══════════════════════════════════════════ MOBILE MONEY */}
+    {/*
+      ══════════════════════════════════════════ SIMULATEUR DE VOTE / PAIEMENT
+      COMMENTÉ – à réactiver quand le paiement en ligne sera actif.
+      Simulateur de vote statique (carte mobile, données fictives).
+
     <section className="home-mm section">
-      <div className="container">
-        <motion.div className="mm-box"
-          initial={{ opacity: 0, y: 30, scale: 0.98 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} viewport={{ once: false, amount: 0.18 }} transition={{ duration: 0.72 }}>
-          {/* <div className="mm-left">
-            <span className="section-eyebrow">Paiement sécurisé</span>
-            <h2>Payez via <span className="text-gold">Mobile Money</span></h2>
-            <p>Tous les opérateurs Mobile Money du Bénin, du Togo, du Sénégal et de la Côte d&apos;Ivoire sont acceptés. Les transactions sont sécurisées, rapides et suivies en temps réel.</p>
-            <div className="mm-operators">
-              {[
-                { name: 'MTN MoMo', color: '#FFD700', letter: 'M' },
-                { name: 'Moov Money', color: '#0066CC', letter: 'Mo' },
-                { name: 'Orange', color: '#FF6B00', letter: 'F' },
-              ].map((op, i) => (
-                <div key={i} className="mm-op">
-                  <div className="mm-op-icon" style={{ background: op.color + '22', border: `1.5px solid ${op.color}44`, color: op.color }}>{op.letter}</div>
-                  <span>{op.name}</span>
-                </div>
-              ))}
-            </div>
-          </div> */}
-          <div className="mm-right">
-            <div className="mm-phone-card">
-              <div className="mm-phone-header">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <rect x="3" y="11" width="18" height="10" rx="2" stroke="#D4AF37" strokeWidth="1.8"/>
-                  <path d="M9 11V7a3 3 0 016 0v4" stroke="#D4AF37" strokeWidth="1.8" strokeLinecap="round"/>
-                </svg>
-                Simulateur de vote
-              </div>
-              <div className="mm-phone-body">
-                <div className="mm-sim-row"><span>Candidat</span><strong>Sophie AKAKPO</strong></div>
-                <div className="mm-sim-row"><span>Nombre de votes</span><strong className="text-gold">10</strong></div>
-                <div className="mm-sim-row"><span>Opérateur</span><strong>MTN MoMo</strong></div>
-                <div className="mm-sim-row"><span>Numéro</span><strong>+229 97 ••• ••• </strong></div>
-                <div className="mm-sim-divider" />
-                <div className="mm-sim-row total"><span>Total</span><strong>1 000 FCFA</strong></div>
-              </div>
-              <div className="mm-phone-footer">
-                <div className="mm-sim-btn">Confirmer le paiement</div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
+      ...
     </section>
+      ══════════════════════════════════════════
+    */}
 
       <PartnerShowcase
   
