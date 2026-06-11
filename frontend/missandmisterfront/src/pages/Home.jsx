@@ -4,10 +4,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import PartnerShowcase from '../components/PartnerShowcase';
 import Loader from '../components/Loader';
 import WhatsAppIcon from '../components/WhatsAppIcon';
-import sessionHero from '../assets/session_hero.png';
-import sessionMobile from '../assets/session_mobil.png';
-import sessionMobileAlt from '../assets/session_mobil1.png';
+import heroImage from '../assets/IMG-candidat2.jpeg';
 import initiatorVisual from '../assets/logo1.jpeg';
+import bgStats from '../assets/IMG-20260610-WA0030.jpg';
+import bgCta from '../assets/IMG-20260610-WA0029.jpg';
+import bgTopCandidates from '../assets/IMG-20260610-WA0032.jpg';
 import { getCandidatePublicPath } from '../utils/candidatePublic';
 import { PARTNER_WHATSAPP_URL, PROJECT_PHONE_DISPLAY } from '../utils/siteContact';
 import { getVotingWindowSnapshot } from '../utils/publicSettings';
@@ -396,7 +397,7 @@ const Home = () => {
     <section className="hero-section">
       <div className="hero-media" aria-hidden="true">
         <img
-          src={sessionHero}
+          src={heroImage}
           alt=""
           className="hero-media-desktop"
           loading="eager"
@@ -405,7 +406,7 @@ const Home = () => {
         />
         <div className="hero-media-mobile">
           <img
-            src={sessionMobile}
+            src={heroImage}
             alt=""
             className="hero-media-mobile-image is-primary"
             loading="eager"
@@ -413,7 +414,7 @@ const Home = () => {
             fetchPriority="high"
           />
           <img
-            src={sessionMobileAlt}
+            src={heroImage}
             alt=""
             className="hero-media-mobile-image is-secondary"
             loading="eager"
@@ -718,7 +719,7 @@ const Home = () => {
     </section>
 
        {/* ══════════════════════════════════════════ STATS */}
-    <section className="home-stats section">
+    <section className="home-stats section" style={{"--bg-section": `url(${bgStats})`}}>
       <div className="container">
         <motion.div
           className="section-header text-center"
@@ -794,7 +795,7 @@ const Home = () => {
 
     {/* ══════════════════════════════════════════ TOP CANDIDATS */}
     {resultsPublicEnabled && (
-      <section className="home-top-candidates section">
+      <section className="home-top-candidates section" style={{"--bg-section": `url(${bgTopCandidates})`}}>
         <div className="container">
           <motion.div className="section-header text-center"
             initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false, amount: 0.2 }}>
@@ -882,7 +883,7 @@ const Home = () => {
 
 
     {/* ══════════════════════════════════════════ CTA FINAL */}
-    <section className="home-cta section">
+    <section className="home-cta section" style={{"--bg-section": `url(${bgCta})`}}>
       <div className="container">
         <motion.div className="cta-final"
           initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false, amount: 0.18 }}>

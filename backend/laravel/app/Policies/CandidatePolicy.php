@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Models\Candidate;
-use Illuminate\Auth\Access\Response;
 
 class CandidatePolicy
 {
@@ -29,7 +28,7 @@ class CandidatePolicy
 
     public function delete($user, Candidate $candidate): bool
     {
-        return $user?->tokenCan('admin') === true && ($user?->role ?? null) === 'superadmin';
+        return $user?->tokenCan('admin') === true;
     }
 
     public function restore($user, Candidate $candidate): bool
