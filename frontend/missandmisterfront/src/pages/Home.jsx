@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import PartnerShowcase from '../components/PartnerShowcase';
 import Loader from '../components/Loader';
 import WhatsAppIcon from '../components/WhatsAppIcon';
-import heroImage from '../assets/IMG-candidat2.jpeg';
+import heroImage from '../assets/IMG-20260610-WA0007.jpg';
 import initiatorVisual from '../assets/logo1.jpeg';
 import bgStats from '../assets/IMG-20260610-WA0030.jpg';
 import bgCta from '../assets/IMG-20260610-WA0029.jpg';
