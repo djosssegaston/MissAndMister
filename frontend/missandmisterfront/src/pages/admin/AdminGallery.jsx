@@ -103,7 +103,7 @@ const AdminGallery = () => {
       return 'admin';
     }
   })();
-  const canDeleteGalleryItems = adminRole === 'superadmin';
+  const canDeleteGalleryItems = adminRole === 'superadmin' || adminRole === 'admin';
 
   useEffect(() => () => {
     if (previewUrl?.startsWith('blob:')) {

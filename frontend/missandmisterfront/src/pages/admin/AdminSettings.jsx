@@ -46,7 +46,7 @@ const AdminSettings = () => {
       return 'admin';
     }
   })();
-  const canManageMaintenance = adminRole === 'superadmin';
+  const canManageMaintenance = adminRole === 'superadmin' || adminRole === 'admin';
 
   // Load settings on mount
   useEffect(() => {

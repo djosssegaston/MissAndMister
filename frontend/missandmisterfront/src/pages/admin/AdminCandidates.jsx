@@ -218,7 +218,7 @@ const AdminCandidates = () => {
       return 'admin';
     }
   })();
-  const canDeleteCandidates = adminRole === 'superadmin';
+  const canDeleteCandidates = adminRole === 'superadmin' || adminRole === 'admin';
   const serverCategoryFilter = useMemo(() => buildCategoryQueryValue(catFilter), [catFilter]);
 
   const mapCandidate = (c, idx = 0, catList = categories, pageMeta = pagination) => {

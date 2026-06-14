@@ -50,7 +50,7 @@ const AdminUsers = () => {
       return 'admin';
     }
   })();
-  const canDeleteRecords = adminRole === 'superadmin';
+  const canDeleteRecords = adminRole === 'superadmin' || adminRole === 'admin';
 
   const isGuestUser = (user) => user?.registered === false || user?.status === 'guest' || String(user?.id || '').startsWith('guest-');
   const isAdminAccount = (user) => user?.kind === 'admin' || user?.role === 'admin' || user?.role === 'superadmin';
@@ -125,7 +125,7 @@ const AdminUsers = () => {
       return;
     }
 
-    if (isAdminAccount(user) && adminRole !== 'superadmin') {
+    if (isAdminAccount(user) && adminRole !== 'superadmin' && adminRole !== 'admin') {
       setError('Seul le superadmin peut gerer un compte administrateur.');
       return;
     }
@@ -285,7 +285,7 @@ const AdminUsers = () => {
                   <td data-label="Actions">
                     {isGuestUser(u) ? (
                       <span className="ausers-readonly">Lecture seule</span>
-                    ) : (isAdminAccount(u) && adminRole !== 'superadmin') ? (
+                    ) : (isAdminAccount(u) && adminRole !== 'superadmin' && adminRole !== 'admin') ? (
                       <span className="ausers-readonly">Superadmin requis</span>
                     ) : (
                       <div className="ausers-actions">

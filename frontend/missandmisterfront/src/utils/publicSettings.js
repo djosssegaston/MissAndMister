@@ -90,7 +90,7 @@ export const hasAdminPreviewSession = () => {
   try {
     const token = localStorage.getItem('adminAuthToken');
     const user = JSON.parse(localStorage.getItem('adminUser') || 'null');
-    return Boolean(token && user && user.role === 'superadmin');
+    return Boolean(token && user && (user.role === 'superadmin' || user.role === 'admin'));
   } catch {
     return false;
   }

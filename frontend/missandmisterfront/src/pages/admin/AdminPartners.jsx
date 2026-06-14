@@ -104,7 +104,7 @@ const AdminPartners = () => {
       return 'admin';
     }
   })();
-  const canDeletePartners = adminRole === 'superadmin';
+  const canDeletePartners = adminRole === 'superadmin' || adminRole === 'admin';
 
   useEffect(() => () => {
     if (previewUrl?.startsWith('blob:')) {
