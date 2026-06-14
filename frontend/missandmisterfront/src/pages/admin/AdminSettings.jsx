@@ -34,7 +34,7 @@ const AdminSettings = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [dates,   setDates]   = useState({ start: '', end: '' });
+  const [dates,   setDates]   = useState({ start: '', end: '', startTime: '00:00', endTime: '00:00' });
   const [rules,   setRules]   = useState({ pricePerVote: 0, maxPerDay: 0 });
   const [feats,   setFeats]   = useState({ votingOpen: false, galleryPublic: false, resultsPublic: false });
   const [notifs,  setNotifs]  = useState({ emailConfirm: false, smsConfirm: false });
@@ -54,9 +54,17 @@ const AdminSettings = () => {
       try {
         setError(null);
         const data = await adminAPI.getSettings();
+        const extractTime = (val) => {
+          if (!val) return '00:00';
+          const parsed = new Date(val);
+          if (Number.isNaN(parsed.getTime())) return '00:00';
+          return `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`;
+        };
         setDates({
-          start: data?.vote_start_at || '',
-          end: data?.vote_end_at || '',
+          start: data?.vote_start_at ? String(data.vote_start_at).slice(0, 10) : '',
+          end: data?.vote_end_at ? String(data.vote_end_at).slice(0, 10) : '',
+          startTime: extractTime(data?.vote_start_at),
+          endTime: extractTime(data?.vote_end_at),
         });
         setRules({
           pricePerVote: data?.price_per_vote ?? 0,
@@ -90,9 +98,10 @@ const AdminSettings = () => {
   }, []);
 
   const handleSave = () => {
-    // Validation minimale côté front pour éviter des states incohérents
-    if (dates.start && dates.end && new Date(dates.end) < new Date(dates.start)) {
-      setError('La date de fin doit être postérieure à la date de début.');
+    const startDt = dates.start ? new Date(`${dates.start}T${dates.startTime}:00`) : null;
+    const endDt = dates.end ? new Date(`${dates.end}T${dates.endTime}:00`) : null;
+    if (startDt && endDt && endDt < startDt) {
+      setError('La date/heure de fin doit être postérieure à la date/heure de début.');
       return;
     }
     if (rules.pricePerVote <= 0) {
@@ -105,8 +114,8 @@ const AdminSettings = () => {
     }
 
     const payload = {
-      vote_start_at: dates.start,
-      vote_end_at: dates.end,
+      vote_start_at: dates.start ? `${dates.start}T${dates.startTime}:00` : '',
+      vote_end_at: dates.end ? `${dates.end}T${dates.endTime}:00` : '',
       price_per_vote: rules.pricePerVote,
       max_votes_per_day: rules.maxPerDay,
       voting_open: feats.votingOpen,
@@ -186,13 +195,31 @@ const AdminSettings = () => {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="var(--ag-gold-1)" strokeWidth="1.8"/><path d="M16 2v4M8 2v4M3 10h18" stroke="var(--ag-gold-1)" strokeWidth="1.8" strokeLinecap="round"/></svg>
           </div>
           <div className="ag-card-body">
-            <div className="ag-form-group">
-              <label className="ag-label">Date de début</label>
-              <input type="date" className="ag-input" value={dates.start} onChange={e => setDates(d => ({...d, start: e.target.value}))} disabled={loading} />
+            <div className="ag-form-group" style={{ marginBottom: 0 }}>
+              <label className="ag-label">Début du vote</label>
+              <div style={{ display:'flex', gap:'0.5rem', alignItems:'end' }}>
+                <div style={{ flex:1 }}>
+                  <small style={{ display:'block', color:'var(--ag-text-3)', fontSize:'0.7rem', marginBottom:'0.25rem' }}>Date</small>
+                  <input type="date" className="ag-input" value={dates.start} onChange={e => setDates(d => ({...d, start: e.target.value}))} disabled={loading} />
+                </div>
+                <div style={{ flex:'0 0 auto', width:'7rem' }}>
+                  <small style={{ display:'block', color:'var(--ag-text-3)', fontSize:'0.7rem', marginBottom:'0.25rem' }}>Heure</small>
+                  <input type="time" className="ag-input" value={dates.startTime} onChange={e => setDates(d => ({...d, startTime: e.target.value}))} disabled={loading} />
+                </div>
+              </div>
             </div>
-            <div className="ag-form-group" style={{ marginBottom:0 }}>
-              <label className="ag-label">Date de fin</label>
-              <input type="date" className="ag-input" value={dates.end} onChange={e => setDates(d => ({...d, end: e.target.value}))} disabled={loading} />
+            <div className="ag-form-group" style={{ marginBottom:0, marginTop:'0.85rem' }}>
+              <label className="ag-label">Fin du vote</label>
+              <div style={{ display:'flex', gap:'0.5rem', alignItems:'end' }}>
+                <div style={{ flex:1 }}>
+                  <small style={{ display:'block', color:'var(--ag-text-3)', fontSize:'0.7rem', marginBottom:'0.25rem' }}>Date</small>
+                  <input type="date" className="ag-input" value={dates.end} onChange={e => setDates(d => ({...d, end: e.target.value}))} disabled={loading} />
+                </div>
+                <div style={{ flex:'0 0 auto', width:'7rem' }}>
+                  <small style={{ display:'block', color:'var(--ag-text-3)', fontSize:'0.7rem', marginBottom:'0.25rem' }}>Heure</small>
+                  <input type="time" className="ag-input" value={dates.endTime} onChange={e => setDates(d => ({...d, endTime: e.target.value}))} disabled={loading} />
+                </div>
+              </div>
             </div>
           </div>
         </motion.div>
