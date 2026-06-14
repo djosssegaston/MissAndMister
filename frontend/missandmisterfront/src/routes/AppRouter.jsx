@@ -50,8 +50,8 @@ const getCountdownState = (remainingMs = 0, totalMs = 0) => {
   };
 };
 
-const computeVotingState = (settings) => {
-  return computePublicVotingState(settings);
+const computeVotingState = (settings, nowMs) => {
+  return computePublicVotingState(settings, nowMs);
 };
 
 const MaintenanceScreen = ({ publicSettings, onCountdownComplete }) => {
@@ -202,7 +202,16 @@ const PublicLayout = () => {
   } = usePublicBootstrapData();
   const settingsLoading = bootstrapLoading && !publicSettings;
 
-  const votingState = useMemo(() => computeVotingState(publicSettings || {}), [publicSettings]);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const votingState = useMemo(
+    () => computeVotingState(publicSettings || {}, Date.now()),
+    [publicSettings, tick],
+  );
   const adminPreviewEnabled = hasAdminPreviewSession();
   const maintenancePreviewActive = votingState.maintenanceMode && adminPreviewEnabled;
   const outletContext = useMemo(
