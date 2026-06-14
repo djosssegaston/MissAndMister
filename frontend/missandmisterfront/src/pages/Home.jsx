@@ -444,17 +444,11 @@ const Home = () => {
           </p>
 
           <div className="hero-actions">
-            <motion.a
-              className="btn-hero-primary"
-              href={PARTNER_WHATSAPP_URL}
-              target="_blank"
-              rel="noreferrer"
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              <WhatsAppIcon width={18} height={18} />
-              Devenir partenaire
-            </motion.a>
+            <Link to="/candidates">
+              <motion.button className="btn-hero-primary" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
+                Découvrir les candidats
+              </motion.button>
+            </Link>
             <Link to="/about">
               <motion.button className="btn-hero-secondary" whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
                 En savoir plus
