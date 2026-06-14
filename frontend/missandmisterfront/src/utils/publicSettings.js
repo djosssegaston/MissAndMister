@@ -148,7 +148,7 @@ export const getVotingWindowSnapshot = (settings = {}, nowMs = Date.now()) => {
 
   let remainingMs = effectiveEndMs ? Math.max(0, effectiveEndMs - nowMs) : 0;
 
-  if (countdownPaused && maintenanceActive) {
+  if (countdownPaused) {
     remainingMs = cachedRemainingMs ?? (rawEndMs ? Math.max(0, rawEndMs - snapshotTimeMs) : 0);
   }
 
