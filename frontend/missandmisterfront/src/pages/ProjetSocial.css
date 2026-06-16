@@ -215,16 +215,15 @@
   position: relative;
 }
 
-.psc-theme-box::before {
-  content: '"';
-  position: absolute;
-  top: -6px;
-  left: 14px;
+.psc-theme-label {
+  display: block;
   font-family: var(--font-primary);
-  font-size: 3rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 3px;
   color: var(--primary-gold);
-  opacity: 0.2;
-  line-height: 1;
+  opacity: 0.6;
+  margin-bottom: 0.4rem;
 }
 
 .psc-theme-box p {
@@ -232,8 +231,12 @@
   color: var(--gray-light);
   font-size: 1rem;
   line-height: 1.8;
-  text-align: center;
+  text-align: justify;
+  text-align-last: center;
   font-style: italic;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
 }
 
 /* ── Responsive ── */
@@ -272,6 +275,10 @@
 
   .psc-theme-box p {
     font-size: 0.92rem;
+  }
+
+  .psc-theme-label {
+    font-size: 0.7rem;
   }
 }
 

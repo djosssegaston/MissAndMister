@@ -90,6 +90,7 @@ const ProjectCard = ({ project, index }) => {
       </div>
 
       <div className="psc-theme-box">
+        <span className="psc-theme-label">Thème</span>
         <p>{project.theme}</p>
       </div>
     </motion.article>
