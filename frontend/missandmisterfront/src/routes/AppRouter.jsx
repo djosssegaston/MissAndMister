@@ -11,6 +11,7 @@ import FAQ from '../pages/FAQ';
 import Contact from '../pages/Contact';
 import NotFound from '../pages/NotFound';
 import Privacy from '../pages/Privacy';
+import ProjetSocial from '../pages/ProjetSocial';
 import PaymentConfirmation from '../pages/PaymentConfirmation';
 import Terms from '../pages/Terms';
 import Login from '../pages/Login';
@@ -24,6 +25,7 @@ import AdminDashboard from '../pages/admin/AdminDashboard';
 import AdminCandidates from '../pages/admin/AdminCandidates';
 import AdminGallery from '../pages/admin/AdminGallery';
 import AdminPartners from '../pages/admin/AdminPartners';
+import AdminSocialProjects from '../pages/admin/AdminSocialProjects';
 import AdminUsers from '../pages/admin/AdminUsers';
 import AdminVotes from '../pages/admin/AdminVotes';
 import AdminSettings from '../pages/admin/AdminSettings';
@@ -393,6 +395,7 @@ const AppRouter = () => (
         <Route path="/contact"        element={<Contact />} />
         <Route path="/terms"          element={<Terms />} />
         <Route path="/privacy"        element={<Privacy />} />
+        <Route path="/projet-social"  element={<ProjetSocial />} />
         <Route path="/payment/confirmation" element={<PaymentConfirmation />} />
         <Route path="/login"          element={<GuestOnly><Login /></GuestOnly>} />
         <Route path="/register"       element={<GuestOnly><Register /></GuestOnly>} />
@@ -415,6 +418,7 @@ const AppRouter = () => (
       <Route path="/admin/partners"   element={<RequireAdmin><WithAdminLayout><AdminPartners /></WithAdminLayout></RequireAdmin>} />
       <Route path="/admin/users"      element={<RequireAdmin><WithAdminLayout><AdminUsers /></WithAdminLayout></RequireAdmin>} />
       <Route path="/admin/votes"      element={<RequireAdmin><WithAdminLayout><AdminVotes /></WithAdminLayout></RequireAdmin>} />
+      <Route path="/admin/social-projects" element={<RequireAdmin><WithAdminLayout><AdminSocialProjects /></WithAdminLayout></RequireAdmin>} />
       <Route path="/admin/settings"   element={<RequireAdmin><WithAdminLayout><AdminSettings /></WithAdminLayout></RequireAdmin>} />
 
     </Routes>

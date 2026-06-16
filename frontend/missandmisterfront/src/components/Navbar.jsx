@@ -9,6 +9,7 @@ const BASE_NAV_LINKS = [
   { to: '/',           label: 'Accueil' },
   { to: '/candidates', label: 'Candidats' },
   { to: '/gallery',    label: 'Galerie' },
+  { to: '/projet-social', label: 'Projets Sociaux' },
   { to: '/about',      label: 'À propos' },
   { to: '/faq',        label: 'FAQ' },
   { to: '/contact',    label: 'Contact' },

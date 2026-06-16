@@ -4,19 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
+use App\Models\User;
 use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
-use App\Models\User;
 
 class UserController extends Controller
 {
-    public function __construct(private PaymentService $payments)
-    {
-    }
+    public function __construct(private PaymentService $payments) {}
 
     public function profile(): JsonResponse
     {
         $user = request()->user();
+
         return response()->json($user->load(['votes', 'payments']));
     }
 
@@ -25,6 +24,7 @@ class UserController extends Controller
         $this->payments->scheduleWarmPaymentStateForReadModels();
 
         $user = request()->user();
+
         return response()->json([
             'message' => 'User dashboard',
             'stats' => [
@@ -175,7 +175,7 @@ class UserController extends Controller
             ->get()
             ->map(function ($v) {
                 return [
-                    'id' => 'guest-' . md5($v->ip_address ?? uniqid()),
+                    'id' => 'guest-'.md5($v->ip_address ?? uniqid()),
                     'name' => 'Invité',
                     'email' => null,
                     'phone' => null,
@@ -210,7 +210,7 @@ class UserController extends Controller
         });
 
         $adminItems = collect();
-        if (($actor?->role ?? null) === 'superadmin') {
+        if (in_array(($actor?->role ?? null), ['admin', 'superadmin'], true)) {
             $adminItems = Admin::query()
                 ->where('id', '!=', $actor->id)
                 ->orderBy('role')
@@ -218,7 +218,7 @@ class UserController extends Controller
                 ->get(['id', 'name', 'email', 'phone', 'role', 'status', 'created_at'])
                 ->map(function (Admin $admin) {
                     return [
-                        'id' => 'admin-' . $admin->id,
+                        'id' => 'admin-'.$admin->id,
                         'name' => $admin->name,
                         'email' => $admin->email,
                         'phone' => $admin->phone,
@@ -265,7 +265,7 @@ class UserController extends Controller
 
     public function destroy(string $user): JsonResponse
     {
-        abort_unless((request()->user()?->role ?? null) === 'superadmin', 403);
+        abort_unless(in_array((request()->user()?->role ?? null), ['admin', 'superadmin'], true), 403);
         $account = $this->resolveManageableAccount($user);
         if ($account instanceof JsonResponse) {
             return $account;
@@ -291,7 +291,7 @@ class UserController extends Controller
         }
 
         if (str_starts_with($userId, 'admin-')) {
-            if ((request()->user()?->role ?? null) !== 'superadmin') {
+            if (! in_array((request()->user()?->role ?? null), ['admin', 'superadmin'], true)) {
                 return response()->json([
                     'message' => 'Seul le superadmin peut gerer un compte administrateur.',
                 ], 403);
@@ -299,7 +299,7 @@ class UserController extends Controller
 
             $adminId = (int) str_replace('admin-', '', $userId);
             $admin = Admin::find($adminId);
-            if (!$admin) {
+            if (! $admin) {
                 return response()->json([
                     'message' => 'Administrateur introuvable.',
                 ], 404);
@@ -309,7 +309,7 @@ class UserController extends Controller
         }
 
         $user = User::where('role', 'user')->find($userId);
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'message' => 'Utilisateur introuvable.',
             ], 404);

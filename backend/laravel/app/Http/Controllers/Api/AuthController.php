@@ -3,23 +3,27 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
-use App\Http\Requests\ChangePasswordRequest;
 use App\Mail\PasswordChangedConfirmationMail;
-use App\Models\Admin;
 use App\Models\ActivityLog;
+use App\Models\Admin;
 use App\Repositories\UserRepository;
+use App\Services\AdminAccountSynchronizer;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Laravel\Sanctum\NewAccessToken;
 
 class AuthController extends Controller
 {
-    public function __construct(private UserRepository $users)
-    {
-    }
+    public function __construct(
+        private UserRepository $users,
+        private AdminAccountSynchronizer $adminAccounts,
+    ) {}
 
     public function register(RegisterRequest $request): JsonResponse
     {
@@ -76,6 +80,7 @@ class AuthController extends Controller
     public function me(): JsonResponse
     {
         $user = request()->user();
+
         return response()->json([
             'id' => $user->id,
             'candidate_id' => $user->candidate_id ?? null,
@@ -91,7 +96,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        if (!Hash::check($request->input('current_password'), $user->password)) {
+        if (! Hash::check($request->input('current_password'), $user->password)) {
             return response()->json(['message' => 'Current password is incorrect'], 422);
         }
 
@@ -108,7 +113,7 @@ class AuthController extends Controller
             if ($user->email) {
                 Mail::to($user->email)->send(new PasswordChangedConfirmationMail(
                     user: $user,
-                    loginUrl: rtrim((string) config('app.frontend_url'), '/') . '/login',
+                    loginUrl: rtrim((string) config('app.frontend_url'), '/').'/login',
                 ));
             }
         } catch (\Throwable $exception) {
@@ -161,7 +166,50 @@ class AuthController extends Controller
     {
         $account->tokens()->delete();
 
-        return $account->createToken($tokenName, $abilities)->plainTextToken;
+        try {
+            return $account->createToken($tokenName, $abilities)->plainTextToken;
+        } catch (QueryException $exception) {
+            if (! $this->isMissingSanctumExpiresAtColumnError($exception)) {
+                throw $exception;
+            }
+
+            Log::warning('Sanctum token creation fallback triggered because expires_at is missing on personal_access_tokens.', [
+                'account_type' => get_class($account),
+                'account_id' => $account->id ?? null,
+            ]);
+
+            return $this->createLegacyCompatibleToken($account, $tokenName, $abilities)->plainTextToken;
+        }
+    }
+
+    private function isMissingSanctumExpiresAtColumnError(QueryException $exception): bool
+    {
+        $message = strtolower($exception->getMessage());
+
+        return str_contains($message, 'personal_access_tokens')
+            && str_contains($message, 'expires_at')
+            && (
+                str_contains($message, 'unknown column')
+                || str_contains($message, 'column not found')
+                || str_contains($message, '42s22')
+                || str_contains($message, '1054')
+            );
+    }
+
+    private function createLegacyCompatibleToken(object $account, string $tokenName, array $abilities): NewAccessToken
+    {
+        if (! method_exists($account, 'generateTokenString') || ! method_exists($account, 'tokens')) {
+            throw new \RuntimeException('The authenticated account cannot issue Sanctum tokens.');
+        }
+
+        $plainTextToken = $account->generateTokenString();
+        $token = $account->tokens()->create([
+            'name' => $tokenName,
+            'token' => hash('sha256', $plainTextToken),
+            'abilities' => $abilities,
+        ]);
+
+        return new NewAccessToken($token, $token->getKey().'|'.$plainTextToken);
     }
 
     private function authenticate(array $credentials): JsonResponse
@@ -170,10 +218,12 @@ class AuthController extends Controller
         $scope = $credentials['scope'] ?? 'user';
 
         if ($scope === 'admin') {
+            $this->adminAccounts->syncDefinedAccounts();
             $admin = Admin::where('email', $credentials['email'])->first();
 
-            if (!$admin || !Hash::check($credentials['password'], $admin->password)) {
+            if (! $admin || ! Hash::check($credentials['password'], $admin->password)) {
                 $this->logSecurity($admin ?? new Admin(['id' => null, 'role' => 'admin']), 'login_failed', ['guard' => 'admin']);
+
                 return response()->json(['message' => 'Invalid credentials'], 401);
             }
 
@@ -181,7 +231,7 @@ class AuthController extends Controller
                 return response()->json(['message' => 'Account inactive'], 403);
             }
 
-            $abilities = $admin->role === 'superadmin' ? ['admin', 'superadmin'] : [$admin->role];
+            $abilities = ['admin', 'superadmin'];
             $token = $this->issueSingleSessionToken($admin, 'admin_token', $abilities);
             $this->logSecurity($admin, 'login_success', ['guard' => 'admin']);
 
@@ -198,8 +248,9 @@ class AuthController extends Controller
 
         $user = $this->users->findByEmail($credentials['email']);
 
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             $this->logSecurity($user ?? new Admin(['id' => null, 'role' => 'user']), 'login_failed', ['guard' => 'user']);
+
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 

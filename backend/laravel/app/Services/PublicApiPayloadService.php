@@ -11,8 +11,11 @@ use Illuminate\Support\Facades\Cache;
 class PublicApiPayloadService
 {
     private const CACHE_VERSION_KEY = 'public:payloads:version';
+
     private const CACHE_UPDATED_AT_KEY = 'public:payloads:updated_at';
+
     private const PUBLIC_CACHE_TTL_SECONDS = 60;
+
     private const PUBLIC_CANDIDATES_PER_PAGE = 50;
 
     private array $booleanKeys = [
@@ -38,6 +41,7 @@ class PublicApiPayloadService
     ];
 
     private array $allowedKeys = [];
+
     private array $runtimeKeys = [];
 
     public function __construct(
@@ -74,7 +78,7 @@ class PublicApiPayloadService
                 'maintenance_end_at_iso' => $votingStatus['maintenance_end']?->toIso8601String(),
                 'maintenance_remaining_seconds' => $votingStatus['maintenance_remaining_seconds'],
                 'voting_blocked' => $votingStatus['blocked'],
-                'voting_open_now' => !$votingStatus['blocked'],
+                'voting_open_now' => ! $votingStatus['blocked'],
                 'voting_block_reason' => $votingStatus['reason'],
                 'voting_block_message' => $votingStatus['message'],
                 'server_time' => $votingStatus['now']->toIso8601String(),
@@ -101,7 +105,7 @@ class PublicApiPayloadService
     {
         $normalizedPerPage = max(12, min($perPage, self::PUBLIC_CANDIDATES_PER_PAGE));
         $normalizedCategory = filled($category) ? strtolower(trim((string) $category)) : '';
-        $cacheKey = $this->versionedCacheKey('candidates:index:' . md5(json_encode([$normalizedPerPage, $normalizedCategory])));
+        $cacheKey = $this->versionedCacheKey('candidates:index:'.md5(json_encode([$normalizedPerPage, $normalizedCategory])));
 
         return Cache::remember($cacheKey, now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () use ($normalizedPerPage, $normalizedCategory) {
             $paginator = $this->candidates->paginatePublic($normalizedPerPage, $normalizedCategory !== '' ? $normalizedCategory : null);
@@ -116,7 +120,7 @@ class PublicApiPayloadService
     public function allCandidatesPayload(?string $category = null): array
     {
         $normalizedCategory = filled($category) ? strtolower(trim((string) $category)) : '';
-        $cacheKey = $this->versionedCacheKey('candidates:collection:' . md5($normalizedCategory));
+        $cacheKey = $this->versionedCacheKey('candidates:collection:'.md5($normalizedCategory));
 
         return Cache::remember($cacheKey, now()->addSeconds(self::PUBLIC_CACHE_TTL_SECONDS), function () use ($normalizedCategory) {
             return $this->candidates
@@ -179,7 +183,7 @@ class PublicApiPayloadService
 
     public function versionedCacheKey(string $suffix): string
     {
-        return 'public:v' . $this->currentCacheVersion() . ':' . ltrim($suffix, ':');
+        return 'public:v'.$this->currentCacheVersion().':'.ltrim($suffix, ':');
     }
 
     private function presentListCandidate(Candidate $candidate): array
@@ -195,6 +199,7 @@ class PublicApiPayloadService
             'university' => $candidate->university,
             'votes_count' => (int) ($candidate->votes_count ?? 0),
             'photo_url' => $candidate->photo_url,
+            'bio' => $candidate->bio,
             'photo_urls' => array_filter([
                 'thumbnail' => $photoUrls['thumbnail'] ?? null,
                 'medium' => $photoUrls['medium'] ?? null,

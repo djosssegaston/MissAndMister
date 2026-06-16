@@ -356,7 +356,7 @@ const CandidateDetails = () => {
               ))}
             </div>
 
-            {/* <p className="cdet-bio">{candidate.bio || candidate.description || 'Aucune biographie disponible.'}</p> */}
+            <p className="cdet-bio">{candidate.bio || candidate.description || 'Aucune biographie disponible.'}</p>
 
             {candidate.interests && candidate.interests.length > 0 && (
               <div className="cdet-interests">

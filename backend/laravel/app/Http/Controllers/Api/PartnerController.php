@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PartnerLogo;
-use App\Services\PublicApiPayloadService;
 use App\Services\Media\CloudinaryMediaService;
+use App\Services\PublicApiPayloadService;
 use App\Support\MediaUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,8 +20,7 @@ class PartnerController extends Controller
     public function __construct(
         private CloudinaryMediaService $cloudinaryMedia,
         private PublicApiPayloadService $publicApi,
-    ) {
-    }
+    ) {}
 
     public function publicIndex(): JsonResponse
     {
@@ -120,7 +119,7 @@ class PartnerController extends Controller
         $previousPath = null;
         $previousMeta = [];
 
-        if (!empty($data['logo'])) {
+        if (! empty($data['logo'])) {
             [$path, $meta] = $this->storeLogo($data['logo']);
             $previousPath = $partnerLogo->logo_path;
             $previousMeta = (array) ($partnerLogo->logo_meta ?? []);
@@ -163,7 +162,7 @@ class PartnerController extends Controller
 
     public function destroy(PartnerLogo $partnerLogo): JsonResponse
     {
-        abort_unless((request()->user()?->role ?? null) === 'superadmin', 403);
+        abort_unless(in_array((request()->user()?->role ?? null), ['admin', 'superadmin'], true), 403);
         $this->deleteLogo($partnerLogo->logo_path, (array) ($partnerLogo->logo_meta ?? []));
         $partnerLogo->delete();
         $this->publicApi->invalidatePublicData();
@@ -179,7 +178,7 @@ class PartnerController extends Controller
         if ($this->cloudinaryMedia->enabled()) {
             $realPath = $logo->getRealPath();
 
-            if (!$realPath) {
+            if (! $realPath) {
                 throw new \RuntimeException('Impossible d’accéder au fichier logo temporaire.');
             }
 
@@ -219,7 +218,7 @@ class PartnerController extends Controller
 
     private function deleteLogo(?string $path, array $meta = []): void
     {
-        if (!$path) {
+        if (! $path) {
             return;
         }
 
@@ -228,6 +227,7 @@ class PartnerController extends Controller
             if (is_array($cloudinary)) {
                 $this->cloudinaryMedia->destroy($cloudinary);
             }
+
             return;
         }
 
@@ -242,7 +242,7 @@ class PartnerController extends Controller
         $base = Str::slug(pathinfo($originalName, PATHINFO_FILENAME) ?: 'partner-logo', '-');
         $base = $base !== '' ? $base : 'partner-logo';
 
-        return $base . '-' . Str::lower(Str::random(8));
+        return $base.'-'.Str::lower(Str::random(8));
     }
 
     private function serialize(PartnerLogo $partner): array
@@ -264,7 +264,7 @@ class PartnerController extends Controller
 
     private function invalidUploadResponse(?UploadedFile $file, string $field, string $label): ?JsonResponse
     {
-        if (!$file || $file->isValid()) {
+        if (! $file || $file->isValid()) {
             return null;
         }
 

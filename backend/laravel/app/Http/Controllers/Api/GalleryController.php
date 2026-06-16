@@ -21,8 +21,7 @@ class GalleryController extends Controller
 
     public function __construct(
         private CloudinaryMediaService $cloudinaryMedia,
-    ) {
-    }
+    ) {}
 
     public function publicIndex(Request $request): JsonResponse
     {
@@ -152,7 +151,7 @@ class GalleryController extends Controller
         $previousPath = null;
         $previousMeta = [];
 
-        if (!empty($data['image'])) {
+        if (! empty($data['image'])) {
             [$path, $meta] = $this->storeImage($data['image']);
             $previousPath = $galleryItem->image_path;
             $previousMeta = (array) ($galleryItem->image_meta ?? []);
@@ -162,7 +161,7 @@ class GalleryController extends Controller
 
         if (array_key_exists('title', $data)) {
             $galleryItem->title = trim($data['title']);
-            if (!$request->filled('alt_text')) {
+            if (! $request->filled('alt_text')) {
                 $galleryItem->alt_text = trim($galleryItem->title);
             }
         }
@@ -209,7 +208,7 @@ class GalleryController extends Controller
 
     public function destroy(GalleryItem $galleryItem): JsonResponse
     {
-        abort_unless((request()->user()?->role ?? null) === 'superadmin', 403);
+        abort_unless(in_array((request()->user()?->role ?? null), ['admin', 'superadmin'], true), 403);
         $this->deleteImage($galleryItem->image_path, (array) ($galleryItem->image_meta ?? []));
         $galleryItem->delete();
 
@@ -224,7 +223,7 @@ class GalleryController extends Controller
         if ($this->cloudinaryMedia->enabled()) {
             $realPath = $image->getRealPath();
 
-            if (!$realPath) {
+            if (! $realPath) {
                 throw new \RuntimeException('Impossible d’accéder au fichier image temporaire.');
             }
 
@@ -264,14 +263,15 @@ class GalleryController extends Controller
 
     private function deleteImage(?string $path, array $meta = []): void
     {
-        if (!$path) {
+        if (! $path) {
             return;
         }
 
         if ($this->cloudinaryMedia->enabled()) {
             $asset = $meta['cloudinary'] ?? null;
-            if (is_array($asset) && !empty($asset['public_id'])) {
+            if (is_array($asset) && ! empty($asset['public_id'])) {
                 $this->cloudinaryMedia->destroy($asset);
+
                 return;
             }
         }
@@ -281,7 +281,7 @@ class GalleryController extends Controller
         }
 
         $normalizedPath = MediaUrl::toStorageRelativePath($path);
-        if (!$normalizedPath) {
+        if (! $normalizedPath) {
             return;
         }
 
@@ -345,7 +345,7 @@ class GalleryController extends Controller
 
     private function invalidUploadResponse(?UploadedFile $file, string $field, string $label): ?JsonResponse
     {
-        if (!$file || $file->isValid()) {
+        if (! $file || $file->isValid()) {
             return null;
         }
 

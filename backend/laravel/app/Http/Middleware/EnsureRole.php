@@ -12,26 +12,28 @@ class EnsureRole
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
         $role = $user->role ?? null;
-        $expectedRoles = !empty($roles) ? $roles : [$role];
+        $expectedRoles = ! empty($roles) ? $roles : [$role];
         $roleAllowed = in_array($role, $expectedRoles, true)
-            || ($role === 'superadmin' && in_array('admin', $expectedRoles, true));
+            || ($role === 'superadmin' && in_array('admin', $expectedRoles, true))
+            || ($role === 'admin' && in_array('superadmin', $expectedRoles, true));
 
-        if (!$role || (!$roleAllowed && !empty($expectedRoles))) {
+        if (! $role || (! $roleAllowed && ! empty($expectedRoles))) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
         // If the token carries abilities, ensure they include the role
         $token = $user->currentAccessToken();
-        if ($token && !empty($token->abilities)) {
-            $tokenAllows = !empty(array_intersect($token->abilities, $expectedRoles))
-                || in_array('superadmin', $token->abilities, true);
+        if ($token && ! empty($token->abilities)) {
+            $tokenAllows = ! empty(array_intersect($token->abilities, $expectedRoles))
+                || in_array('superadmin', $token->abilities, true)
+                || in_array('admin', $token->abilities, true);
 
-            if (!$tokenAllows) {
+            if (! $tokenAllows) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
         }

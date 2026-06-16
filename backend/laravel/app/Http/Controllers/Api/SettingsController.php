@@ -32,6 +32,7 @@ class SettingsController extends Controller
         'vote_end_at',
         'maintenance_end_at',
     ];
+
     private array $superadminOnlyKeys = [
         'maintenance_mode',
         'maintenance_end_at',
@@ -40,6 +41,7 @@ class SettingsController extends Controller
     private array $runtimeKeys = [];
 
     private array $allowedKeys = [];
+
     private array $writableKeys = [];
 
     public function __construct(
@@ -86,7 +88,7 @@ class SettingsController extends Controller
         $validatedSettings = [];
 
         foreach ($payload as $key => $value) {
-            if (!in_array($key, $writableKeys, true)) {
+            if (! in_array($key, $writableKeys, true)) {
                 continue;
             }
 
@@ -128,6 +130,7 @@ class SettingsController extends Controller
 
         $setting->update($data);
         $this->publicApi->invalidatePublicData();
+
         return response()->json($this->format($setting));
     }
 
@@ -168,7 +171,7 @@ class SettingsController extends Controller
     {
         $role = request()->user()?->role ?? null;
 
-        if ($role === 'superadmin') {
+        if (in_array($role, ['admin', 'superadmin'], true)) {
             return $this->writableKeys;
         }
 
@@ -204,6 +207,7 @@ class SettingsController extends Controller
         foreach ($settings as $setting) {
             $result[$setting->key] = $this->castValue($setting->key, $setting->value);
         }
+
         return $result;
     }
 

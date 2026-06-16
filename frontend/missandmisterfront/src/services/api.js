@@ -1300,6 +1300,13 @@ export const partnersAPI = {
   },
 };
 
+// ===== PROJETS SOCIAUX =====
+export const socialProjectsAPI = {
+  getAll: async () => {
+    return fetchPublicAPI('/public/social-projects', { timeout: 30000 });
+  },
+};
+
 // ===== CONTACT =====
 export const contactAPI = {
   // Envoyer un message de contact
@@ -1554,6 +1561,35 @@ export const adminAPI = {
       body: JSON.stringify({ settings: settingsData }),
     });
   },
+
+  // Projets Sociaux
+  getSocialProjects: async () => {
+    return fetchAPI('/admin/social-projects', { timeout: 30000 });
+  },
+
+  getAvailableCandidates: async () => {
+    return fetchAPI('/admin/social-projects/available-candidates', { timeout: 30000 });
+  },
+
+  createSocialProject: async (projectData) => {
+    return fetchAPI('/admin/social-projects', {
+      method: 'POST',
+      body: JSON.stringify(projectData),
+    });
+  },
+
+  updateSocialProject: async (id, projectData) => {
+    return fetchAPI(`/admin/social-projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(projectData),
+    });
+  },
+
+  deleteSocialProject: async (id) => {
+    return fetchAPI(`/admin/social-projects/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // ===== SETTINGS (public) =====
@@ -1586,6 +1622,7 @@ export default {
   results: resultsAPI,
   gallery: galleryAPI,
   partners: partnersAPI,
+  socialProjects: socialProjectsAPI,
   contact: contactAPI,
   faq: faqAPI,
   payment: paymentAPI,

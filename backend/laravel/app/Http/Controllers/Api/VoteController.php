@@ -6,13 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\VoteRequest;
 use App\Models\Candidate;
 use App\Models\Payment;
+use App\Models\Setting;
 use App\Models\Vote;
+use App\Repositories\VoteRepository;
 use App\Services\PaymentService;
 use App\Services\PublicApiPayloadService;
 use App\Services\VoteService;
 use App\Services\VotingWindowService;
-use App\Repositories\VoteRepository;
-use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,9 +27,7 @@ class VoteController extends Controller
         private VoteRepository $votes,
         private VotingWindowService $votingWindow,
         private PublicApiPayloadService $publicApi,
-    )
-    {
-    }
+    ) {}
 
     /**
      * Display a listing of the resource.
@@ -64,6 +62,7 @@ class VoteController extends Controller
         $votingStatus = $this->votingWindow->computeState($settings);
         if ($votingStatus['blocked']) {
             $statusCode = $votingStatus['reason'] === 'maintenance' ? 503 : 403;
+
             return response()->json([
                 'message' => $votingStatus['message'],
                 'reason' => $votingStatus['reason'],
@@ -75,14 +74,14 @@ class VoteController extends Controller
         $candidateId = $request->integer('candidate_id');
         $submittedAmount = $request->filled('amount') ? $request->float('amount') : null;
 
-        if (!$candidateId) {
+        if (! $candidateId) {
             $identifier = trim((string) $request->input('candidate_identifier', ''));
             $candidateId = Candidate::query()
                 ->where('public_uid', $identifier)
                 ->orWhere('slug', $identifier)
                 ->value('id');
 
-            if (!$candidateId && ctype_digit($identifier)) {
+            if (! $candidateId && ctype_digit($identifier)) {
                 $matchingCandidateIds = Candidate::query()
                     ->where('public_number', (int) $identifier)
                     ->pluck('id');
@@ -93,7 +92,7 @@ class VoteController extends Controller
             }
         }
 
-        if (!$candidateId) {
+        if (! $candidateId) {
             return response()->json([
                 'message' => 'Candidat introuvable pour cette opération.',
             ], 422);
@@ -128,9 +127,10 @@ class VoteController extends Controller
         abort_unless(request()->user()?->tokenCan('admin'), 403);
         $this->payments->scheduleWarmPaymentStateForReadModels();
         $vote = $this->votes->paginateFiltered(['id' => $id], 1)->first();
-        if (!$vote) {
+        if (! $vote) {
             return response()->json(['message' => 'Vote not found'], 404);
         }
+
         return response()->json($vote);
     }
 
@@ -141,7 +141,7 @@ class VoteController extends Controller
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
         $vote = Vote::with('payment')->find($id);
-        if (!$vote) {
+        if (! $vote) {
             return response()->json(['message' => 'Vote not found'], 404);
         }
         $data = $request->validate([
@@ -182,16 +182,16 @@ class VoteController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
-        abort_unless((request()->user()?->role ?? null) === 'superadmin', 403);
+        abort_unless(in_array((request()->user()?->role ?? null), ['admin', 'superadmin'], true), 403);
         $vote = Vote::with(['payment.transactions'])->find($id);
-        if (!$vote) {
+        if (! $vote) {
             return response()->json(['message' => 'Vote not found'], 404);
         }
 
         $paymentSucceeded = $vote->payment?->status === Payment::STATUS_SUCCEEDED;
 
         DB::transaction(function () use ($vote, $paymentSucceeded) {
-            if (!$paymentSucceeded && $vote->payment) {
+            if (! $paymentSucceeded && $vote->payment) {
                 $vote->payment->transactions()->withTrashed()->get()->each->forceDelete();
                 $vote->payment->forceDelete();
             }
@@ -213,10 +213,10 @@ class VoteController extends Controller
         $this->payments->scheduleWarmPaymentStateForReadModels();
         $filters = request()->only(['status', 'candidate_id', 'from', 'to']);
         $query = \App\Models\Vote::with(['user', 'candidate.category', 'payment'])
-            ->when(isset($filters['status']) && $filters['status'], fn($q) => $q->where('status', $filters['status']))
-            ->when(isset($filters['candidate_id']) && $filters['candidate_id'], fn($q) => $q->where('candidate_id', $filters['candidate_id']))
-            ->when(isset($filters['from']) && $filters['from'], fn($q) => $q->whereDate('created_at', '>=', $filters['from']))
-            ->when(isset($filters['to']) && $filters['to'], fn($q) => $q->whereDate('created_at', '<=', $filters['to']))
+            ->when(isset($filters['status']) && $filters['status'], fn ($q) => $q->where('status', $filters['status']))
+            ->when(isset($filters['candidate_id']) && $filters['candidate_id'], fn ($q) => $q->where('candidate_id', $filters['candidate_id']))
+            ->when(isset($filters['from']) && $filters['from'], fn ($q) => $q->whereDate('created_at', '>=', $filters['from']))
+            ->when(isset($filters['to']) && $filters['to'], fn ($q) => $q->whereDate('created_at', '<=', $filters['to']))
             ->orderByDesc('created_at');
 
         $headers = [
@@ -233,7 +233,7 @@ class VoteController extends Controller
                         $v->id,
                         $v->user?->name,
                         $v->user?->email,
-                        trim(($v->candidate?->first_name ?? '') . ' ' . ($v->candidate?->last_name ?? '')),
+                        trim(($v->candidate?->first_name ?? '').' '.($v->candidate?->last_name ?? '')),
                         $v->candidate?->category?->name,
                         $v->status,
                         $v->quantity,
@@ -263,7 +263,7 @@ class VoteController extends Controller
         $accessToken = PersonalAccessToken::findToken($plainTextToken);
         $tokenable = $accessToken?->tokenable;
 
-        if (!$tokenable || ($tokenable->role ?? null) !== 'user' || ($tokenable->status ?? 'active') !== 'active') {
+        if (! $tokenable || ($tokenable->role ?? null) !== 'user' || ($tokenable->status ?? 'active') !== 'active') {
             return null;
         }
 

@@ -3,19 +3,20 @@
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CandidateController;
-use App\Http\Controllers\Api\ClassementExportController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\ClassementExportController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\GalleryController;
 use App\Http\Controllers\Api\PartnerController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PublicCandidateController;
 use App\Http\Controllers\Api\PublicInitController;
 use App\Http\Controllers\Api\ResultController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\SocialProjectController;
 use App\Http\Controllers\Api\StatsController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VoteController;
-use App\Http\Controllers\Api\PublicCandidateController;
 use App\Http\Controllers\PublicMediaController;
 use Illuminate\Support\Facades\Route;
 
@@ -48,6 +49,7 @@ Route::prefix('public')->middleware('throttle:public-read')->group(function () {
     Route::get('stats', [StatsController::class, 'publicStats']);
     Route::get('gallery', [GalleryController::class, 'publicIndex']);
     Route::get('partners', [PartnerController::class, 'publicIndex']);
+    Route::get('social-projects', [SocialProjectController::class, 'publicIndex']);
 });
 
 // Legacy public endpoints (kept for compatibility)
@@ -97,6 +99,12 @@ Route::middleware(['auth:sanctum', 'role:admin,superadmin'])->prefix('admin')->g
     Route::apiResource('results', ResultController::class)->only(['index', 'store', 'update']);
     Route::apiResource('settings', SettingsController::class)->only(['index', 'store', 'update']);
     Route::get('activity', [AdminController::class, 'activity']);
+    Route::get('social-projects', [SocialProjectController::class, 'adminIndex']);
+    Route::get('social-projects/available-candidates', [SocialProjectController::class, 'availableCandidates']);
+    Route::post('social-projects', [SocialProjectController::class, 'store']);
+    Route::get('social-projects/{socialProject}', [SocialProjectController::class, 'show']);
+    Route::put('social-projects/{socialProject}', [SocialProjectController::class, 'update']);
+    Route::delete('social-projects/{socialProject}', [SocialProjectController::class, 'destroy']);
 });
 
 Route::middleware(['auth:sanctum', 'role:admin,superadmin'])->get('test-pdf', [ClassementExportController::class, 'testPdf']);
