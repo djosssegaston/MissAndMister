@@ -211,6 +211,7 @@ const Candidates = () => {
       </section>
 
       {/* ── CTA VOTE ── */}
+      {/* Temporarily hidden
       <section className="candidates-cta">
         <div className="container">
           <motion.div
@@ -241,6 +242,7 @@ const Candidates = () => {
           </motion.div>
         </div>
       </section>
+      */}
 
     </div>
   );
