@@ -356,6 +356,7 @@ const CandidateDetails = () => {
               ))}
             </div>
 
+            <span className="cdet-bio-label">Biographie</span>
             <p className="cdet-bio">{candidate.bio || candidate.description || 'Aucune biographie disponible.'}</p>
 
             {candidate.interests && candidate.interests.length > 0 && (
@@ -445,6 +446,16 @@ const CandidateDetails = () => {
           </motion.div>
         </motion.div>
 
+      </div>
+
+      <div className="container cdet-back-row">
+        <Link to="/candidates" className="cdet-btn-back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Retour aux candidats
+        </Link>
       </div>
     </div>
   );

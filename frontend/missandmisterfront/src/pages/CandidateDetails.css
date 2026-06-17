@@ -173,6 +173,17 @@
 .cdet-info-label { display: block; font-size: 0.65rem; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 4px; }
 .cdet-info-value { display: block; font-size: 0.88rem; font-weight: 700; color: var(--white); }
 
+.cdet-bio-label {
+  display: block;
+  font-family: var(--font-primary);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--primary-gold);
+  opacity: 0.5;
+  margin-bottom: 0.5rem;
+}
+
 .cdet-bio { font-size: 0.88rem; color: rgba(255,255,255,0.55); line-height: 1.8; margin-bottom: 1.2rem; }
 
 .cdet-interests { display: flex; flex-wrap: wrap; gap: 0.5rem; }
@@ -456,6 +467,17 @@
 .cdet-success p    { font-size: 0.88rem; color: rgba(255,255,255,0.55); line-height: 1.7; margin: 0 0 0.5rem; }
 .cdet-success-sub  { font-size: 0.8rem !important; color: rgba(255,255,255,0.3) !important; }
 .cdet-success-actions { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 1.5rem; }
+
+.cdet-back-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 2.5rem;
+}
+
+.cdet-back-row .cdet-btn-back {
+  display: inline-flex;
+  padding: 0.7rem 1.6rem;
+}
 
 /* Responsive */
 @media (max-width: 960px) {
