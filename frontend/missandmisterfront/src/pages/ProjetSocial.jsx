@@ -9,6 +9,8 @@ const normalizeProject = (item) => ({
   id: item.id,
   name: item.name || '',
   theme: item.theme || '',
+  candidate1PhotoUrl: resolveMediaUrl(item.candidate1_photo_url || null),
+  candidate2PhotoUrl: resolveMediaUrl(item.candidate2_photo_url || null),
   candidate1: item.candidate1 ? {
     fullName: item.candidate1.full_name || '',
     university: item.candidate1.university || '',
@@ -33,14 +35,12 @@ const ProjectCard = ({ project, index }) => {
       viewport={{ once: true, margin: '-60px' }}
       transition={{ duration: 0.6, delay: index * 0.1, ease: [0.22, 1, 0.36, 1] }}
     >
-      <h2 className="psc-title">{project.name}</h2>
-
       <div className="psc-candidates">
         <div className="psc-candidate">
           <div className="psc-photo-wrap">
-            {!img1Failed && project.candidate1?.photoUrl ? (
+            {!img1Failed && (project.candidate1PhotoUrl || project.candidate1?.photoUrl) ? (
               <img
-                src={project.candidate1.photoUrl}
+                src={project.candidate1PhotoUrl || project.candidate1.photoUrl}
                 alt={project.candidate1.fullName}
                 className="psc-photo"
                 loading="lazy"
@@ -66,9 +66,9 @@ const ProjectCard = ({ project, index }) => {
 
         <div className="psc-candidate">
           <div className="psc-photo-wrap">
-            {!img2Failed && project.candidate2?.photoUrl ? (
+            {!img2Failed && (project.candidate2PhotoUrl || project.candidate2?.photoUrl) ? (
               <img
-                src={project.candidate2.photoUrl}
+                src={project.candidate2PhotoUrl || project.candidate2.photoUrl}
                 alt={project.candidate2.fullName}
                 className="psc-photo"
                 loading="lazy"
@@ -136,10 +136,11 @@ const ProjetSocial = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
-          <h1>Projets Sociaux</h1>
+          <h1>PROJETS D'IMPACT</h1>
           <p>
-            Découvrez les binômes de candidats engagés autour de projets sociaux
-            porteurs de sens et de changement.
+            Découvrez les initiatives innovantes développées par les finalistes
+            de MISS &amp; MISTER UNIVERSITY BENIN 2026 pour contribuer au
+            développement de leur communauté et du Bénin.
           </p>
         </motion.div>
 

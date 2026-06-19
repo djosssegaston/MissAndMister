@@ -1590,6 +1590,26 @@ export const adminAPI = {
       method: 'DELETE',
     });
   },
+
+  uploadSocialProjectCandidatePhoto: async (id, candidateNum, file) => {
+    const formData = new FormData();
+    formData.append('candidate', String(candidateNum));
+    formData.append('photo', file);
+    return fetchAPI(`/admin/social-projects/${id}/candidate-photo`, {
+      method: 'POST',
+      body: formData,
+      timeout: 120000,
+    });
+  },
+
+  deleteSocialProjectCandidatePhoto: async (id, candidateNum) => {
+    const formData = new FormData();
+    formData.append('candidate', String(candidateNum));
+    return fetchAPI(`/admin/social-projects/${id}/candidate-photo`, {
+      method: 'DELETE',
+      body: formData,
+    });
+  },
 };
 
 // ===== SETTINGS (public) =====

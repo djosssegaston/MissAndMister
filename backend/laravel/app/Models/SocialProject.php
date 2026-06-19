@@ -14,8 +14,25 @@ class SocialProject extends Model
         'candidate1_id',
         'candidate2_id',
         'theme',
+        'candidate1_photo_path',
+        'candidate2_photo_path',
         'created_by',
     ];
+
+    protected $appends = [
+        'candidate1_photo_url',
+        'candidate2_photo_url',
+    ];
+
+    public function getCandidate1PhotoUrlAttribute(): ?string
+    {
+        return \App\Support\MediaUrl::fromPath($this->candidate1_photo_path);
+    }
+
+    public function getCandidate2PhotoUrlAttribute(): ?string
+    {
+        return \App\Support\MediaUrl::fromPath($this->candidate2_photo_path);
+    }
 
     public function candidate1()
     {

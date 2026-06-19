@@ -448,6 +448,65 @@
   white-space: pre-wrap;
 }
 
+.asocial-detail-photo-section {
+  background: rgba(212,175,55,0.05);
+  border: 1px solid rgba(212,175,55,0.15);
+  border-radius: 16px;
+  padding: 1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.asocial-detail-photo-binome {
+  width: 200px;
+  height: 200px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid rgba(212,175,55,0.25);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  background: var(--ag-bg-card);
+}
+
+.asocial-photo-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.asocial-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--ag-text-3);
+  font-size: 0.82rem;
+}
+
+.asocial-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+.asocial-photo-actions .ag-btn,
+.asocial-photo-actions label.ag-btn {
+  font-size: 0.82rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.asocial-photo-actions label.ag-btn.ag-btn-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .asocial-detail-meta {
   margin: 0;
   color: var(--ag-text-3);

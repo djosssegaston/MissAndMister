@@ -105,6 +105,8 @@ Route::middleware(['auth:sanctum', 'role:admin,superadmin'])->prefix('admin')->g
     Route::get('social-projects/{socialProject}', [SocialProjectController::class, 'show']);
     Route::put('social-projects/{socialProject}', [SocialProjectController::class, 'update']);
     Route::delete('social-projects/{socialProject}', [SocialProjectController::class, 'destroy']);
+    Route::post('social-projects/{socialProject}/candidate-photo', [SocialProjectController::class, 'uploadCandidatePhoto']);
+    Route::delete('social-projects/{socialProject}/candidate-photo', [SocialProjectController::class, 'deleteCandidatePhoto']);
 });
 
 Route::middleware(['auth:sanctum', 'role:admin,superadmin'])->get('test-pdf', [ClassementExportController::class, 'testPdf']);

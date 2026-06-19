@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { adminAPI } from '../../services/api';
 import Loader from '../../components/Loader';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { NO_AUTO_REFRESH_INTERVAL_MS, broadcastLiveUpdate, useAutoRefresh } from '../../utils/liveUpdates';
 import './admin-theme.css';
 import './AdminSocialProjects.css';
@@ -42,6 +43,8 @@ const normalizeProject = (item) => ({
   id: item.id,
   name: item.name || '',
   theme: item.theme || '',
+  candidate1PhotoUrl: resolveMediaUrl(item.candidate1_photo_url || null),
+  candidate2PhotoUrl: resolveMediaUrl(item.candidate2_photo_url || null),
   candidate1: item.candidate1 || null,
   candidate2: item.candidate2 || null,
   createdBy: item.created_by || null,
@@ -66,6 +69,7 @@ const AdminSocialProjects = () => {
   const [panelOpen, setPanelOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailProject, setDetailProject] = useState(null);
+  const [uploadingPhotoFor, setUploadingPhotoFor] = useState(null); // '1' | '2' | null
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [feedback, setFeedback] = useState(null);
@@ -145,6 +149,40 @@ const AdminSocialProjects = () => {
     });
     setErrors({});
     setPanelOpen(true);
+  };
+
+  const handlePhotoUpload = async (projectId, candidateNum, file) => {
+    setUploadingPhotoFor(candidateNum);
+    try {
+      const response = await adminAPI.uploadSocialProjectCandidatePhoto(projectId, candidateNum, file);
+      setFeedback({ type: 'success', message: response?.message || 'Photo mise à jour.' });
+      broadcastLiveUpdate('social-projects');
+      await fetchData();
+    } catch (err) {
+      if (err?.isSessionExpired) return;
+      setFeedback({ type: 'error', message: err.message || 'Échec de l\'upload.' });
+    } finally {
+      setUploadingPhotoFor(null);
+    }
+  };
+
+  const handlePhotoDelete = async (projectId, candidateNum) => {
+    setConfirm({
+      message: `Supprimer la photo du candidat ${candidateNum} ?`,
+      onConfirm: async () => {
+        try {
+          await adminAPI.deleteSocialProjectCandidatePhoto(projectId, candidateNum);
+          setFeedback({ type: 'success', message: 'Photo supprimée.' });
+          broadcastLiveUpdate('social-projects');
+          await fetchData();
+        } catch (err) {
+          if (err?.isSessionExpired) return;
+          setFeedback({ type: 'error', message: err.message || 'Échec de la suppression.' });
+        } finally {
+          setConfirm(null);
+        }
+      },
+    });
   };
 
   const openDetail = (project) => {
@@ -452,6 +490,63 @@ const AdminSocialProjects = () => {
                   <span className="ag-badge ag-badge-gold">Thème du projet</span>
                   <p>{detailProject.theme}</p>
                 </div>
+
+                {[1, 2].map((num) => {
+                  const candidate = detailProject[`candidate${num}`];
+                  const photoUrl = detailProject[`candidate${num}PhotoUrl`];
+                  const isUploading = uploadingPhotoFor === String(num);
+                  return (
+                    <div key={num} className="asocial-detail-photo-section">
+                      <span className="ag-badge ag-badge-info">Photo candidat {num} — {candidate?.full_name || '—'}</span>
+                      <div className="asocial-detail-photo-binome">
+                        {photoUrl ? (
+                          <img
+                            src={photoUrl}
+                            alt={`Photo candidat ${num}`}
+                            className="asocial-photo-preview"
+                          />
+                        ) : (
+                          <div className="asocial-photo-placeholder">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                              <rect x="3" y="4" width="18" height="16" rx="2" stroke="#D4AF37" strokeWidth="1.5"/>
+                              <circle cx="8.5" cy="9" r="1.5" fill="#D4AF37"/>
+                              <path d="M21 16l-5.5-5.5L6 20" stroke="#D4AF37" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            <span>Photo par défaut (profil)</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="asocial-photo-actions">
+                        <label className={`ag-btn ag-btn-outline ${isUploading ? 'ag-btn-disabled' : ''}`}>
+                          {isUploading ? 'Envoi…' : 'Changer la photo'}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            style={{ display: 'none' }}
+                            disabled={isUploading}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (file) {
+                                handlePhotoUpload(detailProject.id, num, file);
+                              }
+                              event.target.value = '';
+                            }}
+                          />
+                        </label>
+                        {photoUrl && (
+                          <button
+                            type="button"
+                            className="ag-btn ag-btn-danger"
+                            onClick={() => handlePhotoDelete(detailProject.id, num)}
+                          >
+                            Supprimer
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
                 <p className="asocial-detail-meta">Créé le {formatDate(detailProject.createdAt)}</p>
               </div>
               <div className="asocial-detail-footer">
