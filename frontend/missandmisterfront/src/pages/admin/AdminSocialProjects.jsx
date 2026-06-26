@@ -93,14 +93,17 @@ const AdminSocialProjects = () => {
         adminAPI.getSocialProjects(),
         adminAPI.getAvailableCandidates(),
       ]);
-      setProjects((projectsRes?.data || []).map(normalizeProject));
+      const normalized = (projectsRes?.data || []).map(normalizeProject);
+      setProjects(normalized);
       setCandidates(candidatesRes?.data || []);
       hasLoadedRef.current = true;
+      return normalized;
     } catch (err) {
-      if (err?.isSessionExpired) return;
+      if (err?.isSessionExpired) return [];
       if (isInitial) {
         setFeedback({ type: 'error', message: err.message || 'Impossible de charger les données.' });
       }
+      return [];
     } finally {
       if (isInitial) setLoading(false);
     }
@@ -157,7 +160,9 @@ const AdminSocialProjects = () => {
       const response = await adminAPI.uploadSocialProjectCandidatePhoto(projectId, candidateNum, file);
       setFeedback({ type: 'success', message: response?.message || 'Photo mise à jour.' });
       broadcastLiveUpdate('social-projects');
-      await fetchData();
+      const updated = await fetchData();
+      const fresh = updated.find((p) => p.id === projectId);
+      if (fresh) setDetailProject(fresh);
     } catch (err) {
       if (err?.isSessionExpired) return;
       setFeedback({ type: 'error', message: err.message || 'Échec de l\'upload.' });
@@ -174,7 +179,9 @@ const AdminSocialProjects = () => {
           await adminAPI.deleteSocialProjectCandidatePhoto(projectId, candidateNum);
           setFeedback({ type: 'success', message: 'Photo supprimée.' });
           broadcastLiveUpdate('social-projects');
-          await fetchData();
+          const updated = await fetchData();
+          const fresh = updated.find((p) => p.id === projectId);
+          if (fresh) setDetailProject(fresh);
         } catch (err) {
           if (err?.isSessionExpired) return;
           setFeedback({ type: 'error', message: err.message || 'Échec de la suppression.' });
@@ -185,7 +192,13 @@ const AdminSocialProjects = () => {
     });
   };
 
+  const closeDetail = () => {
+    setDetailOpen(false);
+    setFeedback(null);
+  };
+
   const openDetail = (project) => {
+    setFeedback(null);
     setDetailProject(project);
     setDetailOpen(true);
   };
@@ -297,9 +310,9 @@ const AdminSocialProjects = () => {
 
       <div className="asocial-header">
         <div className="asocial-header-copy">
-          <span className="ag-badge ag-badge-gold">Projets Sociaux</span>
+          <span className="ag-badge ag-badge-gold">Projets d'Impact</span>
           <h1>Gestion des binômes</h1>
-          <p>Créez, modifiez et gérez les binômes de candidats autour de projets sociaux. Chaque binôme est composé de deux candidats existants.</p>
+          <p>Créez, modifiez et gérez les binômes de candidats autour de projets d'impact. Chaque binôme est composé de deux candidats existants.</p>
         </div>
         <div className="asocial-header-actions">
           <button type="button" className="ag-btn ag-btn-primary" onClick={openCreate}>
@@ -308,7 +321,7 @@ const AdminSocialProjects = () => {
         </div>
       </div>
 
-      {feedback && <FeedbackBanner type={feedback.type} message={feedback.message} onClose={() => setFeedback(null)} />}
+      {feedback && !detailOpen && <FeedbackBanner type={feedback.type} message={feedback.message} onClose={() => setFeedback(null)} />}
 
       {projects.length === 0 ? (
         <div className="asocial-empty">
@@ -456,13 +469,14 @@ const AdminSocialProjects = () => {
 
       <AnimatePresence>
         {detailOpen && detailProject && (
-          <motion.div className="asocial-detail-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDetailOpen(false)}>
+          <motion.div className="asocial-detail-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeDetail}>
             <motion.div className="asocial-detail-modal" initial={{ scale: 0.94, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.94, y: 20 }} onClick={(event) => event.stopPropagation()}>
               <div className="asocial-detail-header">
                 <h2>{detailProject.name}</h2>
-                <button type="button" className="asocial-panel-close" onClick={() => setDetailOpen(false)}>×</button>
+                <button type="button" className="asocial-panel-close" onClick={closeDetail}>×</button>
               </div>
               <div className="asocial-detail-body">
+                {feedback && <FeedbackBanner type={feedback.type} message={feedback.message} onClose={() => setFeedback(null)} />}
                 <div className="asocial-detail-candidates">
                   <div className="asocial-detail-candidate">
                     {detailProject.candidate1?.photo_url ? (
@@ -550,8 +564,8 @@ const AdminSocialProjects = () => {
                 <p className="asocial-detail-meta">Créé le {formatDate(detailProject.createdAt)}</p>
               </div>
               <div className="asocial-detail-footer">
-                <button type="button" className="ag-btn ag-btn-outline" onClick={() => { setDetailOpen(false); openEdit(detailProject); }}>Modifier</button>
-                <button type="button" className="ag-btn ag-btn-ghost" onClick={() => setDetailOpen(false)}>Fermer</button>
+                <button type="button" className="ag-btn ag-btn-outline" onClick={() => { closeDetail(); openEdit(detailProject); }}>Modifier</button>
+                <button type="button" className="ag-btn ag-btn-ghost" onClick={closeDetail}>Fermer</button>
               </div>
             </motion.div>
           </motion.div>
