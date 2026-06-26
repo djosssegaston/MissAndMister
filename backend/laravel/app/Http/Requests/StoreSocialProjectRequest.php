@@ -15,7 +15,7 @@ class StoreSocialProjectRequest extends FormRequest
 
     public function rules(): array
     {
-        $projectId = $this->route('social_project')?->id;
+        $projectId = $this->route('socialProject')?->id;
 
         return [
             'name' => ['required', 'string', 'max:255'],
