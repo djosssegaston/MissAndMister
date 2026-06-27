@@ -125,7 +125,11 @@ class SocialProjectController extends Controller
 
         $this->deleteStoredPhoto($currentPath);
 
-        [$path, $meta] = $this->storePhoto($request->file('photo'), $candidateNum);
+        $path = $this->storePhoto($request->file('photo'), $candidateNum);
+
+        if (! is_string($path)) {
+            throw new \RuntimeException('Impossible de sauvegarder la photo. Vérifiez les permissions du dossier de stockage.');
+        }
 
         $socialProject->forceFill([$column => $path])->save();
         $this->publicApi->invalidatePublicData();
@@ -156,7 +160,7 @@ class SocialProjectController extends Controller
         ]);
     }
 
-    private function storePhoto(UploadedFile $photo, int $candidateNum): array
+    private function storePhoto(UploadedFile $photo, int $candidateNum): ?string
     {
         if ($this->cloudinaryMedia->enabled()) {
             $realPath = $photo->getRealPath();
@@ -173,23 +177,12 @@ class SocialProjectController extends Controller
                 'invalidate' => true,
             ]);
 
-            return [$upload['url'], [
-                'storage' => 'cloudinary',
-                'size' => $upload['bytes'] ?? $photo->getSize(),
-                'mime' => $photo->getMimeType(),
-                'original_name' => $photo->getClientOriginalName(),
-                'cloudinary' => $upload,
-            ]];
+            return $upload['url'];
         }
 
         $path = $photo->store('social-projects', 'public');
 
-        return [$path, [
-            'storage' => 'local',
-            'size' => $photo->getSize(),
-            'mime' => $photo->getMimeType(),
-            'original_name' => $photo->getClientOriginalName(),
-        ]];
+        return is_string($path) ? $path : null;
     }
 
     private function deleteStoredPhoto(?string $path): void
