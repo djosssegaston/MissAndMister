@@ -35,6 +35,8 @@ const ProjectCard = ({ project, index }) => {
       viewport={{ once: true, margin: '-60px' }}
       transition={{ duration: 0.6, delay: index * 0.1, ease: [0.22, 1, 0.36, 1] }}
     >
+      <h2 className="psc-title">{project.name}</h2>
+
       <div className="psc-candidates">
         <div className="psc-candidate">
           <div className="psc-photo-wrap">
