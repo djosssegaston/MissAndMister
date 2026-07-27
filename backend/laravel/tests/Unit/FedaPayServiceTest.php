@@ -47,7 +47,7 @@ class FedaPayServiceTest extends TestCase
         $service = app(FedaPayService::class);
         $payload = '{"name":"transaction.updated","data":{"entity":{"id":"123"}}}';
         $timestamp = '1776594709';
-        $signature = hash_hmac('sha256', $timestamp . '.' . $payload, 'whsec_test');
+        $signature = hash_hmac('sha256', $timestamp.'.'.$payload, 'whsec_test');
 
         $this->assertTrue(
             $service->verifyWebhookSignature($payload, "t={$timestamp},s={$signature}")

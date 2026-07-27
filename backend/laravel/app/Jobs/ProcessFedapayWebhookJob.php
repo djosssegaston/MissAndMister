@@ -12,6 +12,7 @@ class ProcessFedapayWebhookJob implements ShouldQueue
     use Queueable;
 
     public int $tries = 3;
+
     public array $backoff = [10, 30, 90];
 
     public function __construct(
@@ -22,8 +23,7 @@ class ProcessFedapayWebhookJob implements ShouldQueue
         private ?string $status,
         private string $fingerprint,
         private string $lockKey,
-    ) {
-    }
+    ) {}
 
     public function handle(FedapayWebhookService $webhookProcessor): void
     {

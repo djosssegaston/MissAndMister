@@ -3,15 +3,13 @@
 namespace App\Services;
 
 use App\Models\Candidate;
-use App\Models\Vote;
 use App\Models\User;
+use App\Models\Vote;
 use App\Repositories\VoteRepository;
 
 class StatsService
 {
-    public function __construct(private VoteRepository $votes)
-    {
-    }
+    public function __construct(private VoteRepository $votes) {}
 
     public function summary(): array
     {

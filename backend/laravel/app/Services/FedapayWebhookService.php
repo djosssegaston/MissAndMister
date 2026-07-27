@@ -11,8 +11,7 @@ class FedapayWebhookService
         private PaymentService $payments,
         private PaymentRepository $paymentRepo,
         private FedaPayService $fedapay,
-    ) {
-    }
+    ) {}
 
     public function processWebhookPayload(
         array $payload,
@@ -28,11 +27,11 @@ class FedapayWebhookService
             $payment = $this->paymentRepo->findByTransactionId($transactionId);
         }
 
-        if (!$payment && $reference !== null) {
+        if (! $payment && $reference !== null) {
             $payment = $this->paymentRepo->findByReference($reference);
         }
 
-        $shouldFetchRemoteTransaction = $transactionId !== null && (!$payment || $payloadStatus === '');
+        $shouldFetchRemoteTransaction = $transactionId !== null && (! $payment || $payloadStatus === '');
         if ($shouldFetchRemoteTransaction) {
             try {
                 $remoteTransaction = $this->fedapay->retrieveTransaction($transactionId);
@@ -45,7 +44,7 @@ class FedapayWebhookService
             }
         }
 
-        if (!$payment && $remoteTransaction) {
+        if (! $payment && $remoteTransaction) {
             $syncedPayment = $this->payments->syncRemoteSuccessfulTransaction($remoteTransaction);
             if ($syncedPayment) {
                 return [
@@ -56,7 +55,7 @@ class FedapayWebhookService
             }
         }
 
-        if (!$payment) {
+        if (! $payment) {
             logger()->warning('FedaPay webhook received but no local payment matched', [
                 'event' => $eventName,
                 'transaction_id' => $transactionId,
@@ -168,4 +167,3 @@ class FedapayWebhookService
         return '';
     }
 }
-

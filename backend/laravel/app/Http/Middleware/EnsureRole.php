@@ -19,8 +19,7 @@ class EnsureRole
         $role = $user->role ?? null;
         $expectedRoles = ! empty($roles) ? $roles : [$role];
         $roleAllowed = in_array($role, $expectedRoles, true)
-            || ($role === 'superadmin' && in_array('admin', $expectedRoles, true))
-            || ($role === 'admin' && in_array('superadmin', $expectedRoles, true));
+            || ($role === 'superadmin' && in_array('admin', $expectedRoles, true));
 
         if (! $role || (! $roleAllowed && ! empty($expectedRoles))) {
             return response()->json(['message' => 'Forbidden'], 403);

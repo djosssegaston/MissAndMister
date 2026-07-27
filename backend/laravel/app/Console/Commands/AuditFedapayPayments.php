@@ -65,9 +65,9 @@ class AuditFedapayPayments extends Command
 
                     $reason = null;
 
-                    if (!$activeVote && $allVotes === 0) {
+                    if (! $activeVote && $allVotes === 0) {
                         $reason = 'no_vote';
-                    } elseif (!$activeVote && $trashedVotes > 0) {
+                    } elseif (! $activeVote && $trashedVotes > 0) {
                         $reason = 'soft_deleted_vote_only';
                     } elseif ($activeVote && $activeVote->status !== Vote::STATUS_CONFIRMED) {
                         $reason = 'vote_not_confirmed';
@@ -77,11 +77,11 @@ class AuditFedapayPayments extends Command
                         $reason = 'multiple_active_votes';
                     }
 
-                    if (!$reason) {
+                    if (! $reason) {
                         continue;
                     }
 
-                    if (!isset($reasonStats[$reason])) {
+                    if (! isset($reasonStats[$reason])) {
                         $reasonStats[$reason] = ['count' => 0, 'amount' => 0.0];
                     }
 
@@ -118,11 +118,11 @@ class AuditFedapayPayments extends Command
             ['Mesure', 'Valeur'],
             [
                 ['Paiements FedaPay succeeds locaux', $successfulPaymentsCount],
-                ['Montant succeeds local', number_format($successfulPaymentsAmount, 2, ',', ' ') . ' CFA'],
+                ['Montant succeeds local', number_format($successfulPaymentsAmount, 2, ',', ' ').' CFA'],
                 ['Paiements comptes dans le dashboard', $countedPayments],
-                ['Montant compte dans le dashboard', number_format($countedRevenue, 2, ',', ' ') . ' CFA'],
+                ['Montant compte dans le dashboard', number_format($countedRevenue, 2, ',', ' ').' CFA'],
                 ['Votes comptes dans le dashboard', $countedVotes],
-                ['Ecart local succeed vs dashboard', number_format($gapAmount, 2, ',', ' ') . ' CFA'],
+                ['Ecart local succeed vs dashboard', number_format($gapAmount, 2, ',', ' ').' CFA'],
             ]
         );
 
@@ -133,7 +133,7 @@ class AuditFedapayPayments extends Command
                     ->map(fn (array $stats, string $reason) => [
                         $reason,
                         $stats['count'],
-                        number_format((float) $stats['amount'], 2, ',', ' ') . ' CFA',
+                        number_format((float) $stats['amount'], 2, ',', ' ').' CFA',
                     ])
                     ->sortByDesc(fn (array $row) => $row[1])
                     ->values()

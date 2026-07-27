@@ -15,7 +15,7 @@ class KkiapayService
             'reference' => $reference,
             'amount' => $amount,
             'currency' => $currency,
-            'payment_url' => config('app.url') . '/payments/' . $reference,
+            'payment_url' => config('app.url').'/payments/'.$reference,
             'meta' => $metadata,
         ];
     }
@@ -29,7 +29,7 @@ class KkiapayService
     public function verifySignature(string $payload, ?string $signature): bool
     {
         $secret = config('services.kkiapay.webhook_secret');
-        if (!$secret || !$signature) {
+        if (! $secret || ! $signature) {
             return false;
         }
 

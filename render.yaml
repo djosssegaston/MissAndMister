@@ -40,13 +40,13 @@ services:
       - key: DB_PASSWORD
         sync: false
       - key: SESSION_DRIVER
-        value: file
+        value: database
       - key: CACHE_STORE
-        value: file
+        value: database
       - key: PHP_CLI_SERVER_WORKERS
         value: "4"
       - key: QUEUE_CONNECTION
-        value: sync
+        value: database
       - key: FILESYSTEM_DISK
         value: local
       - key: MEDIA_DRIVER
@@ -125,3 +125,56 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  - type: worker
+    runtime: docker
+    name: missandmister-worker-djosssegaston
+    branch: main
+    plan: free
+    region: frankfurt
+    rootDir: backend/laravel
+    dockerfilePath: ./Dockerfile.worker
+    dockerContext: .
+    envVars:
+      - key: APP_NAME
+        value: MissAndMister
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        sync: false
+      - key: APP_URL
+        value: https://missandmister-api-djosssegaston.onrender.com
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: info
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        value: trolley.proxy.rlwy.net
+      - key: DB_PORT
+        value: "28518"
+      - key: DB_DATABASE
+        value: railway
+      - key: DB_USERNAME
+        value: root
+      - key: DB_PASSWORD
+        sync: false
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: FILESYSTEM_DISK
+        value: local
+      - key: MEDIA_DRIVER
+        value: cloudinary
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: missandmister
+      - key: MAIL_MAILER
+        value: log
+      - key: FEDAPAY_PUBLIC_KEY
+        sync: false
+      - key: FEDAPAY_SECRET_KEY
+        sync: false

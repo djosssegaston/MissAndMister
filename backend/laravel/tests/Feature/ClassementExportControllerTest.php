@@ -46,9 +46,9 @@ class ClassementExportControllerTest extends TestCase
             'status' => 'active',
         ]), ['admin']);
 
-        $tempDirectory = storage_path('app/testing/classement-export-' . uniqid('', true));
+        $tempDirectory = storage_path('app/testing/classement-export-'.uniqid('', true));
         File::ensureDirectoryExists($tempDirectory);
-        $zipPath = $tempDirectory . DIRECTORY_SEPARATOR . 'classement_miss_mister_2026.zip';
+        $zipPath = $tempDirectory.DIRECTORY_SEPARATOR.'classement_miss_mister_2026.zip';
         $this->createZipFixture($zipPath);
 
         $service = Mockery::mock(ClassementPdfExportService::class);
@@ -108,9 +108,9 @@ class ClassementExportControllerTest extends TestCase
             'status' => 'active',
         ]), ['admin']);
 
-        $tempDirectory = storage_path('app/testing/classement-test-pdf-' . uniqid('', true));
+        $tempDirectory = storage_path('app/testing/classement-test-pdf-'.uniqid('', true));
         File::ensureDirectoryExists($tempDirectory);
-        $pdfPath = $tempDirectory . DIRECTORY_SEPARATOR . 'classement_miss_2026.pdf';
+        $pdfPath = $tempDirectory.DIRECTORY_SEPARATOR.'classement_miss_2026.pdf';
         file_put_contents($pdfPath, '%PDF-1.4 test');
 
         $service = Mockery::mock(ClassementPdfExportService::class);
@@ -157,7 +157,7 @@ class ClassementExportControllerTest extends TestCase
 
     private function createZipFixture(string $zipPath): void
     {
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         $opened = $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
         if ($opened !== true) {

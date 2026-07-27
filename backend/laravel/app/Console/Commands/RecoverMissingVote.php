@@ -5,8 +5,8 @@ namespace App\Console\Commands;
 use App\Models\Candidate;
 use App\Models\Payment;
 use App\Services\PaymentService;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Collection;
 
 class RecoverMissingVote extends Command
 {
@@ -24,7 +24,7 @@ class RecoverMissingVote extends Command
 
         $payment = Payment::query()->with(['vote'])->where('reference', $reference)->first();
 
-        if (!$payment) {
+        if (! $payment) {
             $this->error('Paiement introuvable pour cette reference.');
 
             return self::FAILURE;
@@ -34,7 +34,7 @@ class RecoverMissingVote extends Command
             ? $this->resolveCandidate($candidateInput)
             : $this->resolveCandidateFromPayment($payment);
 
-        if (!$candidate) {
+        if (! $candidate) {
             $this->error('Candidat introuvable. Lance la commande sans placeholder ou passe un vrai ID/public_uid/slug/public_number.');
             $suggestions = $this->suggestCandidatesForPayment($payment);
 
@@ -46,7 +46,7 @@ class RecoverMissingVote extends Command
                     $suggestions->map(static fn (Candidate $candidate) => [
                         $candidate->id,
                         $candidate->public_number,
-                        trim(($candidate->first_name ?? '') . ' ' . ($candidate->last_name ?? '')),
+                        trim(($candidate->first_name ?? '').' '.($candidate->last_name ?? '')),
                         $candidate->slug,
                         optional($candidate->deleted_at)?->toDateTimeString() ?? '-',
                     ])->all()
@@ -64,7 +64,7 @@ class RecoverMissingVote extends Command
                     ['reference', $reference],
                     ['payment_id', $payment->id],
                     ['candidate_id', $candidate->id],
-                    ['candidate_name', trim(($candidate->first_name ?? '') . ' ' . ($candidate->last_name ?? ''))],
+                    ['candidate_name', trim(($candidate->first_name ?? '').' '.($candidate->last_name ?? ''))],
                     ['payment_status', $payment->status],
                     ['vote_status', $payment->vote?->status ?? 'missing'],
                 ]
@@ -86,7 +86,7 @@ class RecoverMissingVote extends Command
                 ['vote_id', $payment->vote?->id ?? 'missing'],
                 ['vote_status', $payment->vote?->status ?? 'missing'],
                 ['candidate_id', $payment->vote?->candidate_id ?? $candidate->id],
-                ['candidate_name', trim(($candidate->first_name ?? '') . ' ' . ($candidate->last_name ?? ''))],
+                ['candidate_name', trim(($candidate->first_name ?? '').' '.($candidate->last_name ?? ''))],
                 ['amount', (float) $payment->amount],
             ]
         );
@@ -146,7 +146,7 @@ class RecoverMissingVote extends Command
     {
         $candidateName = trim((string) data_get($payment->meta, 'candidate_name', ''));
         if ($candidateName === '') {
-            return new Collection();
+            return new Collection;
         }
 
         $tokens = collect(preg_split('/\s+/', $candidateName) ?: [])
@@ -155,7 +155,7 @@ class RecoverMissingVote extends Command
             ->values();
 
         if ($tokens->isEmpty()) {
-            return new Collection();
+            return new Collection;
         }
 
         return Candidate::withTrashed()
@@ -163,8 +163,8 @@ class RecoverMissingVote extends Command
             ->where(function ($query) use ($tokens): void {
                 foreach ($tokens as $token) {
                     $query
-                        ->orWhere('first_name', 'like', '%' . $token . '%')
-                        ->orWhere('last_name', 'like', '%' . $token . '%');
+                        ->orWhere('first_name', 'like', '%'.$token.'%')
+                        ->orWhere('last_name', 'like', '%'.$token.'%');
                 }
             })
             ->orderByRaw('deleted_at IS NULL DESC')

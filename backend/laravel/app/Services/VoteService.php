@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\ActivityLog;
 use App\Models\Candidate;
 use App\Models\Setting;
 use App\Models\Vote;
 use App\Repositories\VoteRepository;
-use App\Models\ActivityLog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -19,15 +19,14 @@ class VoteService
         private PaymentService $payments,
         private FraudDetectionService $fraudDetection,
         private PublicApiPayloadService $publicApi,
-    ) {
-    }
+    ) {}
 
     public function initiateVote(?int $userId, int $candidateId, string $currency, string $ip, array $meta = [], int $quantity = 1): array
     {
         $this->fraudDetection->assertNotFraudulent($userId, $ip, $quantity);
 
         $candidate = Candidate::query()->find($candidateId);
-        $candidateName = $candidate ? trim(($candidate->first_name ?? '') . ' ' . ($candidate->last_name ?? '')) : null;
+        $candidateName = $candidate ? trim(($candidate->first_name ?? '').' '.($candidate->last_name ?? '')) : null;
         $unitPrice = $this->resolvePricePerVote();
         $amount = $unitPrice * max(1, $quantity);
         $submittedAmount = data_get($meta, 'submitted_amount');
@@ -96,11 +95,11 @@ class VoteService
 
             $updates = ['status' => 'confirmed'];
 
-            if (!$vote->user_id && $vote->payment?->user_id) {
+            if (! $vote->user_id && $vote->payment?->user_id) {
                 $updates['user_id'] = $vote->payment->user_id;
             }
 
-            if (!$vote->ip_address) {
+            if (! $vote->ip_address) {
                 $paymentIp = data_get($vote->payment?->meta, 'ip');
                 if (filled($paymentIp)) {
                     $updates['ip_address'] = (string) $paymentIp;

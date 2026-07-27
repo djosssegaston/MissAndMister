@@ -12,8 +12,7 @@ class ClassementExportController extends Controller
 {
     public function __construct(
         private ClassementPdfExportService $classementExports,
-    ) {
-    }
+    ) {}
 
     public function __invoke(Request $request): BinaryFileResponse|JsonResponse
     {
@@ -134,7 +133,7 @@ class ClassementExportController extends Controller
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             logger()->warning('Classement PDF access rejected', [
                 'reason' => 'unauthenticated',
                 'route' => $request->path(),
@@ -148,7 +147,7 @@ class ClassementExportController extends Controller
 
         $role = strtolower(trim((string) ($user->role ?? '')));
         $allowedRoles = ['admin', 'superadmin'];
-        if (!in_array($role, $allowedRoles, true)) {
+        if (! in_array($role, $allowedRoles, true)) {
             logger()->warning('Classement PDF access rejected', [
                 'reason' => 'role_not_allowed',
                 'route' => $request->path(),
@@ -161,7 +160,7 @@ class ClassementExportController extends Controller
         }
 
         $tokenAbilities = $this->tokenAbilitiesFor($user);
-        if ($tokenAbilities !== [] && !$this->tokenAllowsAdmin($user)) {
+        if ($tokenAbilities !== [] && ! $this->tokenAllowsAdmin($user)) {
             logger()->warning('Classement PDF access rejected', [
                 'reason' => 'token_ability_missing',
                 'route' => $request->path(),

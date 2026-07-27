@@ -8,11 +8,12 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     private const LEGACY_INDEX = 'candidates_public_number_unique';
+
     private const SCOPED_INDEX = 'candidates_category_public_number_unique';
 
     public function up(): void
     {
-        if (!Schema::hasColumn('candidates', 'public_number') || !Schema::hasColumn('candidates', 'category_id')) {
+        if (! Schema::hasColumn('candidates', 'public_number') || ! Schema::hasColumn('candidates', 'category_id')) {
             return;
         }
 
@@ -23,14 +24,14 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (!Schema::hasColumn('candidates', 'public_number') || !Schema::hasColumn('candidates', 'category_id')) {
+        if (! Schema::hasColumn('candidates', 'public_number') || ! Schema::hasColumn('candidates', 'category_id')) {
             return;
         }
 
         $this->dropIndexIfExists('candidates', self::SCOPED_INDEX);
         $this->renumberCandidatesGlobally();
 
-        if (!$this->indexExists('candidates', self::LEGACY_INDEX)) {
+        if (! $this->indexExists('candidates', self::LEGACY_INDEX)) {
             Schema::table('candidates', function (Blueprint $table) {
                 $table->unique('public_number', self::LEGACY_INDEX);
             });
@@ -90,7 +91,7 @@ return new class extends Migration
 
     private function dropIndexIfExists(string $table, string $indexName): void
     {
-        if (!$this->indexExists($table, $indexName)) {
+        if (! $this->indexExists($table, $indexName)) {
             return;
         }
 
@@ -101,11 +102,6 @@ return new class extends Migration
 
     private function indexExists(string $table, string $indexName): bool
     {
-        $database = DB::getDatabaseName();
-
-        return !empty(DB::select(
-            'SELECT 1 FROM information_schema.statistics WHERE table_schema = ? AND table_name = ? AND index_name = ? LIMIT 1',
-            [$database, $table, $indexName]
-        ));
+        return Schema::hasIndex($table, $indexName);
     }
 };

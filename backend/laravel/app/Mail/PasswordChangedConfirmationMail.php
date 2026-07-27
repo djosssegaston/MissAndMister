@@ -16,8 +16,7 @@ class PasswordChangedConfirmationMail extends Mailable
     public function __construct(
         public User $user,
         public string $loginUrl,
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {

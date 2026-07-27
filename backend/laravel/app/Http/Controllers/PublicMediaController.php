@@ -5,9 +5,8 @@ namespace App\Http\Controllers;
 use App\Support\MediaUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Throwable;
 
 class PublicMediaController extends Controller
@@ -45,8 +44,8 @@ class PublicMediaController extends Controller
         }
 
         $filename = basename($relativePath);
-        $etag = '"' . sha1(implode('|', [$relativePath, $size ?? 'na', $lastModified ?? 'na'])) . '"';
-        $lastModifiedHeader = $lastModified ? gmdate('D, d M Y H:i:s', $lastModified) . ' GMT' : null;
+        $etag = '"'.sha1(implode('|', [$relativePath, $size ?? 'na', $lastModified ?? 'na'])).'"';
+        $lastModifiedHeader = $lastModified ? gmdate('D, d M Y H:i:s', $lastModified).' GMT' : null;
 
         if ($request->headers->get('if-none-match') === $etag) {
             return response('', 304, array_filter([
@@ -74,7 +73,7 @@ class PublicMediaController extends Controller
         }, 200, array_filter([
             'Content-Type' => $mimeType,
             'Content-Length' => $size,
-            'Content-Disposition' => (new ResponseHeaderBag())->makeDisposition('inline', $filename),
+            'Content-Disposition' => (new ResponseHeaderBag)->makeDisposition('inline', $filename),
             'Cache-Control' => 'public, max-age=31536000, immutable',
             'ETag' => $etag,
             'Last-Modified' => $lastModifiedHeader,

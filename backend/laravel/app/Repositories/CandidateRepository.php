@@ -4,8 +4,8 @@ namespace App\Repositories;
 
 use App\Models\Candidate;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 
 class CandidateRepository
 {
@@ -104,7 +104,7 @@ class CandidateRepository
     {
         $targetVotes = (int) ($candidate->votes_count ?? 0);
 
-        if (!$candidate->category_id || $targetVotes <= 0) {
+        if (! $candidate->category_id || $targetVotes <= 0) {
             return null;
         }
 
@@ -138,8 +138,8 @@ class CandidateRepository
                 }
 
                 return strcasecmp(
-                    trim(($left->last_name ?? '') . ' ' . ($left->first_name ?? '')),
-                    trim(($right->last_name ?? '') . ' ' . ($right->first_name ?? ''))
+                    trim(($left->last_name ?? '').' '.($left->first_name ?? '')),
+                    trim(($right->last_name ?? '').' '.($right->first_name ?? ''))
                 );
             })
             ->pluck('id')
@@ -152,15 +152,17 @@ class CandidateRepository
 
     public function create(array $data): Candidate
     {
-        if (!isset($data['public_number'])) {
+        if (! isset($data['public_number'])) {
             $data['public_number'] = $this->nextPublicNumberForCategory((int) $data['category_id']);
         }
+
         return Candidate::create($data);
     }
 
     public function update(Candidate $candidate, array $data): Candidate
     {
         $candidate->update($data);
+
         return $candidate;
     }
 
@@ -218,7 +220,7 @@ class CandidateRepository
             })
             ->when(filled($search), function (Builder $query) use ($search) {
                 $normalizedSearch = trim((string) $search);
-                $like = '%' . $normalizedSearch . '%';
+                $like = '%'.$normalizedSearch.'%';
 
                 $query->where(function (Builder $searchQuery) use ($like, $normalizedSearch) {
                     $searchQuery

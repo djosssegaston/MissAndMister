@@ -24,7 +24,7 @@ class CandidateAccountService
 
             unset($data['password'], $data['password_confirmation']);
 
-            if (!isset($data['public_number'])) {
+            if (! isset($data['public_number'])) {
                 $data['public_number'] = $this->nextPublicNumberForCategory((int) $data['category_id']);
             }
 
@@ -35,7 +35,7 @@ class CandidateAccountService
             if ($candidate->email && $plainPassword) {
                 $user = User::create([
                     'candidate_id' => $candidate->id,
-                    'name' => trim($candidate->first_name . ' ' . $candidate->last_name),
+                    'name' => trim($candidate->first_name.' '.$candidate->last_name),
                     'email' => $candidate->email,
                     'phone' => $candidate->phone,
                     'password' => Hash::make($plainPassword),
@@ -77,7 +77,7 @@ class CandidateAccountService
 
             unset($data['password'], $data['password_confirmation']);
 
-            if (!array_key_exists('public_number', $data)) {
+            if (! array_key_exists('public_number', $data)) {
                 $currentPublicNumber = (int) ($candidate->public_number ?? 0);
 
                 if ($currentPublicNumber < 1 || $this->publicNumberExistsInCategory(
@@ -92,7 +92,7 @@ class CandidateAccountService
             $candidate->update($data);
 
             $user = $candidate->user;
-            if (!$user) {
+            if (! $user) {
                 if ($candidate->email && $plainPassword) {
                     $user = new User([
                         'candidate_id' => $candidate->id,
@@ -105,7 +105,7 @@ class CandidateAccountService
 
             if ($user) {
                 $userPayload = [
-                    'name' => trim($candidate->first_name . ' ' . $candidate->last_name),
+                    'name' => trim($candidate->first_name.' '.$candidate->last_name),
                     'phone' => $candidate->phone,
                     'status' => $candidate->is_active ? 'active' : 'inactive',
                 ];
@@ -126,7 +126,7 @@ class CandidateAccountService
                 $user->save();
             }
 
-            if ($user && !$candidate->is_active) {
+            if ($user && ! $candidate->is_active) {
                 $user->tokens()->delete();
             }
 
@@ -154,7 +154,7 @@ class CandidateAccountService
             'status' => $isActive ? 'active' : 'inactive',
         ]);
 
-        if (!$isActive) {
+        if (! $isActive) {
             $candidate->user?->tokens()->delete();
         }
     }
@@ -190,7 +190,7 @@ class CandidateAccountService
 
     private function loginUrl(): string
     {
-        return rtrim((string) config('app.frontend_url'), '/') . '/login';
+        return rtrim((string) config('app.frontend_url'), '/').'/login';
     }
 
     private function normalizeNullableString(mixed $value): ?string

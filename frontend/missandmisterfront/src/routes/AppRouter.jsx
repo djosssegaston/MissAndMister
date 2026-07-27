@@ -16,6 +16,11 @@ import PaymentConfirmation from '../pages/PaymentConfirmation';
 import Terms from '../pages/Terms';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import JSerai from '../pages/JSerai';
+import Billetterie from '../pages/Billetterie';
+import BilletterieEvent from '../pages/BilletterieEvent';
+import BilletterieConfirmation from '../pages/BilletterieConfirmation';
+import BilletterieMyTickets from '../pages/BilletterieMyTickets';
 import CandidateDashboard from '../pages/CandidateDashboard';
 import ChangePassword from '../pages/ChangePassword';
 
@@ -29,6 +34,9 @@ import AdminSocialProjects from '../pages/admin/AdminSocialProjects';
 import AdminUsers from '../pages/admin/AdminUsers';
 import AdminVotes from '../pages/admin/AdminVotes';
 import AdminSettings from '../pages/admin/AdminSettings';
+import AdminJSerai from '../pages/admin/AdminJSerai';
+import AdminBilletterie from '../pages/admin/AdminBilletterie';
+import BilletterieScan from '../pages/BilletterieScan';
 import AdminLayout from '../components/AdminLayout';
 import SessionExpiredModal from '../components/SessionExpiredModal';
 import Loader from '../components/Loader';
@@ -216,6 +224,17 @@ const PublicLayout = () => {
   );
   const adminPreviewEnabled = hasAdminPreviewSession();
   const maintenancePreviewActive = votingState.maintenanceMode && adminPreviewEnabled;
+
+  const outletUser = useMemo(() => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const stored = JSON.parse(localStorage.getItem('user') || 'null');
+      return token && stored ? stored : null;
+    } catch {
+      return null;
+    }
+  }, [tick]);
+
   const outletContext = useMemo(
     () => ({
       publicSettings,
@@ -227,12 +246,14 @@ const PublicLayout = () => {
       bootstrapError,
       maintenancePreviewActive,
       refreshPublicBootstrap,
+      user: outletUser,
       ...votingState,
     }),
     [
       bootstrapError,
       bootstrapLoading,
       maintenancePreviewActive,
+      outletUser,
       publicCandidates,
       publicPartners,
       publicSettings,
@@ -396,6 +417,11 @@ const AppRouter = () => (
         <Route path="/terms"          element={<Terms />} />
         <Route path="/privacy"        element={<Privacy />} />
         <Route path="/projet-social"  element={<ProjetSocial />} />
+        <Route path="/j-y-serai"      element={<JSerai />} />
+        <Route path="/billetterie"    element={<Billetterie />} />
+        <Route path="/billetterie/:eventId" element={<BilletterieEvent />} />
+        <Route path="/billetterie/confirmation" element={<BilletterieConfirmation />} />
+        <Route path="/billetterie/mes-billets" element={<BilletterieMyTickets />} />
         <Route path="/payment/confirmation" element={<PaymentConfirmation />} />
         <Route path="/login"          element={<GuestOnly><Login /></GuestOnly>} />
         <Route path="/register"       element={<GuestOnly><Register /></GuestOnly>} />
@@ -420,6 +446,9 @@ const AppRouter = () => (
       <Route path="/admin/votes"      element={<RequireAdmin><WithAdminLayout><AdminVotes /></WithAdminLayout></RequireAdmin>} />
       <Route path="/admin/social-projects" element={<RequireAdmin><WithAdminLayout><AdminSocialProjects /></WithAdminLayout></RequireAdmin>} />
       <Route path="/admin/settings"   element={<RequireAdmin><WithAdminLayout><AdminSettings /></WithAdminLayout></RequireAdmin>} />
+      <Route path="/admin/j-serai"   element={<RequireAdmin><WithAdminLayout><AdminJSerai /></WithAdminLayout></RequireAdmin>} />
+      <Route path="/admin/billetterie" element={<RequireAdmin><WithAdminLayout><AdminBilletterie /></WithAdminLayout></RequireAdmin>} />
+      <Route path="/admin/billetterie/scan" element={<RequireAdmin><BilletterieScan /></RequireAdmin>} />
 
     </Routes>
   </Router>

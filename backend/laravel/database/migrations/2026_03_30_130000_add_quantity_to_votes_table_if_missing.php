@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasColumn('votes', 'quantity')) {
+        if (! Schema::hasColumn('votes', 'quantity')) {
             Schema::table('votes', function (Blueprint $table) {
                 $table->unsignedInteger('quantity')->default(1)->after('amount');
             });

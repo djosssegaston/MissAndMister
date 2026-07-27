@@ -51,7 +51,7 @@ class ReconcileFedapayPayments extends Command
 
             $inspected = (int) ($stats['inspected'] ?? 0);
 
-            $this->line("Passe {$pass}: inspectes={$inspected}, confirmes=" . ($stats['confirmed'] ?? 0) . ", echoues=" . ($stats['failed'] ?? 0) . ", en_traitement=" . ($stats['processing'] ?? 0) . ", votes_repares=" . ($stats['vote_repairs'] ?? 0));
+            $this->line("Passe {$pass}: inspectes={$inspected}, confirmes=".($stats['confirmed'] ?? 0).', echoues='.($stats['failed'] ?? 0).', en_traitement='.($stats['processing'] ?? 0).', votes_repares='.($stats['vote_repairs'] ?? 0));
 
             if ($inspected < $limit) {
                 break;

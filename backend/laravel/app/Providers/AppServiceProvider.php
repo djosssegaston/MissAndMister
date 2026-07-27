@@ -5,11 +5,13 @@ namespace App\Providers;
 use App\Contracts\CandidateFaceDetector;
 use App\Services\CandidateImages\AwsRekognitionCandidateFaceDetector;
 use App\Services\CandidateImages\NullCandidateFaceDetector;
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Http\Request;
+use App\Services\JSeraiPosterService;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\ServiceProvider;
+use Intervention\Image\ImageManager;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -18,6 +20,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(JSeraiPosterService::class, function () {
+            return new JSeraiPosterService(
+                new ImageManager(config('candidate_images.driver')),
+            );
+        });
+
         $this->app->singleton(CandidateFaceDetector::class, function () {
             $provider = config('candidate_images.face_detection_provider', 'aws');
 

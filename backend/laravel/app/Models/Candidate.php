@@ -96,11 +96,11 @@ class Candidate extends Model
             }
         }
 
-        if (!isset($urls['large']) && !empty($this->attributes['photo_path'] ?? null)) {
+        if (! isset($urls['large']) && ! empty($this->attributes['photo_path'] ?? null)) {
             $urls['large'] = MediaUrl::fromPath($this->attributes['photo_path']);
         }
 
-        if (!empty($this->attributes['photo_original_path'] ?? null)) {
+        if (! empty($this->attributes['photo_original_path'] ?? null)) {
             $urls['original'] = MediaUrl::fromPath($this->attributes['photo_original_path']);
         }
 
@@ -120,7 +120,7 @@ class Candidate extends Model
 
         if (blank($this->slug)) {
             $this->slug = static::generateUniqueSlug(
-                trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? '')),
+                trim(($this->first_name ?? '').' '.($this->last_name ?? '')),
                 $this->id
             );
         }
@@ -147,7 +147,7 @@ class Candidate extends Model
 
         do {
             $suffix = Str::lower(Str::random(10));
-            $value = Str::limit($base . '-' . $suffix, 255, '');
+            $value = Str::limit($base.'-'.$suffix, 255, '');
 
             $exists = static::withTrashed()
                 ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))

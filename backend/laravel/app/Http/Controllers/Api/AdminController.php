@@ -11,6 +11,7 @@ class AdminController extends Controller
     public function activity(): JsonResponse
     {
         $this->authorize('viewAny', ActivityLog::class);
+
         return response()->json(ActivityLog::latest()->paginate(50));
     }
 }

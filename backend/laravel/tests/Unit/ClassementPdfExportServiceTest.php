@@ -120,7 +120,7 @@ class ClassementPdfExportServiceTest extends TestCase
             $this->assertFileExists($export['zip_path']);
             $this->assertSame('classement_miss_mister_2026.zip', $export['download_name']);
 
-            $zip = new ZipArchive();
+            $zip = new ZipArchive;
             $opened = $zip->open($export['zip_path']);
 
             $this->assertTrue($opened === true);

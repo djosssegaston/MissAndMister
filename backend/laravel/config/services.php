@@ -48,7 +48,7 @@ return [
 
     'fraud' => [
         'limit_per_user' => (int) env('FRAUD_LIMIT_PER_USER', 100),
-        'limit_per_ip' => 0,
+        'limit_per_ip' => (int) env('FRAUD_LIMIT_PER_IP', 20),
     ],
 
     'slack' => [

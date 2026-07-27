@@ -21,7 +21,7 @@ class VotingWindowService
 
         $maintenanceEnd = $this->parseInstant($settings['maintenance_end_at'] ?? null);
         $maintenance = $this->isTruthy($settings['maintenance_mode'] ?? false)
-            && (!$maintenanceEnd || $now->lt($maintenanceEnd));
+            && (! $maintenanceEnd || $now->lt($maintenanceEnd));
         $votingOpen = $this->isTruthy($settings['voting_open'] ?? true);
         $start = $this->parseDateBoundary($settings['vote_start_at'] ?? null, false);
         $end = $this->parseDateBoundary($settings['vote_end_at'] ?? null, true);
@@ -53,7 +53,7 @@ class VotingWindowService
             $blocked = true;
             $reason = 'maintenance';
             $message = 'Plateforme en maintenance';
-        } elseif (!$votingOpen) {
+        } elseif (! $votingOpen) {
             $blocked = true;
             $reason = 'toggle_off';
             $message = 'Vote bloquer';
@@ -98,14 +98,14 @@ class VotingWindowService
         $pauseStartedAt = $this->parseInstant($currentSettings['countdown_pause_started_at'] ?? null);
         $accumulatedPauseSeconds = max(0, (int) ($currentSettings['countdown_paused_seconds'] ?? 0));
 
-        if (!$currentState['countdown_paused'] && $nextState['countdown_paused']) {
+        if (! $currentState['countdown_paused'] && $nextState['countdown_paused']) {
             return [
                 'countdown_pause_started_at' => $now->toIso8601String(),
                 'countdown_paused_seconds' => (string) $accumulatedPauseSeconds,
             ];
         }
 
-        if ($currentState['countdown_paused'] && !$nextState['countdown_paused']) {
+        if ($currentState['countdown_paused'] && ! $nextState['countdown_paused']) {
             if ($pauseStartedAt) {
                 $accumulatedPauseSeconds += $pauseStartedAt->diffInSeconds($now);
             }
@@ -116,7 +116,7 @@ class VotingWindowService
             ];
         }
 
-        if ($nextState['countdown_paused'] && !$pauseStartedAt) {
+        if ($nextState['countdown_paused'] && ! $pauseStartedAt) {
             return [
                 'countdown_pause_started_at' => $now->toIso8601String(),
                 'countdown_paused_seconds' => (string) $accumulatedPauseSeconds,
@@ -138,14 +138,14 @@ class VotingWindowService
         $end = $this->parseDateBoundary($settings['vote_end_at'] ?? null, true);
         $maintenanceEnd = $this->parseInstant($settings['maintenance_end_at'] ?? null);
         $maintenanceActive = $this->isTruthy($settings['maintenance_mode'] ?? false)
-            && (!$maintenanceEnd || $now->lt($maintenanceEnd));
+            && (! $maintenanceEnd || $now->lt($maintenanceEnd));
         $shouldPause = $this->shouldPauseCountdown($settings, $now, $start, $end, $maintenanceActive);
 
-        if ($shouldPause && !$pauseStartedAt) {
+        if ($shouldPause && ! $pauseStartedAt) {
             $pauseStartedAt = $now->copy();
         }
 
-        if (!$shouldPause && $pauseStartedAt && $maintenanceEnd && $now->gte($maintenanceEnd)) {
+        if (! $shouldPause && $pauseStartedAt && $maintenanceEnd && $now->gte($maintenanceEnd)) {
             if ($maintenanceEnd->gt($pauseStartedAt)) {
                 $accumulatedPauseSeconds += $pauseStartedAt->diffInSeconds($maintenanceEnd);
             }
@@ -164,13 +164,12 @@ class VotingWindowService
         ?Carbon $start = null,
         ?Carbon $end = null,
         ?bool $maintenanceActive = null,
-    ): bool
-    {
+    ): bool {
         $maintenanceActive ??= $this->isTruthy($settings['maintenance_mode'] ?? false);
         $manualBlock = $maintenanceActive
-            || !$this->isTruthy($settings['voting_open'] ?? true);
+            || ! $this->isTruthy($settings['voting_open'] ?? true);
 
-        if (!$manualBlock) {
+        if (! $manualBlock) {
             return false;
         }
 
@@ -195,7 +194,7 @@ class VotingWindowService
 
     private function parseDateBoundary($value, bool $endOfDay): ?Carbon
     {
-        if (!$value || !is_string($value)) {
+        if (! $value || ! is_string($value)) {
             return null;
         }
 
@@ -213,7 +212,7 @@ class VotingWindowService
 
     private function parseInstant($value): ?Carbon
     {
-        if (!$value || !is_string($value)) {
+        if (! $value || ! is_string($value)) {
             return null;
         }
 

@@ -10,12 +10,11 @@ final readonly class CandidateFaceBox
         public int $width,
         public int $height,
         public float $confidence = 0.0,
-    ) {
-    }
+    ) {}
 
     public static function fromArray(?array $data): ?self
     {
-        if (!$data) {
+        if (! $data) {
             return null;
         }
 

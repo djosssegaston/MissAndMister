@@ -28,7 +28,7 @@ class ContactController extends Controller
                 $message
                     ->to($recipient)
                     ->replyTo($data['email'], $data['name'])
-                    ->subject('[Contact MMUB] ' . $data['subject']);
+                    ->subject('[Contact MMUB] '.$data['subject']);
             });
         } catch (\Throwable $exception) {
             Log::warning('Contact form delivery failed', [
@@ -52,9 +52,9 @@ class ContactController extends Controller
         return implode(PHP_EOL, [
             'Nouveau message depuis le formulaire de contact MMUB',
             '',
-            'Nom : ' . $data['name'],
-            'Email : ' . $data['email'],
-            'Sujet : ' . $data['subject'],
+            'Nom : '.$data['name'],
+            'Email : '.$data['email'],
+            'Sujet : '.$data['subject'],
             '',
             'Message :',
             $data['message'],

@@ -11,22 +11,21 @@ class AwsRekognitionCandidateFaceDetector implements CandidateFaceDetector
 {
     public function __construct(
         private readonly array $config,
-    ) {
-    }
+    ) {}
 
     public function detect(string $absolutePath): ?CandidateFaceBox
     {
-        if (!is_file($absolutePath)) {
+        if (! is_file($absolutePath)) {
             throw new RuntimeException('Image introuvable pour la detection de visage.');
         }
 
         $size = @getimagesize($absolutePath);
-        if (!$size) {
+        if (! $size) {
             throw new RuntimeException('Impossible de lire les dimensions de l’image.');
         }
 
         $region = $this->config['region'] ?? null;
-        if (!$region) {
+        if (! $region) {
             throw new RuntimeException('AWS Rekognition n’a pas de region configuree.');
         }
 
@@ -35,7 +34,7 @@ class AwsRekognitionCandidateFaceDetector implements CandidateFaceDetector
             'region' => $region,
         ];
 
-        if (!empty($this->config['key']) && !empty($this->config['secret'])) {
+        if (! empty($this->config['key']) && ! empty($this->config['secret'])) {
             $clientConfig['credentials'] = [
                 'key' => $this->config['key'],
                 'secret' => $this->config['secret'],
@@ -52,7 +51,7 @@ class AwsRekognitionCandidateFaceDetector implements CandidateFaceDetector
             ]);
         } catch (\Throwable $exception) {
             throw new RuntimeException(
-                'La detection AWS Rekognition a echoue: ' . $exception->getMessage(),
+                'La detection AWS Rekognition a echoue: '.$exception->getMessage(),
                 previous: $exception,
             );
         }
@@ -67,7 +66,7 @@ class AwsRekognitionCandidateFaceDetector implements CandidateFaceDetector
             ->values();
 
         $face = $faces->first();
-        if (!$face) {
+        if (! $face) {
             return null;
         }
 

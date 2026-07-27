@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Setting;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class SettingSeeder extends Seeder
@@ -25,7 +24,7 @@ class SettingSeeder extends Seeder
             ['key' => 'email_confirm',      'value' => '1',           'group' => 'notifications'],
             ['key' => 'sms_confirm',        'value' => '0',           'group' => 'notifications'],
             ['key' => 'captcha_enabled',    'value' => '1',           'group' => 'security'],
-            ['key' => 'ip_tracking_enabled','value' => '1',           'group' => 'security'],
+            ['key' => 'ip_tracking_enabled', 'value' => '1',           'group' => 'security'],
             ['key' => 'maintenance_mode',   'value' => '0',           'group' => 'security'],
         ];
 

@@ -5,8 +5,8 @@ namespace App\Services;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Http;
 
 class FedaPayService
 {
@@ -95,7 +95,7 @@ class FedaPayService
     {
         $response = $this->request()
             ->withToken($this->requireSecretKey())
-            ->get('/transactions/' . $transactionId)
+            ->get('/transactions/'.$transactionId)
             ->throw()
             ->json();
 
@@ -111,7 +111,7 @@ class FedaPayService
         $response = $this->request()
             ->asJson()
             ->withToken($this->requireSecretKey())
-            ->post('/transactions/' . $transactionId . '/token')
+            ->post('/transactions/'.$transactionId.'/token')
             ->throw()
             ->json();
 
@@ -149,7 +149,7 @@ class FedaPayService
             'top_level_type' => is_array($decoded)
                 ? (array_is_list($decoded) ? 'list' : 'object')
                 : gettype($decoded),
-            'top_level_keys' => is_array($payload) && !array_is_list($payload)
+            'top_level_keys' => is_array($payload) && ! array_is_list($payload)
                 ? array_slice(array_map('strval', array_keys($payload)), 0, 12)
                 : [],
             'raw_list_count' => is_array($rawList) ? count($rawList) : 0,
@@ -163,7 +163,7 @@ class FedaPayService
     {
         $secret = trim((string) $this->webhookSecret());
 
-        if (!$secret || !$signature) {
+        if (! $secret || ! $signature) {
             return false;
         }
 
@@ -174,7 +174,7 @@ class FedaPayService
 
         $parts = [];
         foreach (preg_split('/\s*,\s*/', $normalized) ?: [] as $part) {
-            if (!str_contains($part, '=')) {
+            if (! str_contains($part, '=')) {
                 continue;
             }
 
@@ -182,7 +182,7 @@ class FedaPayService
 
             if ($name !== '' && $value !== '') {
                 $lowerName = strtolower($name);
-                if (!isset($parts[$lowerName])) {
+                if (! isset($parts[$lowerName])) {
                     $parts[$lowerName] = [];
                 }
 
@@ -190,10 +190,10 @@ class FedaPayService
             }
         }
 
-        if (!empty($parts['t'])) {
+        if (! empty($parts['t'])) {
             foreach ($parts['t'] as $timestamp) {
-                $expectedCandidates[] = hash_hmac('sha256', $timestamp . '.' . $payload, $secret);
-                $expectedCandidates[] = hash_hmac('sha256', $timestamp . $payload, $secret);
+                $expectedCandidates[] = hash_hmac('sha256', $timestamp.'.'.$payload, $secret);
+                $expectedCandidates[] = hash_hmac('sha256', $timestamp.$payload, $secret);
             }
         }
 
@@ -242,7 +242,7 @@ class FedaPayService
     {
         $secret = $this->secretKey();
 
-        if (!$secret) {
+        if (! $secret) {
             throw new \RuntimeException('La clé secrète FedaPay n’est pas configurée.');
         }
 
@@ -307,7 +307,7 @@ class FedaPayService
         ];
 
         foreach ($candidates as $candidate) {
-            if (!is_array($candidate)) {
+            if (! is_array($candidate)) {
                 continue;
             }
 
@@ -351,7 +351,7 @@ class FedaPayService
 
     private function looksLikeTransactionList(mixed $payload): bool
     {
-        if (!is_array($payload) || !array_is_list($payload) || $payload === []) {
+        if (! is_array($payload) || ! array_is_list($payload) || $payload === []) {
             return false;
         }
 
@@ -366,7 +366,7 @@ class FedaPayService
 
     private function extractTransactionListCandidate(mixed $payload, int $depth = 0): ?array
     {
-        if ($depth > 6 || !is_array($payload)) {
+        if ($depth > 6 || ! is_array($payload)) {
             return null;
         }
 
@@ -375,7 +375,7 @@ class FedaPayService
         }
 
         foreach ($payload as $value) {
-            if (!is_array($value)) {
+            if (! is_array($value)) {
                 continue;
             }
 
@@ -393,7 +393,7 @@ class FedaPayService
         $histogram = [];
 
         foreach ($transactions as $transaction) {
-            if (!is_array($transaction)) {
+            if (! is_array($transaction)) {
                 continue;
             }
 
@@ -411,14 +411,14 @@ class FedaPayService
     {
         $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        if (!is_string($json) || trim($json) === '') {
+        if (! is_string($json) || trim($json) === '') {
             return '(empty)';
         }
 
         $preview = trim($json);
 
         return strlen($preview) > 240
-            ? substr($preview, 0, 240) . '...'
+            ? substr($preview, 0, 240).'...'
             : $preview;
     }
 }

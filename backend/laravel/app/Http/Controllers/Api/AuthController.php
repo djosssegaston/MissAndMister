@@ -222,7 +222,7 @@ class AuthController extends Controller
             $admin = Admin::where('email', $credentials['email'])->first();
 
             if (! $admin || ! Hash::check($credentials['password'], $admin->password)) {
-                $this->logSecurity($admin ?? new Admin(['id' => null, 'role' => 'admin']), 'login_failed', ['guard' => 'admin']);
+                $this->logSecurity($admin ?? new Admin(['id' => 0, 'role' => 'admin']), 'login_failed', ['guard' => 'admin']);
 
                 return response()->json(['message' => 'Invalid credentials'], 401);
             }
@@ -231,7 +231,7 @@ class AuthController extends Controller
                 return response()->json(['message' => 'Account inactive'], 403);
             }
 
-            $abilities = ['admin', 'superadmin'];
+            $abilities = array_values(array_unique([$admin->role, 'admin']));
             $token = $this->issueSingleSessionToken($admin, 'admin_token', $abilities);
             $this->logSecurity($admin, 'login_success', ['guard' => 'admin']);
 
@@ -249,7 +249,7 @@ class AuthController extends Controller
         $user = $this->users->findByEmail($credentials['email']);
 
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
-            $this->logSecurity($user ?? new Admin(['id' => null, 'role' => 'user']), 'login_failed', ['guard' => 'user']);
+            $this->logSecurity($user, 'login_failed', ['guard' => 'user']);
 
             return response()->json(['message' => 'Invalid credentials'], 401);
         }

@@ -8,9 +8,7 @@ use Illuminate\Validation\ValidationException;
 
 class FraudDetectionService
 {
-    public function __construct(private VoteRepository $votes)
-    {
-    }
+    public function __construct(private VoteRepository $votes) {}
 
     public function assertNotFraudulent(?int $userId, string $ip, int $quantity = 1): void
     {

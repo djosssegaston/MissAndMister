@@ -11,11 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('votes') || !Schema::hasTable('payments')) {
+        if (! Schema::hasTable('votes') || ! Schema::hasTable('payments')) {
             return;
         }
 
-        if (!Schema::hasColumn('votes', 'payment_id')) {
+        if (! Schema::hasColumn('votes', 'payment_id')) {
             return;
         }
 
@@ -32,11 +32,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (!Schema::hasTable('votes')) {
+        if (! Schema::hasTable('votes')) {
             return;
         }
 
-        if (!Schema::hasColumn('votes', 'payment_id')) {
+        if (! Schema::hasColumn('votes', 'payment_id')) {
             return;
         }
 

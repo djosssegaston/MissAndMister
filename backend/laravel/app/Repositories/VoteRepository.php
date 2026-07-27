@@ -61,9 +61,10 @@ class VoteRepository
 
     public function countUserVotesToday(?int $userId): int
     {
-        if (!$userId) {
+        if (! $userId) {
             return 0;
         }
+
         return (int) Vote::where('user_id', $userId)
             ->whereDate('created_at', now()->toDateString())
             ->sum('quantity');

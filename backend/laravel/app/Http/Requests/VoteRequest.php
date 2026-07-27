@@ -26,7 +26,7 @@ class VoteRequest extends FormRequest
             'candidate_id' => ['nullable', 'integer', 'exists:candidates,id'],
             'candidate_identifier' => ['nullable', 'string', 'max:64'],
             'amount' => ['nullable', 'numeric', 'min:0'],
-            'quantity' => ['sometimes', 'integer', 'min:1', 'max:1000'],
+            'quantity' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'currency' => ['sometimes', 'string', 'max:8'],
         ];
     }
@@ -34,7 +34,7 @@ class VoteRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator): void {
-            if (!$this->filled('candidate_id') && !$this->filled('candidate_identifier')) {
+            if (! $this->filled('candidate_id') && ! $this->filled('candidate_identifier')) {
                 $validator->errors()->add('candidate_identifier', 'Le candidat à voter est requis.');
             }
         });

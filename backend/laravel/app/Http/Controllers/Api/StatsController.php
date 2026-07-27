@@ -14,14 +14,13 @@ class StatsController extends Controller
         private StatsService $stats,
         private PaymentService $payments,
         private PublicApiPayloadService $publicApi,
-    )
-    {
-    }
+    ) {}
 
     public function index(): JsonResponse
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
         $this->payments->scheduleWarmPaymentStateForReadModels();
+
         return response()->json($this->stats->summary());
     }
 

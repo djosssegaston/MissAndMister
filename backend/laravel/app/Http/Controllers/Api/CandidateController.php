@@ -33,9 +33,7 @@ class CandidateController extends Controller
         private CloudinaryMediaService $cloudinaryMedia,
         private PaymentService $payments,
         private PublicApiPayloadService $publicApi,
-    )
-    {
-    }
+    ) {}
 
     /**
      * Display a listing of the resource.
@@ -169,7 +167,7 @@ class CandidateController extends Controller
         if ($this->usesCloudinaryMedia()) {
             $realPath = $data['photo']->getRealPath();
 
-            if (!$realPath) {
+            if (! $realPath) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Impossible d’accéder à la photo temporaire envoyée.',
@@ -258,7 +256,7 @@ class CandidateController extends Controller
         $videoLimitLabel = $this->videoUploadLimitLabel();
 
         $data = $request->validate([
-            'video' => ['required', 'file', 'mimes:mp4,mov,m4v,webm', 'max:' . $this->videoUploadMaxSizeKilobytes()],
+            'video' => ['required', 'file', 'mimes:mp4,mov,m4v,webm', 'max:'.$this->videoUploadMaxSizeKilobytes()],
         ], [
             'video.required' => 'Veuillez sélectionner une vidéo.',
             'video.file' => 'Le fichier choisi doit être une vidéo valide.',
@@ -275,7 +273,7 @@ class CandidateController extends Controller
         if ($this->usesCloudinaryMedia()) {
             $realPath = $data['video']->getRealPath();
 
-            if (!$realPath) {
+            if (! $realPath) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Impossible d’accéder à la vidéo temporaire envoyée.',
@@ -376,7 +374,7 @@ class CandidateController extends Controller
         $user = request()->user();
         $candidate = $user?->candidate()->with('category')->first();
 
-        if (!$candidate) {
+        if (! $candidate) {
             return response()->json([
                 'message' => 'Profil candidat introuvable.',
             ], 404);
@@ -441,7 +439,7 @@ class CandidateController extends Controller
         return response()->json([
             'candidate' => [
                 'id' => $candidate->id,
-                'name' => trim($candidate->first_name . ' ' . $candidate->last_name),
+                'name' => trim($candidate->first_name.' '.$candidate->last_name),
                 'category' => $candidate->category?->name ?? 'Candidat',
                 'university' => $candidate->university,
                 'public_number' => $candidate->public_number,
@@ -479,7 +477,7 @@ class CandidateController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'La photo a ete recue, mais son traitement a echoue. ' . $exception->getMessage(),
+                'message' => 'La photo a ete recue, mais son traitement a echoue. '.$exception->getMessage(),
                 'candidate' => $candidate->fresh(),
             ], 500);
         }
@@ -522,7 +520,7 @@ class CandidateController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'La photo a ete recue, mais son traitement a echoue. ' . $exception->getMessage(),
+                'message' => 'La photo a ete recue, mais son traitement a echoue. '.$exception->getMessage(),
                 'candidate' => $candidate->fresh(),
             ], 500);
         }
@@ -542,14 +540,14 @@ class CandidateController extends Controller
 
     private function compressVideo(string $relativePath): ?string
     {
-        if (!class_exists(\ProtoneMedia\LaravelFFMpeg\Support\FFMpeg::class)) {
+        if (! class_exists(\ProtoneMedia\LaravelFFMpeg\Support\FFMpeg::class)) {
             return $relativePath; // leave original
         }
 
         try {
             $filename = pathinfo($relativePath, PATHINFO_FILENAME);
             $ext = pathinfo($relativePath, PATHINFO_EXTENSION);
-            $compressed = 'candidates/videos/' . $filename . '-compressed.' . $ext;
+            $compressed = 'candidates/videos/'.$filename.'-compressed.'.$ext;
 
             \ProtoneMedia\LaravelFFMpeg\Support\FFMpeg::fromDisk('public')
                 ->open($relativePath)
@@ -566,14 +564,15 @@ class CandidateController extends Controller
 
     private function deleteStoredVideo(?string $path, array $meta = []): void
     {
-        if (!$path) {
+        if (! $path) {
             return;
         }
 
         if ($this->usesCloudinaryMedia()) {
             $asset = $meta['cloudinary'] ?? null;
-            if (is_array($asset) && !empty($asset['public_id'])) {
+            if (is_array($asset) && ! empty($asset['public_id'])) {
                 $this->cloudinaryMedia->destroy($asset);
+
                 return;
             }
         }
@@ -583,7 +582,7 @@ class CandidateController extends Controller
         }
 
         $normalizedPath = MediaUrl::toStorageRelativePath($path);
-        if (!$normalizedPath) {
+        if (! $normalizedPath) {
             return;
         }
 
@@ -592,7 +591,7 @@ class CandidateController extends Controller
 
     private function invalidUploadResponse(?UploadedFile $file, string $field, string $label, ?string $appLimitLabel = null): ?JsonResponse
     {
-        if (!$file || $file->isValid()) {
+        if (! $file || $file->isValid()) {
             return null;
         }
 

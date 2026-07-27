@@ -8,6 +8,8 @@ import './Navbar.css';
 const BASE_NAV_LINKS = [
   { to: '/',           label: 'Accueil' },
   { to: '/candidates', label: 'Candidats' },
+  { to: '/billetterie', label: 'Billetterie' },
+  { to: '/j-y-serai',  label: "J'y serai" },
   { to: '/gallery',    label: 'Galerie' },
   { to: '/projet-social', label: "Projets d'Impact" },
   { to: '/about',      label: 'À propos' },
@@ -141,6 +143,14 @@ const Navbar = ({ votingBlocked = false }) => {
                           Mon espace candidat
                         </Link>
                       )}
+                      <Link to="/billetterie/mes-billets" className="ud-item">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                          <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="1.8"/>
+                          <path d="M2 10h20" stroke="currentColor" strokeWidth="1.8"/>
+                          <path d="M9 4v16" stroke="currentColor" strokeWidth="1.8" strokeDasharray="3 2"/>
+                        </svg>
+                        Mes billets
+                      </Link>
                     </div>
                     <div className="user-dropdown-footer">
                       <button className="ud-logout" onClick={() => setLogoutConfirm(true)}>
@@ -203,6 +213,7 @@ const Navbar = ({ votingBlocked = false }) => {
               {isAuthenticated && (
                 <>
                   {isCandidate && <Link to="/dashboard" className="mobile-nav-link">Mon espace candidat</Link>}
+                  <Link to="/billetterie/mes-billets" className="mobile-nav-link">Mes billets</Link>
                   <button className="mobile-logout" onClick={() => setLogoutConfirm(true)}>Se déconnecter</button>
                 </>
               )}

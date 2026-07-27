@@ -9,11 +9,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $needsOriginalPath = !Schema::hasColumn('candidates', 'photo_original_path');
-        $needsVariants = !Schema::hasColumn('candidates', 'photo_variants');
-        $needsMeta = !Schema::hasColumn('candidates', 'photo_meta');
-        $needsStatus = !Schema::hasColumn('candidates', 'photo_processing_status');
-        $needsError = !Schema::hasColumn('candidates', 'photo_processing_error');
+        $needsOriginalPath = ! Schema::hasColumn('candidates', 'photo_original_path');
+        $needsVariants = ! Schema::hasColumn('candidates', 'photo_variants');
+        $needsMeta = ! Schema::hasColumn('candidates', 'photo_meta');
+        $needsStatus = ! Schema::hasColumn('candidates', 'photo_processing_status');
+        $needsError = ! Schema::hasColumn('candidates', 'photo_processing_error');
 
         Schema::table('candidates', function (Blueprint $table) use (
             $needsOriginalPath,

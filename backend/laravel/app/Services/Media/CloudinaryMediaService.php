@@ -22,7 +22,7 @@ class CloudinaryMediaService
 
     public function uploadFile(string $absolutePath, array $options = []): array
     {
-        if (!is_file($absolutePath)) {
+        if (! is_file($absolutePath)) {
             throw new RuntimeException("Fichier Cloudinary introuvable: {$absolutePath}");
         }
 
@@ -59,8 +59,8 @@ class CloudinaryMediaService
             ->attach('file', $contents, $filename)
             ->post($endpoint, $payload);
 
-        if (!$response->successful()) {
-            throw new RuntimeException('Echec de l’upload Cloudinary: ' . $response->body());
+        if (! $response->successful()) {
+            throw new RuntimeException('Echec de l’upload Cloudinary: '.$response->body());
         }
 
         $data = $response->json();
@@ -82,12 +82,12 @@ class CloudinaryMediaService
 
     public function destroy(?array $asset = null): void
     {
-        if (!$this->enabled() || !is_array($asset)) {
+        if (! $this->enabled() || ! is_array($asset)) {
             return;
         }
 
         $publicId = $asset['public_id'] ?? null;
-        if (!$publicId) {
+        if (! $publicId) {
             return;
         }
 
@@ -103,8 +103,8 @@ class CloudinaryMediaService
                 'invalidate' => 'true',
             ]);
 
-        if (!$response->successful()) {
-            throw new RuntimeException('Echec de la suppression Cloudinary: ' . $response->body());
+        if (! $response->successful()) {
+            throw new RuntimeException('Echec de la suppression Cloudinary: '.$response->body());
         }
     }
 

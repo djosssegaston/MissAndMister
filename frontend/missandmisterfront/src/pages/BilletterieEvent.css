@@ -1,0 +1,1099 @@
+/* ═══════════════════════════════════════════════
+   BILLETTERIE EVENT — Detail + Purchase
+   Chart: luxury dark gold & black
+   ═══════════════════════════════════════════════ */
+
+/* ── Page Wrapper ── */
+.bilevt-page {
+  min-height: 100vh;
+}
+
+/* ── Hero ── */
+.bilevt-hero {
+  position: relative;
+  padding: clamp(3.5rem, 8vw, 6rem) 0 clamp(2rem, 5vw, 3.5rem);
+  overflow: hidden;
+  min-height: 320px;
+}
+
+@media (min-width: 1024px) {
+  .bilevt-hero {
+    min-height: 400px;
+  }
+}
+
+.bilevt-hero-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bilevt-hero-bg-img {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(30px) brightness(0.3);
+  transform: scale(1.2);
+}
+
+.bilevt-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(5, 5, 5, 0.7) 0%, rgba(5, 5, 5, 0.95) 100%);
+}
+
+.bilevt-orb-1 {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  bottom: -200px;
+  right: -100px;
+  border-radius: 50%;
+  background: var(--primary-gold);
+  opacity: 0.04;
+  filter: blur(120px);
+}
+
+.bilevt-hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+.bilevt-hero-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Hero Poster ── */
+.bilevt-hero-poster {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center top;
+}
+
+.bilevt-hero--poster .bilevt-hero-bg-img {
+  display: none;
+}
+
+.bilevt-hero--poster .bilevt-hero-overlay {
+  background: linear-gradient(180deg, rgba(5, 5, 5, 0.15) 0%, rgba(5, 5, 5, 0.45) 50%, rgba(5, 5, 5, 0.92) 100%);
+}
+
+.bilevt-back {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.bilevt-back:hover {
+  color: var(--primary-gold);
+}
+
+/* ── Section ── */
+.bilevt-section {
+  padding: clamp(2rem, 5vw, 3.5rem) 0 clamp(2.5rem, 6vw, 4rem);
+  background:
+    radial-gradient(circle at 30% 20%, rgba(212, 175, 55, 0.025), transparent 30%),
+    linear-gradient(180deg, #050505 0%, #080808 50%, #050505 100%);
+}
+
+.bilevt-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xl) 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--font-secondary);
+  font-size: 0.9rem;
+}
+
+/* ── State Card ── */
+.bilevt-state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--spacing-sm);
+  padding: clamp(2.5rem, 6vw, 4rem) var(--spacing-lg);
+  background: linear-gradient(145deg, rgba(16, 16, 16, 0.82), rgba(8, 8, 8, 0.78));
+  border: 1px solid rgba(212, 175, 55, 0.12);
+  border-radius: 20px;
+  backdrop-filter: blur(12px);
+  max-width: 450px;
+  margin: 0 auto;
+}
+
+.bilevt-state-card h3 {
+  font-family: var(--font-primary);
+  font-size: 1.3rem;
+  color: var(--primary-gold);
+}
+
+.bilevt-state-card p {
+  font-family: var(--font-secondary);
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.7;
+}
+
+/* ═══════════════════════════════════════════════
+   LAYOUT — Desktop: wide 2-column
+   ═══════════════════════════════════════════════ */
+.bilevt-layout {
+  display: grid;
+  grid-template-columns: 1fr 460px;
+  gap: 3rem;
+  align-items: start;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ── Info (Left) ── */
+.bilevt-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.bilevt-info-img {
+  display: none;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(212, 175, 55, 0.1);
+  aspect-ratio: 16 / 10;
+  background: rgba(16, 16, 16, 0.5);
+}
+
+.bilevt-info-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.bilevt-info-title {
+  font-family: var(--font-primary);
+  font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+  font-weight: 700;
+  color: var(--white);
+  line-height: 1.15;
+  margin-bottom: 0;
+}
+
+.bilevt-info-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.35rem;
+  background: linear-gradient(145deg, rgba(16, 16, 16, 0.7), rgba(10, 10, 10, 0.6));
+  border: 1px solid rgba(212, 175, 55, 0.1);
+  border-radius: 14px;
+  position: relative;
+}
+
+.bilevt-info-meta::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 18px;
+  height: 18px;
+  border-top: 1px solid rgba(212, 175, 55, 0.18);
+  border-left: 1px solid rgba(212, 175, 55, 0.18);
+  border-radius: 3px 0 0 0;
+  pointer-events: none;
+}
+
+.bilevt-info-meta::after {
+  content: '';
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+  border-right: 1px solid rgba(212, 175, 55, 0.18);
+  border-radius: 0 0 3px 0;
+  pointer-events: none;
+}
+
+.bilevt-info-meta-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.bilevt-info-meta-icon {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(212, 175, 55, 0.07);
+  border: 1px solid rgba(212, 175, 55, 0.16);
+  border-radius: 10px;
+  color: var(--primary-gold);
+}
+
+.bilevt-info-meta-item > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bilevt-meta-label {
+  font-family: var(--font-secondary);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.bilevt-meta-value {
+  font-family: var(--font-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.4;
+}
+
+.bilevt-info-desc {
+  display: none;
+  padding: 1.35rem;
+  background: linear-gradient(145deg, rgba(16, 16, 16, 0.7), rgba(10, 10, 10, 0.6));
+  border: 1px solid rgba(212, 175, 55, 0.1);
+  border-radius: 14px;
+  position: relative;
+}
+
+.bilevt-info-desc::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 18px;
+  height: 18px;
+  border-top: 1px solid rgba(212, 175, 55, 0.18);
+  border-left: 1px solid rgba(212, 175, 55, 0.18);
+  border-radius: 3px 0 0 0;
+  pointer-events: none;
+}
+
+.bilevt-info-desc::after {
+  content: '';
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+  border-right: 1px solid rgba(212, 175, 55, 0.18);
+  border-radius: 0 0 3px 0;
+  pointer-events: none;
+}
+
+.bilevt-info-desc h3 {
+  font-family: var(--font-primary);
+  font-size: 1.05rem;
+  color: var(--primary-gold);
+  margin-bottom: 0.6rem;
+}
+
+.bilevt-info-desc p {
+  font-family: var(--font-secondary);
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.8;
+}
+
+/* ── Tickets (Right) ── */
+.bilevt-tickets {
+  position: sticky;
+  top: 90px;
+}
+
+.bilevt-tickets-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.08);
+}
+
+.bilevt-tickets-header h2 {
+  font-family: var(--font-primary);
+  font-size: 1.25rem;
+  color: var(--primary-gold);
+}
+
+.bilevt-tickets-count {
+  font-family: var(--font-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--primary-gold);
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+/* ── Ticket Card ── */
+.bilevt-ticket-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.bilevt-ticket {
+  padding: 1.25rem 1.4rem;
+  background: linear-gradient(155deg, rgba(16, 16, 16, 0.82), rgba(10, 10, 10, 0.78));
+  border: 1px solid rgba(212, 175, 55, 0.08);
+  border-radius: 14px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.bilevt-ticket::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 14px;
+  height: 14px;
+  border-top: 1px solid rgba(212, 175, 55, 0.1);
+  border-left: 1px solid rgba(212, 175, 55, 0.1);
+  border-radius: 3px 0 0 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.bilevt-ticket::after {
+  content: '';
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 14px;
+  height: 14px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+  border-right: 1px solid rgba(212, 175, 55, 0.1);
+  border-radius: 0 0 3px 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.bilevt-ticket-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.12;
+  filter: blur(2px);
+  z-index: 0;
+  transition: opacity 0.3s ease;
+}
+
+.bilevt-ticket--selected .bilevt-ticket-bg {
+  opacity: 0.22;
+}
+
+.bilevt-ticket-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
+.bilevt-ticket--selected {
+  border-color: rgba(212, 175, 55, 0.35);
+  background: linear-gradient(155deg, rgba(212, 175, 55, 0.06), rgba(10, 10, 10, 0.78));
+  box-shadow: 0 4px 24px rgba(212, 175, 55, 0.08), inset 0 1px 0 rgba(212, 175, 55, 0.08);
+}
+
+.bilevt-ticket--soldout {
+  opacity: 0.45;
+}
+
+.bilevt-ticket-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.bilevt-ticket-name {
+  font-family: var(--font-primary);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 0.25rem;
+  line-height: 1.3;
+}
+
+.bilevt-ticket-desc {
+  font-family: var(--font-secondary);
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.38);
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+.bilevt-ticket-details {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.bilevt-ticket-price {
+  font-family: var(--font-secondary);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary-gold);
+}
+
+.bilevt-ticket-remaining {
+  font-family: var(--font-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.bilevt-soldout-label {
+  font-family: var(--font-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #ef4444;
+}
+
+/* ── Quantity Picker ── */
+.bilevt-ticket-action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.bilevt-qty {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(16, 16, 16, 0.85);
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.bilevt-qty-btn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--primary-gold);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.bilevt-qty-btn:hover:not(:disabled) {
+  background: rgba(212, 175, 55, 0.12);
+}
+
+.bilevt-qty-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.bilevt-qty-value {
+  width: 38px;
+  text-align: center;
+  font-family: var(--font-secondary);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--white);
+}
+
+/* ── Buy Button / Base Button ── */
+.bilevt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-secondary);
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.5px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bilevt-btn-primary {
+  background: var(--gradient-gold);
+  color: var(--primary-black);
+  box-shadow: 0 3px 12px rgba(212, 175, 55, 0.2);
+}
+
+.bilevt-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 6px 24px rgba(212, 175, 55, 0.35);
+  transform: translateY(-1px);
+}
+
+.bilevt-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.bilevt-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bilevt-btn-buy {
+  flex: 1;
+  white-space: nowrap;
+}
+
+/* ── Buy Bar (sticky bottom) ── */
+.bilevt-buy-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding: 1rem 1.35rem;
+  background: linear-gradient(155deg, rgba(16, 16, 16, 0.95), rgba(10, 10, 10, 0.92));
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  border-radius: 14px;
+  backdrop-filter: blur(16px);
+  position: sticky;
+  bottom: 16px;
+  z-index: 10;
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.05);
+}
+
+.bilevt-buy-bar-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.bilevt-buy-bar-name {
+  font-family: var(--font-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bilevt-buy-bar-qty {
+  font-family: var(--font-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.bilevt-buy-bar .bilevt-btn-buy {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* ── Alerts ── */
+.bilevt-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-family: var(--font-secondary);
+  font-size: 0.82rem;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.bilevt-alert-error {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  color: #f87171;
+}
+
+.bilevt-alert-success {
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+  color: #4ade80;
+}
+
+/* ── No tickets ── */
+.bilevt-no-tickets {
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  background: linear-gradient(145deg, rgba(16, 16, 16, 0.6), rgba(10, 10, 10, 0.5));
+  border: 1px dashed rgba(212, 175, 55, 0.12);
+  border-radius: 14px;
+}
+
+.bilevt-no-tickets p {
+  font-family: var(--font-secondary);
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Login Notice ── */
+.bilevt-login-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(212, 175, 55, 0.06);
+  border: 1px solid rgba(212, 175, 55, 0.12);
+  border-radius: 10px;
+  font-family: var(--font-secondary);
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.bilevt-login-notice a {
+  color: var(--primary-gold);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.bilevt-login-notice a:hover {
+  text-decoration: underline;
+}
+
+/* ═══════════════════════════════════════════════
+   ORDER MODAL — Guest Checkout
+   ═══════════════════════════════════════════════ */
+
+.bilevt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  padding: 1rem;
+}
+
+.bilevt-modal {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: linear-gradient(155deg, rgba(18, 18, 18, 0.98), rgba(10, 10, 10, 0.96));
+  border: 1px solid rgba(212, 175, 55, 0.16);
+  border-radius: 20px;
+  padding: 2rem;
+  position: relative;
+}
+
+.bilevt-modal::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 22px;
+  height: 22px;
+  border-top: 1px solid rgba(212, 175, 55, 0.15);
+  border-left: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 3px 0 0 0;
+  pointer-events: none;
+}
+
+.bilevt-modal::after {
+  content: '';
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 22px;
+  height: 22px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+  border-right: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 0 0 3px 0;
+  pointer-events: none;
+}
+
+/* Hide scrollbar in modal */
+.bilevt-modal::-webkit-scrollbar {
+  width: 4px;
+}
+.bilevt-modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+.bilevt-modal::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.2);
+  border-radius: 2px;
+}
+
+.bilevt-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.bilevt-modal-header h3 {
+  font-family: var(--font-primary);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--primary-gold);
+}
+
+.bilevt-modal-close {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.bilevt-modal-close:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.bilevt-modal-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.1rem;
+  background: rgba(212, 175, 55, 0.05);
+  border: 1px solid rgba(212, 175, 55, 0.1);
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  font-family: var(--font-secondary);
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.bilevt-modal-total {
+  font-weight: 700;
+  color: var(--primary-gold);
+  font-size: 1.1rem;
+}
+
+/* ── Form Fields ── */
+.bilevt-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.bilevt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bilevt-label {
+  font-family: var(--font-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.bilevt-required {
+  color: #ef4444;
+}
+
+.bilevt-input {
+  width: 100%;
+  padding: 0.72rem 1rem;
+  background: rgba(16, 16, 16, 0.8);
+  border: 1px solid rgba(212, 175, 55, 0.1);
+  border-radius: 10px;
+  font-family: var(--font-secondary);
+  font-size: 0.9rem;
+  color: var(--white);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.bilevt-input::placeholder {
+  color: rgba(255, 255, 255, 0.22);
+}
+
+.bilevt-input:focus {
+  border-color: rgba(212, 175, 55, 0.35);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.06);
+}
+
+.bilevt-input--error {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.bilevt-input--error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
+}
+
+.bilevt-field-error {
+  font-family: var(--font-secondary);
+  font-size: 0.7rem;
+  color: #f87171;
+}
+
+/* ── Delivery Options ── */
+.bilevt-delivery {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.bilevt-delivery-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.6rem 0.4rem;
+  background: rgba(16, 16, 16, 0.7);
+  border: 1px solid rgba(212, 175, 55, 0.08);
+  border-radius: 10px;
+  font-family: var(--font-secondary);
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.bilevt-delivery-option:hover {
+  border-color: rgba(212, 175, 55, 0.2);
+  background: rgba(212, 175, 55, 0.04);
+}
+
+.bilevt-delivery-option input[type="radio"] {
+  display: none;
+}
+
+.bilevt-delivery-option--active {
+  border-color: rgba(212, 175, 55, 0.4);
+  background: rgba(212, 175, 55, 0.08);
+  color: var(--primary-gold);
+  font-weight: 600;
+}
+
+.bilevt-delivery-option svg {
+  flex-shrink: 0;
+}
+
+/* ── Modal Alert ── */
+.bilevt-modal-alert {
+  margin-top: 0.75rem;
+}
+
+/* ── Modal Actions ── */
+.bilevt-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.bilevt-btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.bilevt-btn-ghost:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.bilevt-btn-confirm {
+  flex: 1;
+  padding: 0.85rem 1.5rem;
+  font-size: 0.88rem;
+}
+
+.bilevt-modal-total-btn {
+  font-weight: 700;
+  opacity: 0.8;
+  margin-left: 4px;
+}
+
+/* ── Spinner ── */
+.bilevt-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top-color: var(--primary-black);
+  border-radius: 50%;
+  animation: bilevt-spin 0.6s linear infinite;
+}
+
+@keyframes bilevt-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE — Desktop wide → Tablet → Mobile
+   ═══════════════════════════════════════════════ */
+
+/* ── Large desktop: show image + description ── */
+@media (min-width: 1024px) {
+  .bilevt-info-img {
+    display: block;
+  }
+
+  .bilevt-info-desc {
+    display: block;
+  }
+
+  .bilevt-layout {
+    grid-template-columns: 1fr 460px;
+    gap: 3.5rem;
+  }
+}
+
+/* ── Extra wide: even more breathing room ── */
+@media (min-width: 1440px) {
+  .bilevt-layout {
+    grid-template-columns: 1fr 500px;
+    gap: 4rem;
+  }
+}
+
+/* ── Tablet ── */
+@media (max-width: 1023px) {
+  .bilevt-layout {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .bilevt-tickets {
+    position: static;
+  }
+
+  .bilevt-hero {
+    min-height: 260px;
+  }
+
+  .bilevt-section {
+    padding: clamp(1.5rem, 4vw, 2.5rem) 0 clamp(2rem, 5vw, 3rem);
+  }
+}
+
+/* ── Small tablet ── */
+@media (max-width: 768px) {
+  .bilevt-hero {
+    min-height: 200px;
+  }
+
+  .bilevt-info-meta {
+    padding: 1.1rem;
+  }
+}
+
+/* ── Mobile ── */
+@media (max-width: 600px) {
+  .bilevt-section {
+    padding: var(--spacing-xl) 0;
+  }
+
+  .bilevt-hero {
+    min-height: 170px;
+    padding: clamp(2.5rem, 6vw, 3.5rem) 0 clamp(1.5rem, 3vw, 2rem);
+  }
+
+  .bilevt-hero--poster {
+    min-height: 210px;
+  }
+
+  .bilevt-info-title {
+    font-size: clamp(1.35rem, 5vw, 1.8rem);
+  }
+
+  .bilevt-ticket-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+  }
+
+  .bilevt-ticket-action {
+    justify-content: flex-start;
+  }
+
+  .bilevt-buy-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    bottom: 8px;
+  }
+
+  .bilevt-buy-bar .bilevt-btn-buy {
+    width: 100%;
+  }
+}
+
+/* ── Very small mobile ── */
+@media (max-width: 500px) {
+  .bilevt-modal {
+    padding: 1.35rem;
+    border-radius: 16px;
+    max-height: 85vh;
+  }
+
+  .bilevt-delivery {
+    grid-template-columns: 1fr;
+  }
+
+  .bilevt-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .bilevt-modal-actions .bilevt-btn-primary {
+    width: 100%;
+  }
+
+  .bilevt-modal-actions .bilevt-btn-ghost {
+    width: 100%;
+    text-align: center;
+  }
+}

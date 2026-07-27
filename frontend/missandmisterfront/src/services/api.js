@@ -605,15 +605,18 @@ const wakeBackend = async () => {
 };
 
 const LEGACY_CANDIDATES_PAGE_SIZE = PUBLIC_CANDIDATES_PAGE_SIZE;
-const isCandidatePublicEndpointCoolingDown = () => readStoredNumber(CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY) > Date.now();
+const isCandidatePublicEndpointCoolingDown = () => !IS_LOCAL_DEV && readStoredNumber(CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY) > Date.now();
 const rememberCandidatePublicEndpointFailure = () => {
+  if (IS_LOCAL_DEV) return;
   writeStoredNumber(CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY, Date.now() + CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_MS);
 };
 const clearCandidatePublicEndpointFailure = () => {
   writeStoredNumber(CANDIDATE_PUBLIC_ENDPOINT_OUTAGE_KEY, 0);
 };
-const isReadTransportCoolingDown = () => readStoredNumber(READ_TRANSPORT_COOLDOWN_KEY) > Date.now();
+const IS_LOCAL_DEV = /(localhost|127\.0\.0\.1)/i.test(API_BASE_URL);
+const isReadTransportCoolingDown = () => !IS_LOCAL_DEV && readStoredNumber(READ_TRANSPORT_COOLDOWN_KEY) > Date.now();
 const rememberReadTransportCooldown = (durationMs = READ_TRANSPORT_COOLDOWN_MS) => {
+  if (IS_LOCAL_DEV) return;
   writeStoredNumber(READ_TRANSPORT_COOLDOWN_KEY, Date.now() + Math.max(0, Number(durationMs) || 0));
 };
 const clearReadTransportCooldown = () => {
@@ -1348,7 +1351,7 @@ export const paymentAPI = {
 
   // Synchroniser publiquement un paiement FedaPay a partir de sa reference
   syncPublic: async (reference) => {
-    return fetchPublicAPI(`/payments/${encodeURIComponent(reference)}/sync`, {
+    return fetchPublicAPI(`/public/payments/${encodeURIComponent(reference)}/sync`, {
       timeout: 30000,
     });
   },
@@ -1463,7 +1466,7 @@ export const adminAPI = {
     return fetchAPI(`/admin/candidates/${id}/video`, {
       method: 'POST',
       body: formData,
-      timeout: 0,
+      timeout: 300000,
     });
   },
 
@@ -1619,6 +1622,153 @@ export const settingsAPI = {
   },
 };
 
+// ===== J'Y SERAI =====
+export const jseraiAPI = {
+  init: async () => {
+    return fetchPublicAPI('/j-ierai/init');
+  },
+
+  create: async (data) => {
+    return fetchPublicAPI('/j-ierai/tickets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (uuid, data, editToken) => {
+    return fetchPublicAPI(`/j-ierai/tickets/${uuid}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      headers: { 'X-Edit-Token': editToken },
+    });
+  },
+
+  uploadPhoto: async (uuid, file, editToken) => {
+    const fd = new FormData();
+    fd.append('photo', file);
+    return fetchPublicAPI(`/j-ierai/tickets/${uuid}/photo`, {
+      method: 'POST',
+      body: fd,
+      headers: { 'X-Edit-Token': editToken },
+      timeout: 120000,
+    });
+  },
+
+  get: async (uuid) => {
+    return fetchPublicAPI(`/j-ierai/tickets/${uuid}`);
+  },
+
+  regenerate: async (uuid, editToken) => {
+    return fetchPublicAPI(`/j-ierai/tickets/${uuid}/generate`, {
+      method: 'POST',
+      headers: { 'X-Edit-Token': editToken },
+    });
+  },
+
+  download: async (uuid, editToken) => {
+    const baseUrls = [
+      API_BASE_URL,
+      DIRECT_API_BASE_URL,
+      PROXY_API_BASE_URL,
+    ].filter(Boolean);
+
+    let lastError = null;
+    for (const baseUrl of baseUrls) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+        const response = await fetch(`${baseUrl}/j-ierai/tickets/${uuid}/download`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/octet-stream, image/png, image/*',
+            'X-Edit-Token': editToken,
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.message || 'Erreur lors du téléchargement');
+        }
+
+        const blob = await response.blob();
+        const disposition = response.headers.get('content-disposition') || '';
+        const match = disposition.match(/filename="?(.+?)"?$/);
+        const filename = match ? match[1] : `j-y-serai-${uuid}.png`;
+
+        return { blob, filename };
+      } catch (err) {
+        lastError = err;
+        continue;
+      }
+    }
+
+    throw lastError || new Error('Impossible de télécharger l\'affiche.');
+  },
+};
+
+export const adminJSeraiAPI = {
+  getTemplates: async () => {
+    return fetchAPI('/admin/j-ierai/templates');
+  },
+
+  createTemplate: async (formData) => {
+    return fetchAPI('/admin/j-ierai/templates', {
+      method: 'POST',
+      body: formData,
+      timeout: 120000,
+    });
+  },
+
+  updateTemplate: async (id, formData) => {
+    return fetchAPI(`/admin/j-ierai/templates/${id}`, {
+      method: 'PUT',
+      body: formData,
+      timeout: 120000,
+    });
+  },
+
+  deleteTemplate: async (id) => {
+    return fetchAPI(`/admin/j-ierai/templates/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  activateTemplate: async (id) => {
+    return fetchAPI(`/admin/j-ierai/templates/${id}/activate`, {
+      method: 'PATCH',
+    });
+  },
+
+  getStats: async () => {
+    return fetchAPI('/admin/j-ierai/stats');
+  },
+
+  getTickets: async (params = {}) => {
+    const query = buildQueryString(params);
+    return fetchAPI(`/admin/j-ierai/tickets${query}`);
+  },
+
+  getTicket: async (uuid) => {
+    return fetchAPI(`/admin/j-ierai/tickets/${uuid}`);
+  },
+
+  downloadTicket: async (uuid) => {
+    return fetchAPIBlob(`/admin/j-ierai/tickets/${uuid}/download`, {
+      headers: { 'Accept': 'application/octet-stream, image/png, image/*' },
+    });
+  },
+
+  deleteTicket: async (uuid) => {
+    return fetchAPI(`/admin/j-ierai/tickets/${uuid}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 export const publicAPI = {
   getInitData: async () => {
     return fetchPublicAPI('/public/init-data', {
@@ -1629,6 +1779,147 @@ export const publicAPI = {
   getLastUpdate: async () => {
     return fetchPublicAPI('/public/last-update', {
       timeout: 10000,
+    });
+  },
+};
+
+// ===== BILLETTERIE =====
+export const billetterieAPI = {
+  getEvents: async () => {
+    return fetchPublicAPI('/billetterie/events', { timeout: 30000 });
+  },
+
+  getEvent: async (id) => {
+    return fetchPublicAPI(`/billetterie/events/${id}`, { timeout: 30000 });
+  },
+
+  order: async (orderData) => {
+    return fetchPublicAPI('/billetterie/orders', {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+      timeout: 45000,
+    });
+  },
+
+  getOrder: async (orderId) => {
+    return fetchAPI(`/billetterie/orders/${orderId}`, { timeout: 30000 });
+  },
+
+  getOrderPublic: async (paymentReference) => {
+    return fetchPublicAPI(`/billetterie/order/${encodeURIComponent(paymentReference)}`, { timeout: 30000 });
+  },
+
+  getMyTickets: async () => {
+    return fetchAPI('/billetterie/mes-billets', { timeout: 30000 });
+  },
+
+  verifyTicket: async (ticketCode) => {
+    return fetchPublicAPI(`/billetterie/verify/${encodeURIComponent(ticketCode)}`, { timeout: 15000 });
+  },
+};
+
+export const adminBilletterieAPI = {
+  getEvents: async () => {
+    return fetchAPI('/admin/billetterie/events', { timeout: 30000 });
+  },
+
+  createEvent: async (formData) => {
+    return fetchAPI('/admin/billetterie/events', {
+      method: 'POST',
+      body: formData,
+      timeout: 120000,
+    });
+  },
+
+  getEvent: async (id) => {
+    return fetchAPI(`/admin/billetterie/events/${id}`, { timeout: 30000 });
+  },
+
+  updateEvent: async (id, formData) => {
+    formData.append('_method', 'PUT');
+    return fetchAPI(`/admin/billetterie/events/${id}`, {
+      method: 'POST',
+      body: formData,
+      timeout: 120000,
+    });
+  },
+
+  deleteEvent: async (id) => {
+    return fetchAPI(`/admin/billetterie/events/${id}`, { method: 'DELETE' });
+  },
+
+  createTicketType: async (eventId, data) => {
+    return fetchAPI(`/admin/billetterie/events/${eventId}/ticket-types`, {
+      method: 'POST',
+      body: data instanceof FormData ? data : JSON.stringify(data),
+      timeout: 60000,
+    });
+  },
+
+  updateTicketType: async (eventId, typeId, data) => {
+    if (data instanceof FormData) {
+      data.append('_method', 'PUT');
+      return fetchAPI(`/admin/billetterie/events/${eventId}/ticket-types/${typeId}`, {
+        method: 'POST',
+        body: data,
+        timeout: 60000,
+      });
+    }
+    return fetchAPI(`/admin/billetterie/events/${eventId}/ticket-types/${typeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteTicketType: async (eventId, typeId) => {
+    return fetchAPI(`/admin/billetterie/events/${eventId}/ticket-types/${typeId}`, { method: 'DELETE' });
+  },
+
+  getOrders: async (params = {}) => {
+    const query = buildQueryString({ per_page: 100, ...params });
+    return fetchAPI(`/admin/billetterie/orders${query}`, { timeout: 30000 });
+  },
+
+  exportOrders: async (params = {}) => {
+    const query = buildQueryString(params);
+    return fetchAPIBlob(`/admin/billetterie/orders/export${query}`, { timeout: 120000 });
+  },
+
+  checkin: async (ticketCode) => {
+    return fetchAPI('/admin/billetterie/checkin', {
+      method: 'POST',
+      body: JSON.stringify({ ticket_code: ticketCode }),
+      timeout: 15000,
+    });
+  },
+
+  getStats: async () => {
+    return fetchAPI('/admin/billetterie/stats', { timeout: 30000 });
+  },
+
+  uploadTicketTemplate: async (eventId, typeId, formData) => {
+    return fetchAPI(`/admin/billetterie/events/${eventId}/ticket-types/${typeId}/template`, {
+      method: 'POST',
+      body: formData,
+      timeout: 60000,
+    });
+  },
+};
+
+export const scanAPI = {
+  validate: async (code, token, sig) => {
+    return fetchAPI('/admin/ticket-scan/validate', {
+      method: 'POST',
+      body: JSON.stringify({ code, token, sig }),
+      timeout: 8000,
+    });
+  },
+
+  verify: async (code, token, sig) => {
+    return fetchAPI('/admin/ticket-scan/verify', {
+      method: 'POST',
+      body: JSON.stringify({ code, token, sig }),
+      timeout: 8000,
     });
   },
 };
@@ -1649,4 +1940,9 @@ export default {
   admin: adminAPI,
   settings: settingsAPI,
   public: publicAPI,
+  jserai: jseraiAPI,
+  adminJSerai: adminJSeraiAPI,
+  billetterie: billetterieAPI,
+  adminBilletterie: adminBilletterieAPI,
+  scan: scanAPI,
 };

@@ -25,7 +25,7 @@ class MediaUrl
 
     public static function publicPath(string $storagePath): string
     {
-        return '/api/public/media/' . ltrim($storagePath, '/');
+        return '/api/public/media/'.ltrim($storagePath, '/');
     }
 
     public static function toStorageRelativePath(?string $path): ?string
@@ -53,7 +53,7 @@ class MediaUrl
             'storage/app/public/' => 'storage/',
         ] as $prefix => $replacement) {
             if (str_starts_with($normalized, $prefix)) {
-                $normalized = $replacement . substr($normalized, strlen($prefix));
+                $normalized = $replacement.substr($normalized, strlen($prefix));
                 break;
             }
         }

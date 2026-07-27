@@ -41,8 +41,8 @@ class UpdateCandidateRequest extends FormRequest
                     ->ignore($candidateId)
                     ->where(fn ($query) => $query->where('category_id', $targetCategoryId)),
             ],
-            'email' => ['sometimes', 'nullable', 'email', 'required_with:password', 'unique:candidates,email,' . $candidateId, 'unique:users,email,' . $candidateId . ',candidate_id'],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:20', 'unique:candidates,phone,' . $candidateId, 'unique:users,phone,' . $candidateId . ',candidate_id'],
+            'email' => ['sometimes', 'nullable', 'email', 'required_with:password', 'unique:candidates,email,'.$candidateId, 'unique:users,email,'.$candidateId.',candidate_id'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:20', 'unique:candidates,phone,'.$candidateId, 'unique:users,phone,'.$candidateId.',candidate_id'],
             'password' => ['sometimes', 'nullable', 'string', 'confirmed', Password::min(10)->letters()->mixedCase()->numbers()->symbols()],
             'bio' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'description' => ['sometimes', 'nullable', 'string', 'max:1000'],

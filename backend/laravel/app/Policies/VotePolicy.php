@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Models\Vote;
-use Illuminate\Auth\Access\Response;
 
 class VotePolicy
 {

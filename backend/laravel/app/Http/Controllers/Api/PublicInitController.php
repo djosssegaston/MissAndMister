@@ -12,8 +12,7 @@ class PublicInitController extends Controller
     public function __construct(
         private PublicApiPayloadService $publicApi,
         private PaymentService $payments,
-    ) {
-    }
+    ) {}
 
     public function show(): JsonResponse
     {

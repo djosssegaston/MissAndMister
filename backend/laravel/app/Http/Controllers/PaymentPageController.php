@@ -16,8 +16,7 @@ class PaymentPageController extends Controller
     public function __construct(
         private FedaPayService $fedapay,
         private PaymentService $payments,
-    ) {
-    }
+    ) {}
 
     public function show(string $reference): View
     {
@@ -25,7 +24,7 @@ class PaymentPageController extends Controller
             ->where('reference', $reference)
             ->firstOrFail();
 
-        $frontendUrl = rtrim((string) (config('app.frontend_url') ?: config('app.frontend-url') ?: env('FRONTEND_URL', '')), '/');
+        $frontendUrl = rtrim((string) (config('app.frontend_url') ?: config('app.frontend-url', '')), '/');
         $candidateId = (int) (Arr::get($payment->meta, 'candidate_id') ?: $payment->vote?->candidate_id ?: 0);
         $candidatePublicUid = trim((string) ($payment->vote?->candidate?->public_uid ?? ''));
         $candidateSlug = trim((string) ($payment->vote?->candidate?->slug ?? ''));
@@ -37,7 +36,7 @@ class PaymentPageController extends Controller
                 ->find($candidateId);
 
             if ($candidate) {
-                $candidateName = trim(($candidate->first_name ?? '') . ' ' . ($candidate->last_name ?? ''));
+                $candidateName = trim(($candidate->first_name ?? '').' '.($candidate->last_name ?? ''));
                 $candidatePublicUid = $candidatePublicUid !== '' ? $candidatePublicUid : (string) ($candidate->public_uid ?? '');
                 $candidateSlug = $candidateSlug !== '' ? $candidateSlug : (string) ($candidate->slug ?? '');
             }
@@ -51,12 +50,8 @@ class PaymentPageController extends Controller
             ? $candidatePublicUid
             : ($candidateSlug !== '' ? $candidateSlug : null);
         $candidateLink = $candidateIdentifier
-            ? "{$frontendUrl}/candidates/" . rawurlencode($candidateIdentifier)
+            ? "{$frontendUrl}/candidates/".rawurlencode($candidateIdentifier)
             : "{$frontendUrl}/candidates";
-
-        if ($candidateLink === '/candidates') {
-            $candidateLink = '/candidates';
-        }
 
         $quantity = (int) ($payment->vote?->quantity ?: Arr::get($payment->meta, 'quantity', 1));
         $paymentData = [
@@ -73,7 +68,7 @@ class PaymentPageController extends Controller
             ? 'success'
             : (($payment->status === 'failed' || $voteFailed) ? 'failed' : 'opening');
         $paymentDescription = $candidateName !== 'Candidat inconnu'
-            ? 'Vote sécurisé pour ' . $candidateName
+            ? 'Vote sécurisé pour '.$candidateName
             : 'Paiement sécurisé Miss & Mister University Bénin 2026';
         $confirmationUrls = $this->buildConfirmationUrls(
             $payment,
@@ -106,7 +101,7 @@ class PaymentPageController extends Controller
             ->firstOrFail();
         $payment = $this->synchronizeForCallback($payment);
 
-        $frontendUrl = rtrim((string) (config('app.frontend_url') ?: config('app.frontend-url') ?: env('FRONTEND_URL', '')), '/');
+        $frontendUrl = rtrim((string) (config('app.frontend_url') ?: config('app.frontend-url', '')), '/');
         $candidateId = (int) (Arr::get($payment->meta, 'candidate_id') ?: $payment->vote?->candidate_id ?: 0);
         $candidateIdentifier = trim((string) ($payment->vote?->candidate?->public_uid ?? ''));
         if ($candidateIdentifier === '' && $candidateId > 0) {
@@ -125,7 +120,9 @@ class PaymentPageController extends Controller
         );
 
         $voteStatus = (string) ($payment->vote?->status ?? '');
-        if ($payment->status === 'succeeded' && $voteStatus === Vote::STATUS_CONFIRMED) {
+        $isBilletterie = strtolower((string) data_get($payment->meta, 'type')) === 'billetterie';
+
+        if ($payment->status === 'succeeded' && ($voteStatus === Vote::STATUS_CONFIRMED || $isBilletterie)) {
             return $this->redirectToFrontendUrl($urls['success']);
         }
 
@@ -140,12 +137,15 @@ class PaymentPageController extends Controller
     {
         $payment->loadMissing('vote');
 
-        if (!$payment->transaction_id) {
+        if (! $payment->transaction_id) {
             return $payment;
         }
 
+        $isBilletterie = strtolower((string) data_get($payment->meta, 'type')) === 'billetterie';
+
         if (
-            $payment->status === 'succeeded' && $payment->vote?->status === Vote::STATUS_CONFIRMED
+            ($payment->status === 'succeeded' && $isBilletterie)
+            || ($payment->status === 'succeeded' && $payment->vote?->status === Vote::STATUS_CONFIRMED)
             || $payment->status === 'failed'
             || $payment->vote?->status === 'failed'
         ) {
@@ -166,7 +166,7 @@ class PaymentPageController extends Controller
         }
 
         $merchantReference = trim((string) Arr::get($remoteTransaction, 'merchant_reference', ''));
-        if ($merchantReference !== '' && !hash_equals($payment->reference, $merchantReference)) {
+        if ($merchantReference !== '' && ! hash_equals($payment->reference, $merchantReference)) {
             logger()->warning('FedaPay callback reference mismatch', [
                 'payment_id' => $payment->id,
                 'reference' => $payment->reference,
@@ -185,14 +185,24 @@ class PaymentPageController extends Controller
         Payment $payment,
         string $frontendUrl,
     ): array {
-        $basePath = ($frontendUrl !== '' ? $frontendUrl : '') . '/payment/confirmation';
-        $baseParams = array_filter([
-            'reference' => $payment->reference,
-        ], static fn ($value) => $value !== null && $value !== '');
+        $isBilletterie = strtolower((string) data_get($payment->meta, 'type')) === 'billetterie';
+
+        if ($isBilletterie) {
+            $basePath = ($frontendUrl !== '' ? $frontendUrl : '').'/billetterie/confirmation';
+            $baseParams = array_filter([
+                'reference' => $payment->reference,
+            ], static fn ($value) => $value !== null && $value !== '');
+        } else {
+            $basePath = ($frontendUrl !== '' ? $frontendUrl : '').'/payment/confirmation';
+            $baseParams = array_filter([
+                'reference' => $payment->reference,
+            ], static fn ($value) => $value !== null && $value !== '');
+        }
 
         $build = function (string $status) use ($basePath, $baseParams): string {
             $params = array_merge($baseParams, ['status' => $status]);
-            return $basePath . '?' . http_build_query($params);
+
+            return $basePath.'?'.http_build_query($params);
         };
 
         return [

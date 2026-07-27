@@ -25,9 +25,9 @@ class BackupDatabase extends Command
      */
     public function handle()
     {
-        $db = config('database.connections.' . config('database.default'));
+        $db = config('database.connections.'.config('database.default'));
         $database = $db['database'] ?? 'database';
-        $filename = 'backups/' . $database . '_' . now()->format('Ymd_His') . '.sql';
+        $filename = 'backups/'.$database.'_'.now()->format('Ymd_His').'.sql';
 
         $dsn = sprintf(
             'mysql:host=%s;port=%s;dbname=%s',
@@ -41,15 +41,15 @@ class BackupDatabase extends Command
             escapeshellarg($db['host'] ?? '127.0.0.1'),
             escapeshellarg($db['port'] ?? 3306),
             escapeshellarg($db['username'] ?? 'root'),
-            $db['password'] ? '-p' . escapeshellarg($db['password']) : '',
+            $db['password'] ? '-p'.escapeshellarg($db['password']) : '',
             escapeshellarg($database)
         );
 
         $output = shell_exec($command);
 
-        if (!$output) {
+        if (! $output) {
             $this->error('mysqldump not available; writing placeholder backup file instead.');
-            $output = '-- backup placeholder generated at ' . now();
+            $output = '-- backup placeholder generated at '.now();
         }
 
         \Storage::disk('local')->put($filename, $output);

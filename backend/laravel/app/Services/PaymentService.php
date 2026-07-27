@@ -2,17 +2,17 @@
 
 namespace App\Services;
 
+use App\Jobs\SendVoteConfirmationJob;
 use App\Models\ActivityLog;
 use App\Models\Candidate;
 use App\Models\Payment;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Vote;
-use App\Jobs\SendVoteConfirmationJob;
 use App\Repositories\PaymentRepository;
 use App\Repositories\TransactionRepository;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -20,12 +20,19 @@ use Illuminate\Support\Str;
 class PaymentService
 {
     private const DEFAULT_PRICE_PER_IMPORTED_VOTE = 500;
+
     private const DEFAULT_WARM_RECONCILE_LIMIT = 10;
+
     private const DEFAULT_RECONCILE_LIMIT = 50;
+
     private const DEFAULT_RECONCILE_RECENT_HOURS = 2160;
+
     private const RECONCILE_STATUSES = ['initiated', 'processing', 'pending'];
+
     private const FAILURE_STATUSES = ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected', 'refunded'];
+
     private const SUCCESS_STATUSES = ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred'];
+
     private const PROCESSING_STATUSES = ['pending', 'processing', 'created', 'initiated'];
 
     public function __construct(
@@ -33,17 +40,16 @@ class PaymentService
         private TransactionRepository $transactions,
         private FedaPayService $fedapay,
         private PublicApiPayloadService $publicApi,
-    ) {
-    }
+    ) {}
 
-    public function initiate(?int $userId, float $amount, string $currency = "XOF", array $metadata = []): Payment
+    public function initiate(?int $userId, float $amount, string $currency = 'XOF', array $metadata = []): Payment
     {
         $currency = strtoupper($currency);
         $reference = Str::upper(Str::random(12));
         $candidateName = trim((string) Arr::get($metadata, 'candidate_name', ''));
         $voter = $userId ? User::query()->select(['id', 'name', 'email', 'phone'])->find($userId) : null;
         $description = $candidateName !== ''
-            ? 'Vote pour ' . $candidateName
+            ? 'Vote pour '.$candidateName
             : 'Paiement sécurisé Miss & Mister';
         $callbackUrl = route('payments.callback', ['reference' => $reference]);
         $customer = $this->buildCustomerPayload($voter);
@@ -140,7 +146,7 @@ class PaymentService
     public function confirm(string $reference, array $payload = []): ?Payment
     {
         $payment = $this->payments->findByReference($reference);
-        if (!$payment) {
+        if (! $payment) {
             return null;
         }
 
@@ -151,13 +157,13 @@ class PaymentService
         return DB::transaction(function () use ($payment, $payload) {
             $transactionReference = $this->extractTransactionReference($payload) ?? $payment->transaction_id;
 
-            if ($transactionReference && !$payment->transaction_id) {
+            if ($transactionReference && ! $payment->transaction_id) {
                 $payment->update(['transaction_id' => $transactionReference]);
             }
 
             $this->payments->updateStatus($payment, 'succeeded', $payload);
 
-            if (!$transactionReference || !$payment->transactions()->where('provider_reference', $transactionReference)->exists()) {
+            if (! $transactionReference || ! $payment->transactions()->where('provider_reference', $transactionReference)->exists()) {
                 $this->transactions->create([
                     'payment_id' => $payment->id,
                     'type' => 'credit',
@@ -220,8 +226,7 @@ class PaymentService
         int $limit = self::DEFAULT_WARM_RECONCILE_LIMIT,
         int $cooldownSeconds = 45,
         int $recentHours = self::DEFAULT_RECONCILE_RECENT_HOURS,
-    ): void
-    {
+    ): void {
         $this->reconcileUnsettledFedapayPaymentsIfDue($limit, $cooldownSeconds, $recentHours);
         $this->reconcileSuccessfulAssociations(max($limit * 4, 250));
     }
@@ -230,9 +235,8 @@ class PaymentService
         int $limit = 10,
         int $cooldownSeconds = 10,
         int $recentHours = self::DEFAULT_RECONCILE_RECENT_HOURS,
-    ): void
-    {
-        if (!$this->shouldWarmPaymentStateDuringHttpRequests()) {
+    ): void {
+        if (! $this->shouldWarmPaymentStateDuringHttpRequests()) {
             return;
         }
 
@@ -269,8 +273,7 @@ class PaymentService
         int $limit = self::DEFAULT_WARM_RECONCILE_LIMIT,
         int $cooldownSeconds = 45,
         int $recentHours = self::DEFAULT_RECONCILE_RECENT_HOURS,
-    ): array
-    {
+    ): array {
         $timestampKey = 'payments:fedapay:reconcile:last-run';
         $lockKey = 'payments:fedapay:reconcile:lock';
         $now = now();
@@ -280,7 +283,7 @@ class PaymentService
             return ['skipped' => true, 'reason' => 'cooldown'];
         }
 
-        if (!Cache::add($lockKey, $now->timestamp, $cooldownSeconds)) {
+        if (! Cache::add($lockKey, $now->timestamp, $cooldownSeconds)) {
             return ['skipped' => true, 'reason' => 'locked'];
         }
 
@@ -296,8 +299,7 @@ class PaymentService
     public function reconcileUnsettledFedapayPayments(
         int $limit = self::DEFAULT_RECONCILE_LIMIT,
         int $recentHours = self::DEFAULT_RECONCILE_RECENT_HOURS,
-    ): array
-    {
+    ): array {
         $payments = Payment::query()
             ->with(['vote', 'user'])
             ->where('provider', 'fedapay')
@@ -349,6 +351,7 @@ class PaymentService
                     'reference' => $payment->reference,
                     'error' => $exception->getMessage(),
                 ]);
+
                 continue;
             }
 
@@ -378,11 +381,11 @@ class PaymentService
             return $this->reconcileSuccessfulPayment($payment, $remoteTransaction ?? []);
         }
 
-        if (!$payment->transaction_id) {
+        if (! $payment->transaction_id) {
             return $payment->fresh(['vote', 'user']);
         }
 
-        if (!$remoteTransaction) {
+        if (! $remoteTransaction) {
             try {
                 $remoteTransaction = $this->fedapay->retrieveTransaction($payment->transaction_id);
             } catch (\Throwable $exception) {
@@ -399,7 +402,7 @@ class PaymentService
         }
 
         $merchantReference = trim((string) Arr::get($remoteTransaction, 'merchant_reference', ''));
-        if ($merchantReference !== '' && !hash_equals($payment->reference, $merchantReference)) {
+        if ($merchantReference !== '' && ! hash_equals($payment->reference, $merchantReference)) {
             logger()->warning('FedaPay provider sync reference mismatch', [
                 'payment_id' => $payment->id,
                 'reference' => $payment->reference,
@@ -445,7 +448,7 @@ class PaymentService
     public function recoverMissingVote(string $reference, int $candidateId): ?Payment
     {
         $payment = $this->payments->findByReference($reference);
-        if (!$payment) {
+        if (! $payment) {
             return null;
         }
 
@@ -458,7 +461,7 @@ class PaymentService
         $reference = $this->extractRemoteMerchantReference($remoteTransaction);
         $customMetadata = $this->extractRemoteCustomMetadata($remoteTransaction);
 
-        if (!$transactionId && !$reference) {
+        if (! $transactionId && ! $reference) {
             return null;
         }
 
@@ -468,7 +471,7 @@ class PaymentService
             $payment = Payment::withTrashed()->where('transaction_id', $transactionId)->first();
         }
 
-        if (!$payment && $reference !== null) {
+        if (! $payment && $reference !== null) {
             $payment = Payment::withTrashed()->where('reference', $reference)->first();
         }
 
@@ -484,7 +487,7 @@ class PaymentService
             return null;
         }
 
-        if (!$reference) {
+        if (! $reference) {
             logger()->warning('Cannot import remote successful transaction without merchant reference', [
                 'transaction_id' => $transactionId,
             ]);
@@ -492,7 +495,7 @@ class PaymentService
             return null;
         }
 
-        if (!$this->canImportRemoteSuccessfulTransaction($remoteTransaction, $reference, $customMetadata)) {
+        if (! $this->canImportRemoteSuccessfulTransaction($remoteTransaction, $reference, $customMetadata)) {
             logger()->info('Skipping remote FedaPay transaction import because it does not look like an application vote payment', [
                 'transaction_id' => $transactionId,
                 'reference' => $reference,
@@ -540,7 +543,7 @@ class PaymentService
         $providerReference = $this->extractTransactionReference($remoteTransaction) ?? $transactionId;
         if (
             $providerReference
-            && !$payment->transactions()->where('provider_reference', $providerReference)->exists()
+            && ! $payment->transactions()->where('provider_reference', $providerReference)->exists()
         ) {
             $this->transactions->create([
                 'payment_id' => $payment->id,
@@ -602,7 +605,7 @@ class PaymentService
 
     private function buildCustomerPayload(?User $voter): ?array
     {
-        if (!$voter) {
+        if (! $voter) {
             return null;
         }
 
@@ -648,7 +651,7 @@ class PaymentService
         $providerReference = $this->extractTransactionReference($payload) ?? $payment->transaction_id;
         if (
             $payment->status === Payment::STATUS_SUCCEEDED
-            && !$payment->transactions->contains(fn ($transaction) => (string) $transaction->provider_reference === (string) $providerReference)
+            && ! $payment->transactions->contains(fn ($transaction) => (string) $transaction->provider_reference === (string) $providerReference)
         ) {
             $this->transactions->create([
                 'payment_id' => $payment->id,
@@ -663,12 +666,17 @@ class PaymentService
             $payment->loadMissing(['vote', 'user', 'transactions']);
         }
 
-        if (!$payment->vote) {
+        if (! $payment->vote) {
             $payment = $this->restoreMissingVoteForSucceededPayment($payment);
         }
 
         if ($payment->vote) {
             $payment = $this->reconcileVoteForSucceededPayment($payment, $payload);
+        }
+
+        $paymentType = data_get($payment->meta, 'type', '');
+        if ($paymentType === 'billetterie' && $payment->status === Payment::STATUS_SUCCEEDED) {
+            $this->reconcileBilletterieOrder($payment);
         }
 
         return $payment->fresh(['vote', 'user']);
@@ -717,7 +725,7 @@ class PaymentService
                 ->lockForUpdate()
                 ->find($payment->id);
 
-            if (!$lockedPayment || $lockedPayment->vote) {
+            if (! $lockedPayment || $lockedPayment->vote) {
                 return;
             }
 
@@ -784,7 +792,7 @@ class PaymentService
     {
         $payment->loadMissing(['vote', 'user']);
 
-        if (!$payment->vote || $payment->vote->status === Vote::STATUS_CONFIRMED) {
+        if (! $payment->vote || $payment->vote->status === Vote::STATUS_CONFIRMED) {
             return $payment->fresh(['vote', 'user']);
         }
 
@@ -866,7 +874,7 @@ class PaymentService
 
     private function reconcileVoteForSucceededPayment(Payment $payment, array $payload = []): Payment
     {
-        if (!$payment->vote) {
+        if (! $payment->vote) {
             logger()->warning('Succeeded payment without linked vote during reconciliation', [
                 'payment_id' => $payment->id,
                 'reference' => $payment->reference,
@@ -1121,17 +1129,17 @@ class PaymentService
 
     private function buildVoteContextUpdates(Payment $payment): array
     {
-        if (!$payment->vote) {
+        if (! $payment->vote) {
             return [];
         }
 
         $voteUpdates = [];
 
-        if (!$payment->vote->user_id && $payment->user_id) {
+        if (! $payment->vote->user_id && $payment->user_id) {
             $voteUpdates['user_id'] = $payment->user_id;
         }
 
-        if (!$payment->vote->ip_address) {
+        if (! $payment->vote->ip_address) {
             $paymentIp = trim((string) data_get($payment->meta, 'ip', ''));
             if ($paymentIp !== '') {
                 $voteUpdates['ip_address'] = $paymentIp;
@@ -1267,25 +1275,25 @@ class PaymentService
     private function normalizePhone(string $phone): ?string
     {
         $digits = preg_replace('/\D+/', '', $phone);
-        if (!$digits) {
+        if (! $digits) {
             return null;
         }
 
         if (str_starts_with($digits, '229') && strlen($digits) >= 11) {
-            return '+' . $digits;
+            return '+'.$digits;
         }
 
         if (strlen($digits) === 8) {
-            return '+229' . $digits;
+            return '+229'.$digits;
         }
 
-        return '+' . $digits;
+        return '+'.$digits;
     }
 
     private function phoneVariants(string $phone): array
     {
         $normalized = $this->normalizePhone($phone);
-        if (!$normalized) {
+        if (! $normalized) {
             return [];
         }
 
@@ -1304,5 +1312,41 @@ class PaymentService
             '+229 '.$localDigits,
             $localDigits !== '' ? implode(' ', str_split($localDigits, 2)) : null,
         ], static fn ($value) => filled($value))));
+    }
+
+    private function reconcileBilletterieOrder(Payment $payment): void
+    {
+        $order = \App\Models\TicketOrder::where('payment_id', $payment->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if (! $order) {
+            return;
+        }
+
+        if ((float) $payment->amount !== (float) $order->total_amount) {
+            logger()->warning('Billetterie payment amount mismatch', [
+                'payment_id' => $payment->id,
+                'payment_amount' => $payment->amount,
+                'order_id' => $order->id,
+                'order_amount' => $order->total_amount,
+            ]);
+
+            return;
+        }
+
+        try {
+            app(BilletterieService::class)->confirmOrder(
+                $order->payment_reference,
+                ['ip_address' => data_get($payment->meta, 'ip')],
+            );
+        } catch (\Throwable $exception) {
+            logger()->warning('Failed to reconcile billetterie order from payment', [
+                'payment_id' => $payment->id,
+                'order_id' => $order->id,
+                'reference' => $payment->reference,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 }

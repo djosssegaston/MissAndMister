@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Notifications\DatabaseNotification;
 
 class Notification extends DatabaseNotification
 {

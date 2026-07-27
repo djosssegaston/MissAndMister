@@ -71,7 +71,7 @@ class AuditFedapayCandidateConflicts extends Command
                 $statusKey = $status !== '' ? $status : '(empty)';
                 $statusHistogram[$statusKey] = ($statusHistogram[$statusKey] ?? 0) + 1;
 
-                if (!in_array($status, self::SUCCESS_STATUSES, true)) {
+                if (! in_array($status, self::SUCCESS_STATUSES, true)) {
                     continue;
                 }
 
@@ -79,11 +79,11 @@ class AuditFedapayCandidateConflicts extends Command
                     continue;
                 }
 
-                if ($referencesFilter !== [] && !in_array($reference, $referencesFilter, true)) {
+                if ($referencesFilter !== [] && ! in_array($reference, $referencesFilter, true)) {
                     continue;
                 }
 
-                if ($transactionFilter !== [] && !in_array($transactionId, $transactionFilter, true)) {
+                if ($transactionFilter !== [] && ! in_array($transactionId, $transactionFilter, true)) {
                     continue;
                 }
 
@@ -126,12 +126,12 @@ class AuditFedapayCandidateConflicts extends Command
                 $distinctVotes[(string) $inspection['vote']->id] = true;
             }
 
-            $remoteCandidateKey = trim((string) (($inspection['remote_candidate_id'] ?? '') . '|' . ($inspection['remote_candidate_name'] ?? '')));
+            $remoteCandidateKey = trim((string) (($inspection['remote_candidate_id'] ?? '').'|'.($inspection['remote_candidate_name'] ?? '')));
             if ($remoteCandidateKey !== '|') {
                 $distinctRemoteCandidates[$remoteCandidateKey] = true;
             }
 
-            $localVoteCandidateKey = trim((string) (($inspection['local_vote_candidate_id'] ?? '') . '|' . ($inspection['local_vote_candidate_name'] ?? '')));
+            $localVoteCandidateKey = trim((string) (($inspection['local_vote_candidate_id'] ?? '').'|'.($inspection['local_vote_candidate_name'] ?? '')));
             if ($localVoteCandidateKey !== '|') {
                 $distinctLocalVoteCandidates[$localVoteCandidateKey] = true;
             }

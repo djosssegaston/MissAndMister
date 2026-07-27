@@ -10,9 +10,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ResultController extends Controller
 {
-    public function __construct(private ResultService $results)
-    {
-    }
+    public function __construct(private ResultService $results) {}
 
     /**
      * Display a listing of the resource.
@@ -35,6 +33,7 @@ class ResultController extends Controller
     {
         $this->authorize('create', Result::class);
         $this->results->calculateAndPersist();
+
         return response()->json(['message' => 'Results calculated']);
     }
 
@@ -67,7 +66,7 @@ class ResultController extends Controller
             foreach ($rows as $row) {
                 fputcsv($output, [
                     $row->category?->name ?? $row->candidate?->category?->name,
-                    optional($row->candidate)->first_name . ' ' . optional($row->candidate)->last_name,
+                    optional($row->candidate)->first_name.' '.optional($row->candidate)->last_name,
                     $row->total_votes,
                     $row->total_amount,
                 ]);

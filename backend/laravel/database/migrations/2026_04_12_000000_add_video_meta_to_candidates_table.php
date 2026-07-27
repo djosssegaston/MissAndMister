@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasColumn('candidates', 'video_meta')) {
+        if (! Schema::hasColumn('candidates', 'video_meta')) {
             Schema::table('candidates', function (Blueprint $table) {
                 $table->json('video_meta')->nullable()->after('video_path');
             });

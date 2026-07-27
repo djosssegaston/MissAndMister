@@ -15,18 +15,18 @@ class ProcessCandidateImage implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
+
     public int $timeout = 120;
 
     public function __construct(
         public readonly int $candidateId,
         public readonly string $originalPath,
-    ) {
-    }
+    ) {}
 
     public function handle(CandidateImagePipeline $pipeline): void
     {
         $candidate = Candidate::find($this->candidateId);
-        if (!$candidate) {
+        if (! $candidate) {
             return;
         }
 

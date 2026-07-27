@@ -62,7 +62,7 @@ class SanctumBearerAuthTest extends TestCase
 
         $token = $user->createToken('auth_token', ['user'])->plainTextToken;
 
-        $this->withHeader('Authorization', 'Bearer ' . $token)
+        $this->withHeader('Authorization', 'Bearer '.$token)
             ->getJson('/api/me')
             ->assertOk()
             ->assertJson([
@@ -85,7 +85,7 @@ class SanctumBearerAuthTest extends TestCase
 
         $token = $admin->createToken('admin_token', ['admin'])->plainTextToken;
 
-        $this->withHeader('Authorization', 'Bearer ' . $token)
+        $this->withHeader('Authorization', 'Bearer '.$token)
             ->getJson('/api/admin/categories')
             ->assertOk();
     }
@@ -101,9 +101,9 @@ class SanctumBearerAuthTest extends TestCase
             'status' => 'active',
         ]);
 
-        $tempDirectory = storage_path('app/testing/sanctum-pdf-auth-' . uniqid('', true));
+        $tempDirectory = storage_path('app/testing/sanctum-pdf-auth-'.uniqid('', true));
         File::ensureDirectoryExists($tempDirectory);
-        $pdfPath = $tempDirectory . DIRECTORY_SEPARATOR . 'classement_miss_2026.pdf';
+        $pdfPath = $tempDirectory.DIRECTORY_SEPARATOR.'classement_miss_2026.pdf';
         file_put_contents($pdfPath, '%PDF-1.4 test');
 
         $service = Mockery::mock(ClassementPdfExportService::class);
@@ -121,7 +121,7 @@ class SanctumBearerAuthTest extends TestCase
         $this->app->instance(ClassementPdfExportService::class, $service);
 
         $token = $admin->createToken('admin_token', ['admin'])->plainTextToken;
-        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
             ->get('/api/test-pdf-auth?category=Miss');
 
         try {

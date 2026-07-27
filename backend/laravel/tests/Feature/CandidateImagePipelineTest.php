@@ -218,9 +218,7 @@ class CandidateImagePipelineTest extends TestCase
 
         $this->app->instance(CandidateFaceDetector::class, new class($face) implements CandidateFaceDetector
         {
-            public function __construct(private readonly ?CandidateFaceBox $face)
-            {
-            }
+            public function __construct(private readonly ?CandidateFaceBox $face) {}
 
             public function detect(string $absolutePath): ?CandidateFaceBox
             {

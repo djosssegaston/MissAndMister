@@ -261,9 +261,24 @@ class VoteController extends Controller
         }
 
         $accessToken = PersonalAccessToken::findToken($plainTextToken);
-        $tokenable = $accessToken?->tokenable;
+        if (! $accessToken) {
+            return null;
+        }
 
-        if (! $tokenable || ($tokenable->role ?? null) !== 'user' || ($tokenable->status ?? 'active') !== 'active') {
+        $tokenable = $accessToken->tokenable;
+
+        if (! $tokenable) {
+            return null;
+        }
+
+        if (method_exists($tokenable, 'belongsTo') && ! $tokenable instanceof \App\Models\User) {
+            return null;
+        }
+
+        $role = $tokenable->role ?? null;
+        $status = $tokenable->status ?? 'active';
+
+        if ($role !== 'user' || $status !== 'active') {
             return null;
         }
 

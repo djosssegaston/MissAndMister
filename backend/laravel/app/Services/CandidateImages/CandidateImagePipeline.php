@@ -20,8 +20,7 @@ class CandidateImagePipeline
         private readonly CandidateFaceDetector $faceDetector,
         private readonly CloudinaryMediaService $cloudinaryMedia,
         private readonly PublicApiPayloadService $publicApi,
-    ) {
-    }
+    ) {}
 
     public function validateUpload(string $absolutePath): array
     {
@@ -30,11 +29,11 @@ class CandidateImagePipeline
         $height = (int) $imageInfo[1];
 
         if ($width < config('candidate_images.minimum_width')) {
-            $this->fail('La photo doit faire au moins ' . config('candidate_images.minimum_width') . ' px de large.');
+            $this->fail('La photo doit faire au moins '.config('candidate_images.minimum_width').' px de large.');
         }
 
         if ($height < config('candidate_images.minimum_height')) {
-            $this->fail('La photo doit faire au moins ' . config('candidate_images.minimum_height') . ' px de haut.');
+            $this->fail('La photo doit faire au moins '.config('candidate_images.minimum_height').' px de haut.');
         }
 
         $blurScore = $this->measureSharpness($absolutePath);
@@ -46,7 +45,7 @@ class CandidateImagePipeline
         $face = $detection['face'];
         $faceDetectionError = $detection['error'];
 
-        if (!$face && !$faceDetectionError && config('candidate_images.require_face_detection')) {
+        if (! $face && ! $faceDetectionError && config('candidate_images.require_face_detection')) {
             $this->fail('Aucun visage detecte sur la photo.');
         }
 
@@ -69,7 +68,7 @@ class CandidateImagePipeline
         $disk = config('candidate_images.disk', 'public');
         $storage = Storage::disk($disk);
 
-        if (!$storage->exists($expectedOriginalPath)) {
+        if (! $storage->exists($expectedOriginalPath)) {
             throw new \RuntimeException('Le fichier source de la photo est introuvable.');
         }
 
@@ -79,13 +78,13 @@ class CandidateImagePipeline
         $face = CandidateFaceBox::fromArray($meta['face'] ?? null);
         $faceDetectionError = $meta['face_detection_error'] ?? null;
 
-        if (!$face) {
+        if (! $face) {
             $detection = $this->detectFaceResult($absolutePath);
             $face = $detection['face'];
             $faceDetectionError = $faceDetectionError ?: $detection['error'];
         }
 
-        if (!$face && !$faceDetectionError && config('candidate_images.require_face_detection')) {
+        if (! $face && ! $faceDetectionError && config('candidate_images.require_face_detection')) {
             throw ValidationException::withMessages([
                 'photo' => 'Impossible de traiter la photo sans visage detecte.',
             ]);
@@ -111,7 +110,7 @@ class CandidateImagePipeline
                 'candidate-images/%d/%s/%s.%s',
                 $candidate->id,
                 $name,
-                now()->format('YmdHis') . '-' . bin2hex(random_bytes(6)),
+                now()->format('YmdHis').'-'.bin2hex(random_bytes(6)),
                 $extension,
             );
 
@@ -139,7 +138,7 @@ class CandidateImagePipeline
         ])->save();
 
         $stalePaths = array_diff($previousVariants, array_values($variants));
-        if (!empty($stalePaths)) {
+        if (! empty($stalePaths)) {
             $storage->delete($stalePaths);
         }
 
@@ -148,7 +147,7 @@ class CandidateImagePipeline
 
     public function processTemporaryUpload(Candidate $candidate, string $absolutePath, ?string $originalFilename = null): void
     {
-        if (!$this->cloudinaryMedia->enabled()) {
+        if (! $this->cloudinaryMedia->enabled()) {
             throw new \RuntimeException('Le stockage Cloudinary n’est pas actif.');
         }
 
@@ -157,13 +156,13 @@ class CandidateImagePipeline
         $face = CandidateFaceBox::fromArray($meta['face'] ?? null);
         $faceDetectionError = $meta['face_detection_error'] ?? null;
 
-        if (!$face) {
+        if (! $face) {
             $detection = $this->detectFaceResult($absolutePath);
             $face = $detection['face'];
             $faceDetectionError = $faceDetectionError ?: $detection['error'];
         }
 
-        if (!$face && !$faceDetectionError && config('candidate_images.require_face_detection')) {
+        if (! $face && ! $faceDetectionError && config('candidate_images.require_face_detection')) {
             throw ValidationException::withMessages([
                 'photo' => 'Impossible de traiter la photo sans visage detecte.',
             ]);
@@ -285,8 +284,8 @@ class CandidateImagePipeline
             } catch (\Throwable $jpegException) {
                 throw new \RuntimeException(
                     'Impossible d’encoder la photo au format WebP ou JPEG. '
-                    . 'WebP: ' . $webpException->getMessage()
-                    . ' | JPEG: ' . $jpegException->getMessage(),
+                    .'WebP: '.$webpException->getMessage()
+                    .' | JPEG: '.$jpegException->getMessage(),
                     previous: $jpegException,
                 );
             }
@@ -302,7 +301,7 @@ class CandidateImagePipeline
     ): array {
         $targetRatio = $targetWidth / $targetHeight;
 
-        if (!$face) {
+        if (! $face) {
             return $this->centerCropArea($sourceWidth, $sourceHeight, $targetRatio);
         }
 
@@ -364,7 +363,7 @@ class CandidateImagePipeline
     private function readImageInfo(string $absolutePath): array
     {
         $imageInfo = @getimagesize($absolutePath);
-        if (!$imageInfo) {
+        if (! $imageInfo) {
             $this->fail('Le fichier envoye ne peut pas etre traite comme image.');
         }
 
@@ -379,7 +378,7 @@ class CandidateImagePipeline
         }
 
         $resource = @imagecreatefromstring($binary);
-        if (!$resource) {
+        if (! $resource) {
             return 0.0;
         }
 
@@ -437,7 +436,7 @@ class CandidateImagePipeline
     private function deleteCloudinaryPhotoAssets(array $meta): void
     {
         $cloudinary = $meta['cloudinary'] ?? null;
-        if (!is_array($cloudinary)) {
+        if (! is_array($cloudinary)) {
             return;
         }
 

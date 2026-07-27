@@ -22,6 +22,7 @@ class AuditRemoteFedapayTransactions extends Command
     protected $description = 'Compare les transactions FedaPay live aux paiements locaux et peut rattraper celles manquantes';
 
     private const SUCCESS_STATUSES = ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred'];
+
     private const MAX_DEBUG_STATUS_ROWS = 8;
 
     public function handle(
@@ -77,13 +78,13 @@ class AuditRemoteFedapayTransactions extends Command
                 $reference = $this->extractAuditReference($transaction);
                 $statusKey = $status !== '' ? $status : '(empty)';
 
-                if (!isset($statusHistogram[$statusKey])) {
+                if (! isset($statusHistogram[$statusKey])) {
                     $statusHistogram[$statusKey] = 0;
                 }
 
                 $statusHistogram[$statusKey]++;
 
-                if (!in_array($status, self::SUCCESS_STATUSES, true)) {
+                if (! in_array($status, self::SUCCESS_STATUSES, true)) {
                     continue;
                 }
 
@@ -130,14 +131,14 @@ class AuditRemoteFedapayTransactions extends Command
             if ($transactionId !== '') {
                 $payment = Payment::withTrashed()->where('transaction_id', $transactionId)->first();
             }
-            if (!$payment && $reference !== '') {
+            if (! $payment && $reference !== '') {
                 $payment = Payment::withTrashed()->where('reference', $reference)->first();
             }
 
             $reason = null;
             $voteStatus = null;
 
-            if (!$payment) {
+            if (! $payment) {
                 $reason = 'local_missing';
                 $summary['local_missing']++;
             } else {
@@ -146,7 +147,7 @@ class AuditRemoteFedapayTransactions extends Command
                 if ($payment->status !== Payment::STATUS_SUCCEEDED) {
                     $reason = 'local_not_succeeded';
                     $summary['local_not_succeeded']++;
-                } elseif (!$payment->vote || $payment->vote->status !== Vote::STATUS_CONFIRMED) {
+                } elseif (! $payment->vote || $payment->vote->status !== Vote::STATUS_CONFIRMED) {
                     $reason = 'local_succeeded_no_vote';
                     $summary['local_succeeded_no_vote']++;
                 } else {
@@ -205,7 +206,7 @@ class AuditRemoteFedapayTransactions extends Command
                     ['Recognized success statuses', implode(', ', self::SUCCESS_STATUSES)],
                     ['First page HTTP status', $firstPageDebug['response_status'] ?? '-'],
                     ['First page top-level type', $firstPageDebug['top_level_type'] ?? '-'],
-                    ['First page top-level keys', !empty($firstPageDebug['top_level_keys']) ? implode(', ', $firstPageDebug['top_level_keys']) : '-'],
+                    ['First page top-level keys', ! empty($firstPageDebug['top_level_keys']) ? implode(', ', $firstPageDebug['top_level_keys']) : '-'],
                     ['First page raw list count', $firstPageDebug['raw_list_count'] ?? 0],
                     ['First page normalized count', $firstPageDebug['normalized_count'] ?? 0],
                     ['First page preview', $firstPageDebug['payload_preview'] ?? '-'],
@@ -233,7 +234,7 @@ class AuditRemoteFedapayTransactions extends Command
             ['Mesure', 'Valeur'],
             [
                 ['Transactions FedaPay live reussies', $summary['remote_count']],
-                ['Montant FedaPay live reussi', number_format((float) $summary['remote_amount'], 2, ',', ' ') . ' CFA'],
+                ['Montant FedaPay live reussi', number_format((float) $summary['remote_amount'], 2, ',', ' ').' CFA'],
                 ['Paiements locaux OK', $summary['local_ok']],
                 ['Paiements locaux manquants', $summary['local_missing']],
                 ['Paiements locaux non succeeds', $summary['local_not_succeeded']],

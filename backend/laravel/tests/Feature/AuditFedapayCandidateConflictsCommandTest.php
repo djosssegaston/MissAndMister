@@ -28,12 +28,12 @@ class AuditFedapayCandidateConflictsCommandTest extends TestCase
                 'amount' => $payment->amount,
                 'currency' => ['iso' => 'XOF'],
                 'merchant_reference' => $payment->reference,
-                'description' => 'Vote pour ' . $remoteCandidate->first_name . ' ' . $remoteCandidate->last_name,
+                'description' => 'Vote pour '.$remoteCandidate->first_name.' '.$remoteCandidate->last_name,
                 'approved_at' => now()->toIso8601String(),
                 'custom_metadata' => [
                     'payment_reference' => $payment->reference,
                     'candidate_id' => $remoteCandidate->id,
-                    'candidate_name' => $remoteCandidate->first_name . ' ' . $remoteCandidate->last_name,
+                    'candidate_name' => $remoteCandidate->first_name.' '.$remoteCandidate->last_name,
                     'provider' => 'fedapay',
                 ],
             ]]);
@@ -47,8 +47,8 @@ class AuditFedapayCandidateConflictsCommandTest extends TestCase
             '--reference' => [$payment->reference],
         ])
             ->expectsOutputToContain($payment->reference)
-            ->expectsOutputToContain($localCandidate->first_name . ' ' . $localCandidate->last_name)
-            ->expectsOutputToContain($remoteCandidate->first_name . ' ' . $remoteCandidate->last_name)
+            ->expectsOutputToContain($localCandidate->first_name.' '.$localCandidate->last_name)
+            ->expectsOutputToContain($remoteCandidate->first_name.' '.$remoteCandidate->last_name)
             ->assertExitCode(0);
 
         $payment->refresh();

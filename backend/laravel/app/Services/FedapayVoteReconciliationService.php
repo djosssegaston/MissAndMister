@@ -13,8 +13,7 @@ class FedapayVoteReconciliationService
 {
     public function __construct(
         private PaymentService $payments,
-    ) {
-    }
+    ) {}
 
     public function inspectRemoteSuccessfulTransaction(array $remoteTransaction): array
     {
@@ -27,11 +26,11 @@ class FedapayVoteReconciliationService
 
         if ($paymentMatch['match_type'] === 'fuzzy') {
             $issue = 'local_missing_payment_fuzzy_match';
-        } elseif (!$payment) {
+        } elseif (! $payment) {
             $issue = 'local_missing_payment';
         } elseif ($payment->status !== Payment::STATUS_SUCCEEDED) {
             $issue = 'local_not_succeeded';
-        } elseif (!$vote) {
+        } elseif (! $vote) {
             $issue = 'local_missing_vote';
         } elseif ($vote->status !== Vote::STATUS_CONFIRMED) {
             $issue = 'local_vote_not_confirmed';
@@ -84,7 +83,7 @@ class FedapayVoteReconciliationService
 
         $reconciledPayment = $this->payments->syncRemoteSuccessfulTransaction($remoteTransaction);
 
-        if (!$reconciledPayment) {
+        if (! $reconciledPayment) {
             return array_merge($inspection, [
                 'applied' => false,
                 'outcome' => 'skipped',
@@ -99,10 +98,10 @@ class FedapayVoteReconciliationService
         $reconciledPayment = $reconciledPayment->fresh(['vote', 'user']);
         $afterVote = $reconciledPayment->vote;
 
-        $paymentCreated = !$beforePayment && (bool) $reconciledPayment->id;
+        $paymentCreated = ! $beforePayment && (bool) $reconciledPayment->id;
         $paymentConfirmed = ($beforePayment?->status !== Payment::STATUS_SUCCEEDED)
             && $reconciledPayment->status === Payment::STATUS_SUCCEEDED;
-        $voteCreated = !$beforeVote && (bool) $afterVote?->id;
+        $voteCreated = ! $beforeVote && (bool) $afterVote?->id;
         $voteConfirmed = ($beforeVote?->status !== Vote::STATUS_CONFIRMED)
             && $afterVote?->status === Vote::STATUS_CONFIRMED;
 
@@ -179,7 +178,7 @@ class FedapayVoteReconciliationService
         $amount = $this->extractRemoteAmount($remoteTransaction);
         $paidAt = $this->extractRemotePaidAt($remoteTransaction);
 
-        if ($amount <= 0 || !$paidAt) {
+        if ($amount <= 0 || ! $paidAt) {
             return collect();
         }
 
@@ -300,7 +299,7 @@ class FedapayVoteReconciliationService
 
     private function determineConflictType(array $remoteTransaction, ?Payment $payment, ?Vote $vote): ?string
     {
-        if (!$payment || !$vote) {
+        if (! $payment || ! $vote) {
             return null;
         }
 
@@ -336,7 +335,7 @@ class FedapayVoteReconciliationService
 
     private function extractPaymentCandidateId(?Payment $payment): ?int
     {
-        if (!$payment) {
+        if (! $payment) {
             return null;
         }
 
@@ -352,7 +351,7 @@ class FedapayVoteReconciliationService
 
     private function extractPaymentCandidateName(?Payment $payment): string
     {
-        if (!$payment) {
+        if (! $payment) {
             return '';
         }
 
@@ -366,14 +365,14 @@ class FedapayVoteReconciliationService
 
     private function extractVoteCandidateName(?Vote $vote): string
     {
-        if (!$vote) {
+        if (! $vote) {
             return '';
         }
 
         /** @var Candidate|null $candidate */
         $candidate = $vote->relationLoaded('candidate') ? $vote->candidate : $vote->candidate()->first();
 
-        if (!$candidate) {
+        if (! $candidate) {
             return '';
         }
 

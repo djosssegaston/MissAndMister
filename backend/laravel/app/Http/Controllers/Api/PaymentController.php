@@ -22,8 +22,7 @@ class PaymentController extends Controller
         private PaymentRepository $paymentRepo,
         private FedaPayService $fedapay,
         private FedapayWebhookService $fedapayWebhooks,
-    ) {
-    }
+    ) {}
 
     /**
      * Display a listing of the resource.
@@ -32,15 +31,16 @@ class PaymentController extends Controller
     {
         abort_unless(request()->user()?->tokenCan('admin'), 403);
         $this->payments->scheduleWarmPaymentStateForReadModels();
+
         return response()->json(Payment::latest()->paginate(30));
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        //
+        abort(405, 'Use the vote endpoint to create payments.');
     }
 
     /**
@@ -60,11 +60,11 @@ class PaymentController extends Controller
     {
         $payment = $this->paymentRepo->findByReference($reference);
 
-        if (!$payment) {
+        if (! $payment) {
             return response()->json(['message' => 'Paiement introuvable.'], 404);
         }
 
-        if (!$payment->transaction_id) {
+        if (! $payment->transaction_id) {
             return response()->json($this->syncResponsePayload($payment));
         }
 
@@ -85,7 +85,7 @@ class PaymentController extends Controller
         }
 
         $merchantReference = trim((string) Arr::get($remoteTransaction, 'merchant_reference', ''));
-        if ($merchantReference !== '' && !hash_equals($payment->reference, $merchantReference)) {
+        if ($merchantReference !== '' && ! hash_equals($payment->reference, $merchantReference)) {
             logger()->warning('FedaPay sync reference mismatch', [
                 'payment_id' => $payment->id,
                 'reference' => $payment->reference,
@@ -102,6 +102,46 @@ class PaymentController extends Controller
         return response()->json($this->syncResponsePayload($payment, $remoteTransaction));
     }
 
+    public function syncPublic(string $reference): JsonResponse
+    {
+        $payment = $this->paymentRepo->findByReference($reference);
+
+        if (! $payment) {
+            return response()->json(['message' => 'Paiement introuvable.'], 404);
+        }
+
+        if (! $payment->transaction_id) {
+            return response()->json($this->publicSyncPayload($payment));
+        }
+
+        try {
+            $remoteTransaction = $this->fedapay->retrieveTransaction($payment->transaction_id);
+        } catch (\Throwable $exception) {
+            logger()->warning('FedaPay public sync failed', [
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference,
+                'transaction_id' => $payment->transaction_id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Impossible de verifier le paiement pour le moment.',
+                'payment' => $this->publicSyncPayload($payment),
+            ], 502);
+        }
+
+        $merchantReference = trim((string) Arr::get($remoteTransaction, 'merchant_reference', ''));
+        if ($merchantReference !== '' && ! hash_equals($payment->reference, $merchantReference)) {
+            return response()->json([
+                'message' => 'Reference de paiement invalide.',
+            ], 409);
+        }
+
+        $payment = $this->payments->syncPaymentWithProvider($payment, $remoteTransaction, 'public-sync');
+
+        return response()->json($this->publicSyncPayload($payment, $remoteTransaction));
+    }
+
     /**
      * Update the specified resource in storage.
      */
@@ -110,7 +150,7 @@ class PaymentController extends Controller
         $signature = $request->header('x-fedapay-signature') ?? $request->header('X-FEDAPAY-SIGNATURE');
         $raw = $request->getContent();
 
-        if (!$this->fedapay->verifyWebhookSignature($raw, $signature)) {
+        if (! $this->fedapay->verifyWebhookSignature($raw, $signature)) {
             logger()->warning('FedaPay webhook signature validation failed', [
                 'has_signature' => filled($signature),
                 'signature_preview' => $signature ? substr((string) $signature, 0, 32) : null,
@@ -121,7 +161,7 @@ class PaymentController extends Controller
         }
 
         $payload = json_decode($raw, true);
-        if (!is_array($payload)) {
+        if (! is_array($payload)) {
             $payload = $request->all();
         }
 
@@ -137,16 +177,16 @@ class PaymentController extends Controller
             'status' => $status,
             'updated_at' => data_get($payload, 'updated_at') ?? data_get($payload, 'data.updated_at'),
         ]));
-        $lockKey = 'fedapay:webhook:process:' . $fingerprint;
+        $lockKey = 'fedapay:webhook:process:'.$fingerprint;
 
-        if (!Cache::add($lockKey, now()->timestamp, 600)) {
+        if (! Cache::add($lockKey, now()->timestamp, 600)) {
             return response()->json([
                 'message' => 'Webhook already queued',
                 'result' => 'duplicate',
             ]);
         }
 
-        if (!$this->shouldProcessWebhookAsynchronously()) {
+        if (! $this->shouldProcessWebhookAsynchronously()) {
             try {
                 $result = $this->fedapayWebhooks->processWebhookPayload($payload, $eventName, $transactionId, $reference);
             } catch (\Throwable $exception) {
@@ -352,7 +392,7 @@ class PaymentController extends Controller
             'quantity' => (int) ($payment->vote?->quantity ?? data_get($payment->meta, 'quantity', 1)),
             'candidate_name' => trim((string) (
                 data_get($payment->meta, 'candidate_name')
-                ?: trim(($payment->vote?->candidate?->first_name ?? '') . ' ' . ($payment->vote?->candidate?->last_name ?? ''))
+                ?: trim(($payment->vote?->candidate?->first_name ?? '').' '.($payment->vote?->candidate?->last_name ?? ''))
             )),
             'candidate_public_uid' => $payment->vote?->candidate?->public_uid,
             'candidate_slug' => $payment->vote?->candidate?->slug,
@@ -360,6 +400,19 @@ class PaymentController extends Controller
             'candidate_votes_count' => $candidateVotesCount,
             'votes_count' => $candidateVotesCount,
             'votes' => $candidateVotesCount,
+            'remote_status' => $remoteTransaction ? strtolower((string) Arr::get($remoteTransaction, 'status', '')) : null,
+        ];
+    }
+
+    private function publicSyncPayload(Payment $payment, ?array $remoteTransaction = null): array
+    {
+        return [
+            'reference' => $payment->reference,
+            'payment_status' => $payment->status,
+            'transaction_id' => $payment->transaction_id,
+            'amount' => (float) $payment->amount,
+            'currency' => $payment->currency,
+            'quantity' => (int) data_get($payment->meta, 'quantity', 1),
             'remote_status' => $remoteTransaction ? strtolower((string) Arr::get($remoteTransaction, 'status', '')) : null,
         ];
     }

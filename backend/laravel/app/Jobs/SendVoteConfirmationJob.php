@@ -9,9 +9,7 @@ class SendVoteConfirmationJob implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(private int $voteId)
-    {
-    }
+    public function __construct(private int $voteId) {}
 
     /**
      * Execute the job.
@@ -19,7 +17,7 @@ class SendVoteConfirmationJob implements ShouldQueue
     public function handle(): void
     {
         $vote = \App\Models\Vote::find($this->voteId);
-        if (!$vote || !$vote->user) {
+        if (! $vote || ! $vote->user) {
             return;
         }
 

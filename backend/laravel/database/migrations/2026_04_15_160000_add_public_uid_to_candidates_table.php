@@ -10,7 +10,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasColumn('candidates', 'public_uid')) {
+        if (! Schema::hasColumn('candidates', 'public_uid')) {
             Schema::table('candidates', function (Blueprint $table) {
                 $table->string('public_uid', 26)->nullable()->unique()->after('public_number');
             });
@@ -42,7 +42,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (!Schema::hasColumn('candidates', 'public_uid')) {
+        if (! Schema::hasColumn('candidates', 'public_uid')) {
             return;
         }
 

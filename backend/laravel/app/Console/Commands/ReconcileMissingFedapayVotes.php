@@ -65,7 +65,7 @@ class ReconcileMissingFedapayVotes extends Command
                 $statusKey = $status !== '' ? $status : '(empty)';
                 $statusHistogram[$statusKey] = ($statusHistogram[$statusKey] ?? 0) + 1;
 
-                if (!in_array($status, self::SUCCESS_STATUSES, true)) {
+                if (! in_array($status, self::SUCCESS_STATUSES, true)) {
                     continue;
                 }
 
@@ -107,6 +107,7 @@ class ReconcileMissingFedapayVotes extends Command
 
             if ($issue === 'ok') {
                 $summary['ok']++;
+
                 continue;
             }
 
