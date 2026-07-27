@@ -133,16 +133,6 @@ const loadHTMLImage = (url) => new Promise((resolve, reject) => {
   img.src = url;
 });
 
-const toRelativeUrl = (absoluteUrl) => {
-  if (!absoluteUrl) return null;
-  try {
-    const u = new URL(absoluteUrl);
-    return u.pathname;
-  } catch {
-    return absoluteUrl;
-  }
-};
-
 const Step3Photo = ({ data, onNext, onBack }) => {
   const fileInputRef = useRef(null);
   const cropperImageRef = useRef(null);
@@ -180,10 +170,10 @@ const Step3Photo = ({ data, onNext, onBack }) => {
       }
       setTemplateConfig(tpl.overlay_config || {});
 
-      loadHTMLImage(toRelativeUrl(tpl.preview_url)).then(setTemplateImg).catch(() => {});
+      loadHTMLImage(tpl.preview_url).then(setTemplateImg).catch(() => {});
 
       if (tpl.mask_url) {
-        loadHTMLImage(toRelativeUrl(tpl.mask_url)).then(setMaskImg).catch(() => {});
+        loadHTMLImage(tpl.mask_url).then(setMaskImg).catch(() => {});
       }
     }).catch(() => {
       setTemplateError('Impossible de charger le template. Vérifiez votre connexion.');

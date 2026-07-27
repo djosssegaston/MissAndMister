@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreJSeraiTemplateRequest;
 use App\Models\JSeraiTemplate;
 use App\Models\JSeraiTicket;
+use App\Support\MediaUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,8 +19,8 @@ class JSeraiAdminController extends Controller
         $templates = JSeraiTemplate::orderBy('created_at', 'desc')->get()->map(fn ($t) => [
             'id' => $t->id,
             'name' => $t->name,
-            'file_url' => $t->file_path ? url('storage/'.$t->file_path) : null,
-            'mask_url' => $t->mask_path ? url('storage/'.$t->mask_path) : null,
+            'file_url' => MediaUrl::fromPath($t->file_path),
+            'mask_url' => MediaUrl::fromPath($t->mask_path),
             'is_active' => $t->is_active,
             'overlay_config' => $t->overlay_config,
             'created_at' => $t->created_at->toIso8601String(),
@@ -50,8 +51,8 @@ class JSeraiAdminController extends Controller
         return response()->json([
             'id' => $template->id,
             'name' => $template->name,
-            'file_url' => url('storage/'.$template->file_path),
-            'mask_url' => $template->mask_path ? url('storage/'.$template->mask_path) : null,
+            'file_url' => MediaUrl::fromPath($template->file_path),
+            'mask_url' => MediaUrl::fromPath($template->mask_path),
             'is_active' => $template->is_active,
             'overlay_config' => $template->overlay_config,
         ], 201);
@@ -96,8 +97,8 @@ class JSeraiAdminController extends Controller
         return response()->json([
             'id' => $template->id,
             'name' => $template->name,
-            'file_url' => $template->file_path ? url('storage/'.$template->file_path) : null,
-            'mask_url' => $template->mask_path ? url('storage/'.$template->mask_path) : null,
+            'file_url' => MediaUrl::fromPath($template->file_path),
+            'mask_url' => MediaUrl::fromPath($template->mask_path),
             'is_active' => $template->is_active,
             'overlay_config' => $template->overlay_config,
         ]);

@@ -67,16 +67,22 @@ class PublicMediaController extends Controller
 
         abort_unless(is_resource($stream), 404, 'Media not found.');
 
+        $corsHeaders = [
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With',
+        ];
+
         return response()->stream(function () use ($stream): void {
             fpassthru($stream);
             fclose($stream);
-        }, 200, array_filter([
+        }, 200, array_filter(array_merge($corsHeaders, [
             'Content-Type' => $mimeType,
             'Content-Length' => $size,
             'Content-Disposition' => (new ResponseHeaderBag)->makeDisposition('inline', $filename),
             'Cache-Control' => 'public, max-age=31536000, immutable',
             'ETag' => $etag,
             'Last-Modified' => $lastModifiedHeader,
-        ]));
+        ])));
     }
 }

@@ -9,6 +9,7 @@ use App\Http\Requests\UploadJSeraiPhotoRequest;
 use App\Models\JSeraiTemplate;
 use App\Models\JSeraiTicket;
 use App\Services\JSeraiPosterService;
+use App\Support\MediaUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -27,8 +28,8 @@ class JSeraiController extends Controller
             'template' => $template ? [
                 'id' => $template->id,
                 'overlay_config' => $template->overlay_config,
-                'preview_url' => $template->file_path ? url('storage/'.$template->file_path) : null,
-                'mask_url' => $template->mask_path ? url('storage/'.$template->mask_path) : null,
+                'preview_url' => MediaUrl::fromPath($template->file_path),
+                'mask_url' => MediaUrl::fromPath($template->mask_path),
             ] : null,
         ]);
     }
