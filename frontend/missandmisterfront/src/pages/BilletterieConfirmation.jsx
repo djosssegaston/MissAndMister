@@ -206,7 +206,7 @@ const BilletterieConfirmation = () => {
               </article>
               <article className="billetterie-meta-card">
                 <span>Commande</span>
-                <strong>{orderId || '—'}</strong>
+                <strong>{orderId || orderData?.id || '—'}</strong>
               </article>
             </div>
 

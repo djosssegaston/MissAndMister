@@ -161,7 +161,6 @@ class BilletterieService
                     'holder_name' => $holderName,
                     'holder_email' => $holderEmail,
                     'holder_phone' => $holderPhone,
-                    'payment_reference' => $reference,
                 ]),
             );
 
@@ -176,7 +175,7 @@ class BilletterieService
                 'total_amount' => $totalAmount,
                 'currency' => 'XOF',
                 'status' => 'pending',
-                'payment_reference' => $reference,
+                'payment_reference' => $payment->reference,
                 'quantity' => $quantity,
             ]);
 
