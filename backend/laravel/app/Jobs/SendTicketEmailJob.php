@@ -31,12 +31,6 @@ class SendTicketEmailJob
             return;
         }
 
-        $deliveryMethod = $order->delivery_method ?? 'email';
-
-        if ($deliveryMethod === 'whatsapp') {
-            return;
-        }
-
         $holderEmail = $order->holder_email ?? $order->tickets->firstWhere('holder_email')?->holder_email;
         $email = $order->user?->email ?? $holderEmail;
 

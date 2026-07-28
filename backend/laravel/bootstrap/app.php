@@ -104,8 +104,16 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
+            logger()->error('API Exception', [
+                'url' => $request->fullUrl(),
+                'method' => $request->method(),
+                'exception' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
+
             return response()->json([
-                'message' => 'Une erreur interne est survenue. Veuillez réessayer plus tard.',
+                'message' => config('app.debug') ? $exception->getMessage() : 'Une erreur interne est survenue. Veuillez réessayer plus tard.',
             ], 500);
         });
     })->create();

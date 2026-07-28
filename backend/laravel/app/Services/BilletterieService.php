@@ -218,7 +218,14 @@ class BilletterieService
         });
 
         if (($result['skipped_payment'] ?? false) && isset($result['order'])) {
-            SendTicketEmailJob::dispatch($result['order']->id);
+            try {
+                SendTicketEmailJob::dispatch($result['order']->id);
+            } catch (\Throwable $e) {
+                logger()->error('Ticket email dispatch failed (skip_payment)', [
+                    'order_id' => $result['order']->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $result;
@@ -267,7 +274,14 @@ class BilletterieService
         });
 
         if ($orderToNotify) {
-            SendTicketEmailJob::dispatch($orderToNotify->id);
+            try {
+                SendTicketEmailJob::dispatch($orderToNotify->id);
+            } catch (\Throwable $e) {
+                logger()->error('Ticket email dispatch failed (confirmOrder)', [
+                    'order_id' => $orderToNotify->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $result;

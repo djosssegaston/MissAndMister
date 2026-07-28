@@ -122,13 +122,20 @@ class BilletterieController extends Controller
 
     public function orderPublic(string $paymentReference): JsonResponse
     {
-        $order = TicketOrder::with(['event'])
+        $order = TicketOrder::with(['event', 'tickets.ticketType'])
             ->where('payment_reference', $paymentReference)
             ->first();
 
         if (! $order) {
             return response()->json(['message' => 'Commande introuvable.'], 404);
         }
+
+        $ticketTypeNames = $order->tickets
+            ->pluck('ticketType.name')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
 
         return response()->json([
             'id' => $order->id,
@@ -144,6 +151,7 @@ class BilletterieController extends Controller
             'total_amount' => $order->total_amount,
             'currency' => $order->currency,
             'ticket_count' => $order->tickets()->count(),
+            'ticket_type_names' => $ticketTypeNames,
         ]);
     }
 
@@ -164,7 +172,18 @@ class BilletterieController extends Controller
             return response()->json(['message' => 'Aucune adresse email disponible pour cette commande.'], 422);
         }
 
-        SendTicketEmailJob::dispatch($order->id);
+        try {
+            SendTicketEmailJob::dispatch($order->id);
+        } catch (\Throwable $e) {
+            logger()->error('resendEmail failed', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => "Échec de l'envoi. Vérifiez la configuration email du serveur.",
+            ], 500);
+        }
 
         return response()->json([
             'message' => 'Email de confirmation envoyé à '.$email,

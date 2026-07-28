@@ -67,13 +67,13 @@ class BilletterieOrderEmailTest extends TestCase
         });
     }
 
-    public function test_skip_payment_whatsapp_does_not_send_email(): void
+    public function test_skip_payment_whatsapp_sends_email_anyway(): void
     {
         config()->set('billetterie.skip_payment', true);
         Mail::fake();
 
         $pdfMock = $this->mock(TicketPdfService::class);
-        $pdfMock->shouldReceive('generateOrderPdf')->never();
+        $pdfMock->shouldReceive('generateOrderPdf')->andReturn('fake-pdf-bytes');
 
         [$event, $ticketType] = $this->createPublishedEventWithTicketType();
 
@@ -93,7 +93,7 @@ class BilletterieOrderEmailTest extends TestCase
 
         $this->assertTrue($result['skipped_payment']);
 
-        Mail::assertNothingSent();
+        Mail::assertSent(TicketDeliveredMail::class);
     }
 
     public function test_confirm_order_sends_ticket_email(): void
