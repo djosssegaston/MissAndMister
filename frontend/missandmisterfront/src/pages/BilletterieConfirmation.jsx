@@ -61,6 +61,16 @@ const BilletterieConfirmation = () => {
     };
   }, [paymentState]);
 
+  // Fetch order data immediately when status is already success (e.g. direct redirect from callback)
+  useEffect(() => {
+    if (!reference || queryStatus !== 'success') return;
+    let cancelled = false;
+    billetterieAPI.getOrderPublic(reference).then((orderResp) => {
+      if (!cancelled) setOrderData(orderResp?.data || orderResp);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [reference, queryStatus]);
+
   useEffect(() => {
     if (!reference || !SYNCABLE_STATES.has(queryStatus)) return;
     let cancelled = false;
