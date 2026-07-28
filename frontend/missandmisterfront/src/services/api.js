@@ -1809,6 +1809,10 @@ export const billetterieAPI = {
     return fetchPublicAPI(`/billetterie/order/${encodeURIComponent(paymentReference)}`, { timeout: 30000 });
   },
 
+  resendEmail: async (paymentReference) => {
+    return fetchPublicAPI(`/billetterie/order/${encodeURIComponent(paymentReference)}/resend-email`, { method: 'POST', timeout: 30000 });
+  },
+
   getMyTickets: async () => {
     return fetchAPI('/billetterie/mes-billets', { timeout: 30000 });
   },

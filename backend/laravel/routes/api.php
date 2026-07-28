@@ -90,6 +90,7 @@ Route::prefix('billetterie')->middleware('throttle:public-read')->group(function
     Route::get('events/{event:uuid}', [BilletterieController::class, 'showEvent']);
     Route::get('verify/{ticketCode}', [BilletterieController::class, 'verifyTicket']);
     Route::get('order/{paymentReference}', [BilletterieController::class, 'orderPublic'])->middleware('throttle:30,1');
+    Route::post('order/{paymentReference}/resend-email', [BilletterieController::class, 'resendEmail'])->middleware('throttle:5,1');
     Route::post('orders', [BilletterieController::class, 'order'])->middleware('throttle:10,1');
 });
 

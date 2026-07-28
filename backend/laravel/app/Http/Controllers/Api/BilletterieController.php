@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendTicketEmailJob;
 use App\Models\Event;
 use App\Models\Ticket;
 use App\Models\TicketOrder;
@@ -143,6 +144,30 @@ class BilletterieController extends Controller
             'total_amount' => $order->total_amount,
             'currency' => $order->currency,
             'ticket_count' => $order->tickets()->count(),
+        ]);
+    }
+
+    public function resendEmail(string $paymentReference): JsonResponse
+    {
+        $order = TicketOrder::with(['event'])
+            ->where('payment_reference', $paymentReference)
+            ->where('status', 'paid')
+            ->first();
+
+        if (! $order) {
+            return response()->json(['message' => 'Commande introuvable ou non payée.'], 404);
+        }
+
+        $email = $order->user?->email ?? $order->holder_email;
+
+        if (! $email) {
+            return response()->json(['message' => 'Aucune adresse email disponible pour cette commande.'], 422);
+        }
+
+        SendTicketEmailJob::dispatch($order->id);
+
+        return response()->json([
+            'message' => 'Email de confirmation envoyé à '.$email,
         ]);
     }
 

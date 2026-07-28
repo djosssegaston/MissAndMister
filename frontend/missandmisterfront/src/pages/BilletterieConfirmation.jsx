@@ -27,6 +27,8 @@ const BilletterieConfirmation = () => {
   const [message, setMessage] = useState('Nous vérifions la confirmation du paiement auprès du serveur sécurisé.');
   const [isSyncing, setIsSyncing] = useState(SYNCABLE_STATES.has(queryStatus) && reference !== '');
   const [orderData, setOrderData] = useState(null);
+  const [emailResent, setEmailResent] = useState(false);
+  const [emailResending, setEmailResending] = useState(false);
 
   const eventName = orderData?.event_name || orderData?.event?.title || 'l\'événement';
   const ticketCount = orderData?.ticket_count || 0;
@@ -35,6 +37,19 @@ const BilletterieConfirmation = () => {
     const text = `Bonjour, je suis un acheteur de billet pour l'événement ${eventName}. Ma référence: ${reference}`;
     return `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(text)}`;
   }, [eventName, reference]);
+
+  const handleResendEmail = async () => {
+    if (!reference || emailResending) return;
+    setEmailResending(true);
+    try {
+      await billetterieAPI.resendEmail(reference);
+      setEmailResent(true);
+    } catch {
+      // silent
+    } finally {
+      setEmailResending(false);
+    }
+  };
 
   const stateCopy = useMemo(() => {
     if (paymentState === 'success') {
@@ -212,7 +227,9 @@ const BilletterieConfirmation = () => {
 
             {paymentState === 'success' && (
               <div className="billetterie-confirmation-note">
-                Vos billets sont disponibles dans votre espace "Mes billets".
+                {emailResent
+                  ? 'Un nouvel email de confirmation vous a été envoyé. Vérifiez votre boîte de réception.'
+                  : 'Vos billets sont disponibles dans votre espace "Mes billets".'}
               </div>
             )}
 
@@ -228,6 +245,15 @@ const BilletterieConfirmation = () => {
                   <Link to="/billetterie/mes-billets" className="billetterie-action-primary">
                     Mes billets
                   </Link>
+                  {!emailResent && (
+                    <button
+                      className="billetterie-action-secondary"
+                      onClick={handleResendEmail}
+                      disabled={emailResending}
+                    >
+                      {emailResending ? 'Envoi...' : 'Renvoyer l\'email'}
+                    </button>
+                  )}
                 </>
               ) : paymentState === 'failed' ? (
                 <>

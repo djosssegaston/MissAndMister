@@ -340,6 +340,10 @@ class PaymentController extends Controller
             return (bool) config('services.fedapay.webhook_async', false);
         }
 
+        if (! config('queue.default') || config('queue.default') === 'sync') {
+            return false;
+        }
+
         return (bool) config('services.fedapay.webhook_async', true);
     }
 

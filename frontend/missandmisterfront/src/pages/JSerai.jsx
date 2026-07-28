@@ -533,27 +533,10 @@ const Step3Photo = ({ data, onNext, onBack }) => {
 
 /* ──────────────────────────── STEP 4: Done ──────────────────────────── */
 const PosterFinal = ({ data, onReset }) => {
-  const [downloading, setDownloading] = useState(false);
-
-  const handleRedownload = async () => {
-    if (!data.uuid || !data.editToken) return;
-    setDownloading(true);
-    try {
-      const result = await jseraiAPI.download(data.uuid, data.editToken);
-      const url = URL.createObjectURL(result.blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = result.filename || `j-y-serai-${data.firstName}-${data.lastName}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      // silent
-    } finally {
-      setDownloading(false);
-    }
-  };
+  useEffect(() => {
+    const timer = setTimeout(() => { onReset(); }, 2500);
+    return () => clearTimeout(timer);
+  }, [onReset]);
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="jserai-final">
@@ -562,14 +545,8 @@ const PosterFinal = ({ data, onReset }) => {
           <circle cx="12" cy="12" r="10" stroke="#D4AF37" strokeWidth="2"/>
           <path d="M8 12l3 3 5-5" stroke="#D4AF37" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        <h2>Votre affiche est prête !</h2>
-        <p>Vous pouvez la re-télécharger ou créer une nouvelle affiche.</p>
-      </div>
-      <div className="jserai-final-actions">
-        <button className="jserai-btn jserai-btn-primary" onClick={handleRedownload} disabled={downloading}>
-          {downloading ? 'Téléchargement...' : 'Télécharger à nouveau'}
-        </button>
-        <button className="jserai-btn jserai-btn-ghost" onClick={onReset}>Créer une nouvelle affiche</button>
+        <h2>Téléchargement effectué !</h2>
+        <p>Votre affiche a été téléchargée avec succès.</p>
       </div>
     </motion.div>
   );
