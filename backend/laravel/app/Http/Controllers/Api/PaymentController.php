@@ -50,7 +50,15 @@ class PaymentController extends Controller
     {
         $user = request()->user();
         if ($user->tokenCan('admin') || $payment->user_id === $user?->id) {
-            return response()->json($payment->load('transactions'));
+            return response()->json([
+                'id' => $payment->id,
+                'reference' => $payment->reference,
+                'status' => $payment->status,
+                'amount' => (float) $payment->amount,
+                'currency' => $payment->currency,
+                'created_at' => $payment->created_at,
+                'paid_at' => $payment->paid_at,
+            ]);
         }
 
         abort(403);
@@ -390,7 +398,6 @@ class PaymentController extends Controller
             'reference' => $payment->reference,
             'payment_status' => $payment->status,
             'vote_status' => $payment->vote?->status,
-            'transaction_id' => $payment->transaction_id,
             'amount' => (float) $payment->amount,
             'currency' => $payment->currency,
             'quantity' => (int) ($payment->vote?->quantity ?? data_get($payment->meta, 'quantity', 1)),
@@ -413,7 +420,6 @@ class PaymentController extends Controller
         return [
             'reference' => $payment->reference,
             'payment_status' => $payment->status,
-            'transaction_id' => $payment->transaction_id,
             'amount' => (float) $payment->amount,
             'currency' => $payment->currency,
             'quantity' => (int) data_get($payment->meta, 'quantity', 1),

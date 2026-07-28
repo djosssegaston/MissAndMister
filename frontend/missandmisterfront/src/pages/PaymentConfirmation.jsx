@@ -6,7 +6,7 @@ import { getCandidatePublicPath } from '../utils/candidatePublic';
 import { broadcastLiveUpdate } from '../utils/liveUpdates';
 import './PaymentConfirmation.css';
 
-const SYNCABLE_STATES = new Set(['success', 'processing', 'pending', 'opening', 'initiated', 'failed']);
+const SYNCABLE_STATES = new Set(['processing', 'pending', 'opening', 'initiated', 'failed']);
 
 const parseAmount = (value) => {
   const amount = Number(value);
@@ -87,8 +87,8 @@ const PaymentConfirmation = () => {
         tone: 'success',
         label: 'Confirmation officielle',
         body: candidateTotalVotes !== null
-          ? `Félicitations, votre vote a été enregistré avec succès. Grâce à votre participation, le candidat ${candidateName} totalise désormais ${candidateTotalVotes.toLocaleString('fr-FR')} votes. Au nom du candidat et de toute l’équipe de MissAndMister University Bénin, nous vous remercions pour votre engagement et votre soutien.`
-          : `Félicitations, votre vote a été enregistré avec succès. Le compteur du candidat ${candidateName} est en cours d’actualisation. Au nom du candidat et de toute l’équipe de MissAndMister University Bénin, nous vous remercions pour votre engagement et votre soutien.`,
+          ? `Félicitations, votre vote a été enregistré avec succès. Grâce à votre participation, le candidat ${candidateName} totalise désormais ${candidateTotalVotes.toLocaleString('fr-FR')} votes. Au nom du candidat et de toute l'équipe de MissAndMister University Bénin, nous vous remercions pour votre engagement et votre soutien.`
+          : `Félicitations, votre vote a été enregistré avec succès en faveur de ${candidateName}. Le compteur sera mis à jour automatiquement. Merci pour votre soutien.`,
       };
     }
 
@@ -110,10 +110,10 @@ const PaymentConfirmation = () => {
   const stateCopy = useMemo(() => {
     if (paymentState === 'success') {
       return {
-        eyebrow: 'Paiement confirmé',
+        eyebrow: 'Vote comptabilisé',
         title: 'Votre vote a bien été validé',
         subtitle: `Le paiement sécurisé a été confirmé et votre soutien en faveur de ${candidateName} est désormais pris en compte.`,
-        detail: 'Le tableau du candidat est actualisé automatiquement afin de refléter votre participation.',
+        detail: '',
       };
     }
 
@@ -285,7 +285,7 @@ const PaymentConfirmation = () => {
                   <span className="payment-confirmation-alert-label">{statusNotice.label}</span>
                   <p className="payment-confirmation-message">{statusNotice.body}</p>
                 </div>
-                <p className="payment-confirmation-detail">{stateCopy.detail}</p>
+                {stateCopy.detail ? <p className="payment-confirmation-detail">{stateCopy.detail}</p> : null}
               </div>
             </div>
 

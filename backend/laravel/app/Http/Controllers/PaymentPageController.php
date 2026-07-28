@@ -58,7 +58,6 @@ class PaymentPageController extends Controller
             'reference' => $payment->reference,
             'quantity' => max(1, $quantity),
             'amount' => (float) $payment->amount,
-            'transaction_id' => (string) ($payment->transaction_id ?? ''),
             'payment_status' => (string) $payment->status,
             'vote_status' => (string) ($payment->vote?->status ?? ''),
         ];

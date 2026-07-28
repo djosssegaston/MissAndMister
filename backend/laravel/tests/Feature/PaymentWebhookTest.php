@@ -2,13 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Jobs\ProcessFedapayWebhookJob;
 use App\Models\Candidate;
 use App\Models\Category;
 use App\Models\Payment;
 use App\Models\Vote;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -102,11 +100,54 @@ class PaymentWebhookTest extends TestCase
         $this->assertSame(Vote::STATUS_CONFIRMED, $vote->status);
     }
 
-    public function test_webhook_queues_processing_when_async_enabled(): void
+    public function test_webhook_processes_synchronously_when_job_runs_inline(): void
     {
         config()->set('services.fedapay.webhook_secret', 'whsec_test');
         config()->set('services.fedapay.webhook_async', true);
-        Queue::fake();
+
+        $category = Category::query()->create([
+            'name' => 'Mister',
+            'slug' => 'mister',
+            'description' => 'Concours Mister',
+            'status' => 'active',
+            'position' => 0,
+        ]);
+
+        $candidate = Candidate::query()->create([
+            'category_id' => $category->id,
+            'first_name' => 'Jean',
+            'last_name' => 'Dupont',
+            'public_number' => 1,
+            'slug' => 'jean-dupont',
+            'status' => 'active',
+            'public_uid' => '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+        ]);
+
+        $payment = Payment::query()->create([
+            'provider' => 'fedapay',
+            'reference' => 'ASYNCREF001',
+            'transaction_id' => 'tx_async_001',
+            'amount' => 1000,
+            'currency' => 'XOF',
+            'status' => 'initiated',
+            'meta' => [
+                'candidate_id' => $candidate->id,
+                'candidate_name' => 'Jean Dupont',
+                'ip' => '127.0.0.1',
+            ],
+            'payload' => [],
+        ]);
+
+        $vote = Vote::query()->create([
+            'candidate_id' => $candidate->id,
+            'payment_id' => $payment->id,
+            'amount' => 1000,
+            'quantity' => 1,
+            'currency' => 'XOF',
+            'status' => 'pending',
+            'ip_address' => '127.0.0.1',
+            'meta' => [],
+        ]);
 
         $payload = [
             'name' => 'transaction.updated',
@@ -121,12 +162,13 @@ class PaymentWebhookTest extends TestCase
 
         $response = $this->postSignedWebhook($payload, 'whsec_test');
 
-        $response
-            ->assertStatus(200)
-            ->assertJsonPath('result', 'queued')
-            ->assertJsonPath('outcome', 'processing');
+        $response->assertStatus(200);
 
-        Queue::assertPushed(ProcessFedapayWebhookJob::class);
+        $payment->refresh();
+        $vote->refresh();
+
+        $this->assertSame(Payment::STATUS_SUCCEEDED, $payment->status);
+        $this->assertSame(Vote::STATUS_CONFIRMED, $vote->status);
     }
 
     private function postSignedWebhook(array $payload, string $secret): TestResponse

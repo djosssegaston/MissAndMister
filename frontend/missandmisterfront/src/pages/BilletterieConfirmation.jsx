@@ -28,7 +28,7 @@ const BilletterieConfirmation = () => {
   const [emailResent, setEmailResent] = useState(false);
   const [emailResending, setEmailResending] = useState(false);
 
-  const eventName = orderData?.event_name || orderData?.event?.title || 'l\'événement';
+  const eventName = orderData?.event_name || 'l\'événement';
   const ticketCount = orderData?.ticket_count || 0;
   const ticketTypeNames = orderData?.ticket_type_names || [];
 
@@ -51,7 +51,7 @@ const BilletterieConfirmation = () => {
         eyebrow: 'Paiement confirmé',
         title: 'Achat validé',
         subtitle: 'Le paiement a été confirmé. Vos billets sont prêts.',
-        detail: 'Vérifiez votre boîte de réception : vos billets vous ont été envoyés par email avec le PDF complet.',
+        detail: '',
       };
     }
     if (paymentState === 'failed') {
@@ -196,7 +196,7 @@ const BilletterieConfirmation = () => {
                   <span className="billetterie-confirmation-alert-label">Notification</span>
                   <p className="billetterie-confirmation-message">{message}</p>
                 </div>
-                <p className="billetterie-confirmation-detail">{stateCopy.detail}</p>
+                {stateCopy.detail ? <p className="billetterie-confirmation-detail">{stateCopy.detail}</p> : null}
               </div>
             </div>
 

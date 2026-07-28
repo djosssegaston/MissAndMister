@@ -493,7 +493,7 @@
         @endif
 
         <p class="footnote">
-            Référence transaction : <strong>{{ $payment->transaction_id ?? '—' }}</strong>
+            Référence commande : <strong>{{ $payment->reference }}</strong>
         </p>
     </main>
 
@@ -734,10 +734,10 @@
                         environment: fedapayEnvironment,
                         locale: 'fr',
                         transaction: {
-                            id: Number(payment.transaction_id),
+                            id: Number(button.dataset.transactionId),
                             amount: Number(payment.amount),
                             description: paymentDescription,
-                            custom_metadata: payment,
+                            custom_metadata: { reference: payment.reference },
                         },
                         onComplete: (reason, transaction) => {
                             const transactionStatus = String(transaction?.status || '').toLowerCase();

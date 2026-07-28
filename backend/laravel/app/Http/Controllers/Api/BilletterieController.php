@@ -69,14 +69,14 @@ class BilletterieController extends Controller
             if ($result['skipped_payment'] ?? false) {
                 return response()->json([
                     'message' => 'Commande confirmée. Vos billets ont été envoyés par email.',
-                    'order' => $result['order'],
+                    'payment_reference' => $result['order']->payment_reference,
                     'payment_url' => null,
                 ], 201);
             }
 
             return response()->json([
                 'message' => 'Commande créée, paiement en cours.',
-                'order' => $result['order'],
+                'payment_reference' => $result['order']->payment_reference,
                 'payment_url' => $result['payment_url'],
             ], 201);
         } catch (\RuntimeException $e) {
@@ -138,15 +138,9 @@ class BilletterieController extends Controller
             ->all();
 
         return response()->json([
-            'id' => $order->id,
             'status' => $order->status,
             'payment_reference' => $order->payment_reference,
             'event_name' => $order->event?->title,
-            'event' => [
-                'id' => $order->event?->id,
-                'title' => $order->event?->title,
-            ],
-            'holder_name' => $order->holder_name,
             'quantity' => $order->quantity,
             'total_amount' => $order->total_amount,
             'currency' => $order->currency,
@@ -186,7 +180,7 @@ class BilletterieController extends Controller
         }
 
         return response()->json([
-            'message' => 'Email de confirmation envoyé à '.$email,
+            'message' => 'Email de confirmation envoyé.',
         ]);
     }
 
@@ -203,12 +197,8 @@ class BilletterieController extends Controller
 
         return response()->json([
             'valid' => $isValid,
-            'ticket_code' => $ticket->ticket_code,
-            'holder_name' => $ticket->holder_name,
             'event_title' => $ticket->ticketType?->event?->title,
             'ticket_type' => $ticket->ticketType?->name,
-            'checked_in' => $isCheckedIn,
-            'checked_in_at' => $ticket->checked_in_at?->toIso8601String(),
             'status' => $ticket->status,
         ]);
     }
