@@ -6,13 +6,12 @@ use App\Mail\TicketDeliveredMail;
 use App\Models\TicketOrder;
 use App\Services\TicketPdfService;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Mail;
 
-class SendTicketEmailJob implements ShouldQueue
+class SendTicketEmailJob
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
