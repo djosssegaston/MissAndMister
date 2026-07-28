@@ -3,11 +3,10 @@
 namespace App\Jobs;
 
 use App\Services\FedapayWebhookService;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
 
-class ProcessFedapayWebhookJob implements ShouldQueue
+class ProcessFedapayWebhookJob
 {
     use Queueable;
 
