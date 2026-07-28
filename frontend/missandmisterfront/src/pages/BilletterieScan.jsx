@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 import { FiCamera, FiCheckCircle, FiXCircle, FiRefreshCw, FiArrowLeft, FiAlertTriangle } from 'react-icons/fi';
 import { scanAPI } from '../services/api';
@@ -18,6 +19,7 @@ const STATUS = {
 };
 
 export default function BilletterieScan() {
+  const navigate = useNavigate();
   const [status, setStatus] = useState(STATUS.IDLE);
   const [ticketInfo, setTicketInfo] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -154,7 +156,7 @@ export default function BilletterieScan() {
     <div style={s.container}>
       {/* Header */}
       <div style={s.header}>
-        <button onClick={() => window.history.back()} style={s.backBtn}>
+        <button onClick={() => navigate('/admin/billetterie')} style={s.backBtn}>
           <FiArrowLeft size={20} />
         </button>
         <h1 style={s.title}>Scanner billet</h1>

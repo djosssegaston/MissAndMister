@@ -74,6 +74,7 @@ class TicketScanController extends Controller
                 ->update([
                     'scanned_at' => $now,
                     'scanned_by' => $request->user()->id,
+                    'checked_in_at' => $now,
                     'updated_at' => $now,
                 ]);
 
