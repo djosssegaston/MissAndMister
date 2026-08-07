@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Payment;
 use App\Models\Vote;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -169,6 +170,166 @@ class PaymentWebhookTest extends TestCase
 
         $this->assertSame(Payment::STATUS_SUCCEEDED, $payment->status);
         $this->assertSame(Vote::STATUS_CONFIRMED, $vote->status);
+    }
+
+    public function test_webhook_confirms_vote_from_json_api_attributes_payload(): void
+    {
+        config()->set('services.fedapay.webhook_secret', 'whsec_test');
+        config()->set('services.fedapay.secret_key', 'sk_test');
+        config()->set('services.fedapay.environment', 'sandbox');
+        config()->set('services.fedapay.webhook_async', false);
+
+        [$payment, $vote] = $this->seedPaymentAndVote('ATTRIBUTES01', 'tx_attributes_1');
+
+        $payload = [
+            'id' => 'EVT_123',
+            'type' => 'transaction.approved',
+            'data' => [
+                'type' => 'transaction',
+                'attributes' => [
+                    'id' => 'tx_attributes_1',
+                    'status' => 'approved',
+                    'merchant_reference' => 'ATTRIBUTES01',
+                ],
+            ],
+        ];
+
+        $response = $this->postSignedWebhook($payload, 'whsec_test');
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('result', 'applied')
+            ->assertJsonPath('outcome', Payment::STATUS_SUCCEEDED);
+
+        $payment->refresh();
+        $vote->refresh();
+
+        $this->assertSame(Payment::STATUS_SUCCEEDED, $payment->status);
+        $this->assertSame(Vote::STATUS_CONFIRMED, $vote->status);
+    }
+
+    public function test_webhook_confirms_vote_from_remote_lookup_when_payload_status_is_unrecognized(): void
+    {
+        config()->set('services.fedapay.webhook_secret', 'whsec_test');
+        config()->set('services.fedapay.secret_key', 'sk_test');
+        config()->set('services.fedapay.environment', 'sandbox');
+        config()->set('services.fedapay.webhook_async', false);
+
+        Http::fake([
+            'https://sandbox-api.fedapay.com/v1/transactions/tx_remote_1' => Http::response([
+                'id' => 'tx_remote_1',
+                'status' => 'approved',
+                'merchant_reference' => 'REMOTEREF001',
+            ], 200),
+        ]);
+
+        [$payment, $vote] = $this->seedPaymentAndVote('REMOTEREF001', 'tx_remote_1');
+
+        $payload = [
+            'name' => 'transaction.updated',
+            'data' => [
+                'attributes' => [
+                    'id' => 'tx_remote_1',
+                    'status' => 'some_unknown_status',
+                    'merchant_reference' => 'REMOTEREF001',
+                ],
+            ],
+        ];
+
+        $response = $this->postSignedWebhook($payload, 'whsec_test');
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonPath('result', 'applied')
+            ->assertJsonPath('outcome', Payment::STATUS_SUCCEEDED);
+
+        $payment->refresh();
+        $vote->refresh();
+
+        $this->assertSame(Payment::STATUS_SUCCEEDED, $payment->status);
+        $this->assertSame(Vote::STATUS_CONFIRMED, $vote->status);
+    }
+
+    public function test_webhook_returns_500_and_clears_lock_when_processing_fails(): void
+    {
+        config()->set('services.fedapay.webhook_secret', 'whsec_test');
+
+        $mock = \Mockery::mock(\App\Services\FedapayWebhookService::class);
+        $mock->shouldReceive('processWebhookPayload')
+            ->andThrow(new \RuntimeException('fedapay unavailable'));
+
+        $this->app->instance(\App\Services\FedapayWebhookService::class, $mock);
+
+        [$payment, $vote] = $this->seedPaymentAndVote('FAILWH001', 'tx_failwh_1');
+
+        $payload = [
+            'name' => 'transaction.approved',
+            'data' => [
+                'entity' => [
+                    'id' => 'tx_failwh_1',
+                    'status' => 'approved',
+                    'merchant_reference' => 'FAILWH001',
+                ],
+            ],
+        ];
+
+        $first = $this->postSignedWebhook($payload, 'whsec_test');
+        $first->assertStatus(500);
+
+        $second = $this->postSignedWebhook($payload, 'whsec_test');
+        $second->assertStatus(500)->assertJsonPath('message', 'Webhook processing failed');
+    }
+
+    /**
+     * @return array{0: Payment, 1: Vote}
+     */
+    private function seedPaymentAndVote(string $reference, string $transactionId): array
+    {
+        $category = Category::query()->create([
+            'name' => 'Miss',
+            'slug' => 'miss',
+            'description' => 'Concours Miss',
+            'status' => 'active',
+            'position' => 0,
+        ]);
+
+        $candidate = Candidate::query()->create([
+            'category_id' => $category->id,
+            'first_name' => 'Awa',
+            'last_name' => 'Kossi',
+            'public_number' => 1,
+            'slug' => 'awa-kossi',
+            'status' => 'active',
+            'public_uid' => '01ARZ3NDEKTSV4RRFFQ69G5FAV',
+        ]);
+
+        $payment = Payment::query()->create([
+            'provider' => 'fedapay',
+            'reference' => $reference,
+            'transaction_id' => $transactionId,
+            'amount' => 500,
+            'currency' => 'XOF',
+            'status' => 'initiated',
+            'meta' => [
+                'candidate_id' => $candidate->id,
+                'candidate_name' => 'Awa Kossi',
+                'ip' => '127.0.0.1',
+            ],
+            'payload' => [],
+        ]);
+
+        $vote = Vote::query()->create([
+            'candidate_id' => $candidate->id,
+            'payment_id' => $payment->id,
+            'amount' => 500,
+            'quantity' => 1,
+            'currency' => 'XOF',
+            'status' => 'pending',
+            'ip_address' => '127.0.0.1',
+            'meta' => [],
+        ]);
+
+        return [$payment, $vote];
     }
 
     private function postSignedWebhook(array $payload, string $secret): TestResponse

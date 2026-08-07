@@ -31,7 +31,7 @@ class PaymentService
 
     private const FAILURE_STATUSES = ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected', 'refunded'];
 
-    private const SUCCESS_STATUSES = ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred'];
+    private const SUCCESS_STATUSES = ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred', 'complete', 'completed', 'credited', 'validated'];
 
     private const PROCESSING_STATUSES = ['pending', 'processing', 'created', 'initiated'];
 
@@ -233,7 +233,7 @@ class PaymentService
 
     public function scheduleWarmPaymentStateForReadModels(
         int $limit = 10,
-        int $cooldownSeconds = 10,
+        int $cooldownSeconds = 60,
         int $recentHours = self::DEFAULT_RECONCILE_RECENT_HOURS,
     ): void {
         if (! $this->shouldWarmPaymentStateDuringHttpRequests()) {
@@ -343,8 +343,31 @@ class PaymentService
             $beforePaymentStatus = $payment->status;
             $beforeVoteStatus = $payment->vote?->status;
 
+            $remoteTransaction = null;
+
+            if (
+                $payment->status === Payment::STATUS_SUCCEEDED
+                && ! $payment->vote
+                && $payment->transaction_id
+                && ! $this->isBilletteriePayment($payment)
+                && $this->shouldRetryMissingVoteRestore($payment)
+            ) {
+                try {
+                    $remoteTransaction = $this->fedapay->retrieveTransaction($payment->transaction_id);
+                } catch (\Throwable $exception) {
+                    logger()->warning('FedaPay remote lookup failed while restoring missing vote', [
+                        'payment_id' => $payment->id,
+                        'reference' => $payment->reference,
+                        'transaction_id' => $payment->transaction_id,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+
+                $this->markVoteRestoreAttempted($payment);
+            }
+
             try {
-                $payment = $this->syncPaymentWithProvider($payment, null, 'automatic-reconcile');
+                $payment = $this->syncPaymentWithProvider($payment, $remoteTransaction, 'automatic-reconcile');
             } catch (\Throwable $exception) {
                 logger()->warning('Automatic FedaPay reconciliation skipped a broken payment', [
                     'payment_id' => $payment->id,
@@ -371,6 +394,24 @@ class PaymentService
         }
 
         return $stats;
+    }
+
+    private function shouldRetryMissingVoteRestore(Payment $payment): bool
+    {
+        $lastAttempt = (int) data_get($payment->meta, 'reconcile_vote_attempt_at', 0);
+
+        return $lastAttempt <= 0 || (now()->timestamp - $lastAttempt) >= 900;
+    }
+
+    private function markVoteRestoreAttempted(Payment $payment): void
+    {
+        $payment->update([
+            'meta' => array_merge((array) ($payment->meta ?? []), [
+                'reconcile_vote_attempt_at' => now()->timestamp,
+            ]),
+        ]);
+
+        $payment->refresh();
     }
 
     public function syncPaymentWithProvider(Payment $payment, ?array $remoteTransaction = null, ?string $source = null): Payment
@@ -667,7 +708,7 @@ class PaymentService
         }
 
         if (! $payment->vote) {
-            $payment = $this->restoreMissingVoteForSucceededPayment($payment);
+            $payment = $this->restoreMissingVoteForSucceededPayment($payment, null, $payload);
         }
 
         if ($payment->vote) {
@@ -682,7 +723,7 @@ class PaymentService
         return $payment->fresh(['vote', 'user']);
     }
 
-    private function restoreMissingVoteForSucceededPayment(Payment $payment, ?int $forcedCandidateId = null): Payment
+    private function restoreMissingVoteForSucceededPayment(Payment $payment, ?int $forcedCandidateId = null, array $payload = []): Payment
     {
         $payment->loadMissing(['vote', 'user']);
 
@@ -690,15 +731,18 @@ class PaymentService
             return $payment->fresh(['vote', 'user']);
         }
 
+        $remotePayload = $payload !== [] ? $payload : ((array) ($payment->payload ?? []));
+
+        // Billetterie payments never carry a vote: restoring one would create a
+        // fake vote for the coronation night and corrupt the rankings.
+        if ($this->isBilletteriePayment($payment, $remotePayload)) {
+            return $payment->fresh(['vote', 'user']);
+        }
+
         $candidateId = $forcedCandidateId && $forcedCandidateId > 0
             ? $forcedCandidateId
-            : (int) (
-                data_get($payment->meta, 'candidate_id')
-                ?: data_get($payment->payload, 'custom_metadata.candidate_id')
-                ?: data_get($payment->payload, 'fedapay.custom_metadata.candidate_id')
-                ?: 0
-            );
-        $candidateId = $this->resolveRestorableCandidateId($candidateId, $payment, $forcedCandidateId !== null);
+            : $this->extractRestorableCandidateId($payment, $remotePayload);
+        $candidateId = $this->resolveRestorableCandidateId($candidateId, $payment, $forcedCandidateId !== null, $remotePayload);
 
         if ($candidateId <= 0) {
             logger()->warning('Succeeded payment cannot restore vote without candidate', [
@@ -713,9 +757,16 @@ class PaymentService
             data_get($payment->meta, 'quantity')
             ?: data_get($payment->payload, 'custom_metadata.quantity')
             ?: data_get($payment->payload, 'fedapay.custom_metadata.quantity')
+            ?: data_get($remotePayload, 'custom_metadata.quantity')
+            ?: data_get($remotePayload, 'fedapay.custom_metadata.quantity')
+            ?: data_get($remotePayload, 'data.custom_metadata.quantity')
             ?: 1
         ));
-        $ipAddress = trim((string) data_get($payment->meta, 'ip', ''));
+        $ipAddress = trim((string) (
+            data_get($payment->meta, 'ip')
+            ?: data_get($remotePayload, 'custom_metadata.ip')
+            ?: ''
+        ));
 
         $restored = false;
 
@@ -831,7 +882,7 @@ class PaymentService
         return $payment->fresh(['vote', 'user']);
     }
 
-    private function resolveRestorableCandidateId(int $candidateId, Payment $payment, bool $strict = false): int
+    private function resolveRestorableCandidateId(int $candidateId, Payment $payment, bool $strict = false, array $remotePayload = []): int
     {
         if ($candidateId > 0 && Candidate::withTrashed()->whereKey($candidateId)->exists()) {
             return $candidateId;
@@ -841,12 +892,7 @@ class PaymentService
             return 0;
         }
 
-        $candidateName = trim((string) (
-            data_get($payment->meta, 'candidate_name')
-            ?: data_get($payment->payload, 'custom_metadata.candidate_name')
-            ?: data_get($payment->payload, 'fedapay.custom_metadata.candidate_name')
-            ?: ''
-        ));
+        $candidateName = $this->resolveRestorableCandidateName($payment, $remotePayload);
 
         if ($candidateName === '') {
             return 0;
@@ -870,6 +916,78 @@ class PaymentService
         ]);
 
         return 0;
+    }
+
+    private function isBilletteriePayment(Payment $payment, array $remotePayload = []): bool
+    {
+        $type = strtolower((string) (
+            data_get($payment->meta, 'type')
+            ?: data_get($payment->payload, 'custom_metadata.type')
+            ?: data_get($payment->payload, 'fedapay.custom_metadata.type')
+            ?: data_get($remotePayload, 'custom_metadata.type')
+            ?: data_get($remotePayload, 'fedapay.custom_metadata.type')
+            ?: data_get($remotePayload, 'data.custom_metadata.type')
+            ?: data_get($remotePayload, 'data.entity.custom_metadata.type')
+            ?: data_get($remotePayload, 'metadata.type')
+            ?: ''
+        ));
+
+        return $type === 'billetterie';
+    }
+
+    private function extractRestorableCandidateId(Payment $payment, array $remotePayload): int
+    {
+        return (int) (
+            data_get($payment->meta, 'candidate_id')
+            ?: data_get($payment->payload, 'custom_metadata.candidate_id')
+            ?: data_get($payment->payload, 'fedapay.custom_metadata.candidate_id')
+            ?: data_get($remotePayload, 'custom_metadata.candidate_id')
+            ?: data_get($remotePayload, 'fedapay.custom_metadata.candidate_id')
+            ?: data_get($remotePayload, 'data.custom_metadata.candidate_id')
+            ?: data_get($remotePayload, 'data.entity.custom_metadata.candidate_id')
+            ?: data_get($remotePayload, 'data.attributes.custom_metadata.candidate_id')
+            ?: 0
+        );
+    }
+
+    private function resolveRestorableCandidateName(Payment $payment, array $remotePayload): string
+    {
+        $candidateName = trim((string) (
+            data_get($payment->meta, 'candidate_name')
+            ?: data_get($payment->payload, 'custom_metadata.candidate_name')
+            ?: data_get($payment->payload, 'fedapay.custom_metadata.candidate_name')
+            ?: data_get($remotePayload, 'custom_metadata.candidate_name')
+            ?: data_get($remotePayload, 'fedapay.custom_metadata.candidate_name')
+            ?: data_get($remotePayload, 'data.custom_metadata.candidate_name')
+            ?: data_get($remotePayload, 'data.entity.custom_metadata.candidate_name')
+            ?: data_get($remotePayload, 'data.attributes.custom_metadata.candidate_name')
+            ?: ''
+        ));
+
+        if ($candidateName !== '') {
+            return preg_replace('/\s+/', ' ', $candidateName) ?: $candidateName;
+        }
+
+        $description = trim((string) (
+            data_get($payment->payload, 'fedapay.description')
+            ?: data_get($payment->payload, 'description')
+            ?: data_get($remotePayload, 'description')
+            ?: data_get($remotePayload, 'fedapay.description')
+            ?: data_get($remotePayload, 'data.description')
+            ?: data_get($remotePayload, 'data.entity.description')
+            ?: data_get($remotePayload, 'data.attributes.description')
+            ?: ''
+        ));
+
+        if ($description !== '' && preg_match('/^Vote pour\s+(.+)$/iu', $description, $matches) === 1) {
+            $parsedName = trim((string) ($matches[1] ?? ''));
+
+            if ($parsedName !== '') {
+                return preg_replace('/\s+/', ' ', $parsedName) ?: $parsedName;
+            }
+        }
+
+        return '';
     }
 
     private function reconcileVoteForSucceededPayment(Payment $payment, array $payload = []): Payment
@@ -1156,6 +1274,8 @@ class PaymentService
             Arr::get($payload, 'status'),
             Arr::get($payload, 'data.status'),
             Arr::get($payload, 'data.entity.status'),
+            Arr::get($payload, 'data.attributes.status'),
+            Arr::get($payload, 'data.entity.attributes.status'),
             Arr::get($payload, 'transaction.status'),
             Arr::get($payload, 'data.transaction.status'),
         ];

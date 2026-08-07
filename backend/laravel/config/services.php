@@ -40,9 +40,9 @@ return [
         'secret_key' => env('FEDAPAY_SECRET_KEY'),
         'webhook_secret' => env('FEDAPAY_WEBHOOK_SECRET'),
         'environment' => env('FEDAPAY_ENVIRONMENT', 'sandbox'),
-        'webhook_async' => env('FEDAPAY_WEBHOOK_ASYNC', true),
+        'webhook_async' => env('FEDAPAY_WEBHOOK_ASYNC', false),
         'webhook_queue' => env('FEDAPAY_WEBHOOK_QUEUE', 'default'),
-        'read_model_warm_enabled' => env('FEDAPAY_READ_MODEL_WARM_ENABLED', false),
+        'read_model_warm_enabled' => env('FEDAPAY_READ_MODEL_WARM_ENABLED', true),
         'audit_ignore_references' => env('FEDAPAY_AUDIT_IGNORE_REFERENCES', ''),
     ],
 

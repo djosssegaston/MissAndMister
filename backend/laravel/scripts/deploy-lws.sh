@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 
-LWS_SSH_TARGET="${LWS_SSH_TARGET:-missm2781953@webdb10}"
+LWS_SSH_TARGET="${LWS_SSH_TARGET:-missm2781953@webdb2210}"
 LWS_REMOTE_DIR="${LWS_REMOTE_DIR:-/home/htdocs/api.missmisteruniversitybenin.com/backend/laravel}"
 LWS_PHP_BIN="${LWS_PHP_BIN:-php}"
 LWS_HEALTH_URL="${LWS_HEALTH_URL:-https://api.missmisteruniversitybenin.com/up}"

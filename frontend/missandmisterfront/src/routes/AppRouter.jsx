@@ -42,33 +42,15 @@ import SessionExpiredModal from '../components/SessionExpiredModal';
 import Loader from '../components/Loader';
 import {
   computePublicVotingState,
-  getMaintenanceSnapshot,
   hasAdminPreviewSession,
 } from '../utils/publicSettings';
 import { usePublicBootstrapData } from '../hooks/usePublicBootstrapData';
-
-const getCountdownState = (remainingMs = 0, totalMs = 0) => {
-  const remaining = Math.max(0, Number.isFinite(remainingMs) ? remainingMs : 0);
-  const total = Math.max(0, Number.isFinite(totalMs) ? totalMs : 0);
-
-  return {
-    days: Math.floor(remaining / (1000 * 60 * 60 * 24)),
-    hours: Math.floor((remaining / (1000 * 60 * 60)) % 24),
-    minutes: Math.floor((remaining / (1000 * 60)) % 60),
-    seconds: Math.floor((remaining / 1000) % 60),
-    percentLeft: total > 0 ? Math.max(0, Math.min(100, Math.round((remaining / total) * 100))) : 0,
-  };
-};
 
 const computeVotingState = (settings, nowMs) => {
   return computePublicVotingState(settings, nowMs);
 };
 
 const MaintenanceScreen = ({ publicSettings, onCountdownComplete }) => {
-  const [countdown, setCountdown] = useState(() => {
-    const { maintenanceRemainingMs } = getMaintenanceSnapshot(publicSettings || {}, Date.now());
-    return getCountdownState(maintenanceRemainingMs, maintenanceRemainingMs);
-  });
   const maintenanceEnd = publicSettings?.maintenance_end_at_iso
     ? new Date(publicSettings.maintenance_end_at_iso)
     : null;
@@ -77,96 +59,23 @@ const MaintenanceScreen = ({ publicSettings, onCountdownComplete }) => {
 
   useEffect(() => {
     if (!hasSchedule) {
-      setCountdown(getCountdownState());
-      return;
+      return undefined;
     }
 
-    const initialRemaining = Math.max(0, (maintenanceEndsAt ?? 0) - Date.now());
-    const total = initialRemaining;
-    setCountdown(getCountdownState(initialRemaining, total));
-
-    let intervalId = null;
-    const startedAt = Date.now();
-    const tick = () => {
-      const elapsedMs = Date.now() - startedAt;
-      const remaining = Math.max(0, initialRemaining - elapsedMs);
-      setCountdown(getCountdownState(remaining, total));
-
-      if (remaining <= 0) {
-        clearInterval(intervalId);
+    const intervalId = window.setInterval(() => {
+      if (Date.now() >= (maintenanceEndsAt ?? 0)) {
+        window.clearInterval(intervalId);
         onCountdownComplete?.();
       }
-    };
+    }, 1000);
 
-    intervalId = window.setInterval(tick, 1000);
-    return () => clearInterval(intervalId);
+    return () => window.clearInterval(intervalId);
   }, [hasSchedule, maintenanceEndsAt, onCountdownComplete]);
-
-  const paddedHours = String(countdown.hours).padStart(2, '0');
-  const paddedMinutes = String(countdown.minutes).padStart(2, '0');
-  const paddedSeconds = String(countdown.seconds).padStart(2, '0');
-  const maintenanceEndLabel = maintenanceEnd
-    ? maintenanceEnd.toLocaleString('fr-FR', {
-        dateStyle: 'full',
-        timeStyle: 'short',
-      })
-    : null;
 
   return (
     <div className="maintenance-page">
       <div className="maintenance-box">
-        <span className="maintenance-pill">Maintenance en cours</span>
-        <h1>Plateforme temporairement indisponible</h1>
-        <p>
-          Les votes et l&apos;accès public sont momentanément suspendus .
-          Nous remercions tout les votants qui ont participé avec enthousiasme et soutien envers les candidats durant cette phase de pré-selection.
-
-          Le site redeviendra accessible automatiquement dès le lancement des prochaines votes. MERCI de votre compréhension et à très bientôt pour la suite du concours Miss & Mister University Benin!
-        </p>
-
-        <div className="maintenance-countdown-shell">
-          <div className="hero-card-main maintenance-countdown-card">
-            <div className="hcm-top">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="#D4AF37" strokeWidth="1.5" fill="rgba(212,175,55,0.12)"/>
-              </svg>
-              <span>Temps restant avant la reprise</span>
-            </div>
-
-            <div className="hcm-stats-row">
-              <div className="hcm-stat">
-                <strong>{hasSchedule ? countdown.days : '--'}</strong>
-                <span>Jours</span>
-              </div>
-              <div className="hcm-divider" />
-              <div className="hcm-stat">
-                <strong>{hasSchedule ? paddedHours : '--'}</strong>
-                <span>Heures</span>
-              </div>
-              <div className="hcm-divider" />
-              <div className="hcm-stat">
-                <strong>{hasSchedule ? `${paddedMinutes}:${paddedSeconds}` : '--:--'}</strong>
-                <span>Min : Sec</span>
-              </div>
-            </div>
-
-            <div className="hcm-progress-wrap">
-              <div className="hcm-progress-label">
-                <span>Reouverture du site</span>
-                <span className="text-gold">{hasSchedule ? `${countdown.percentLeft}%` : '--'}</span>
-              </div>
-              <div className="hcm-progress-bar">
-                <div className="hcm-progress-fill" style={{ width: hasSchedule ? `${countdown.percentLeft}%` : '0%' }} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <p className="maintenance-meta">
-          {maintenanceEndLabel
-            ? `Reprise prévue le ${maintenanceEndLabel}.`
-            : 'La date de reprise n’a pas encore été renseignée.'}
-        </p>
+        <h1>Mode maintenance</h1>
       </div>
     </div>
   );

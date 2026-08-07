@@ -24,7 +24,9 @@ class FedapayVoteReconciliationService
 
         $issue = 'ok';
 
-        if ($paymentMatch['match_type'] === 'fuzzy') {
+        if ($this->isBilletterieTransaction($remoteTransaction) || ($payment && $this->isBilletteriePayment($payment))) {
+            $issue = 'ok';
+        } elseif ($paymentMatch['match_type'] === 'fuzzy') {
             $issue = 'local_missing_payment_fuzzy_match';
         } elseif (! $payment) {
             $issue = 'local_missing_payment';
@@ -127,6 +129,26 @@ class FedapayVoteReconciliationService
             'vote_created' => $voteCreated,
             'vote_confirmed' => $voteConfirmed,
         ]);
+    }
+
+    private function isBilletterieTransaction(array $remoteTransaction): bool
+    {
+        return strtolower((string) (
+            data_get($remoteTransaction, 'custom_metadata.type')
+            ?: data_get($remoteTransaction, 'metadata.type')
+            ?: data_get($remoteTransaction, 'data.custom_metadata.type')
+            ?: ''
+        )) === 'billetterie';
+    }
+
+    private function isBilletteriePayment(Payment $payment): bool
+    {
+        return strtolower((string) (
+            data_get($payment->meta, 'type')
+            ?: data_get($payment->payload, 'custom_metadata.type')
+            ?: data_get($payment->payload, 'fedapay.custom_metadata.type')
+            ?: ''
+        )) === 'billetterie';
     }
 
     private function locatePayment(array $remoteTransaction): array

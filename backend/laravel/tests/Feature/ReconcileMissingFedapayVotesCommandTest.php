@@ -68,6 +68,74 @@ class ReconcileMissingFedapayVotesCommandTest extends TestCase
         $this->assertSame($payment->reference, data_get($vote->meta, 'reconciliation.reference'));
     }
 
+    public function test_command_does_not_flag_billetterie_transactions_as_missing_votes(): void
+    {
+        $payment = Payment::query()->create([
+            'provider' => 'fedapay',
+            'reference' => 'BILLET12345',
+            'transaction_id' => '987653',
+            'amount' => 100,
+            'currency' => 'XOF',
+            'status' => Payment::STATUS_SUCCEEDED,
+            'meta' => ['quantity' => 1, 'ip' => '127.0.0.1'],
+            'payload' => [
+                'fedapay' => [
+                    'custom_metadata' => [
+                        'type' => 'billetterie',
+                        'event_id' => 2,
+                        'event_name' => 'SOIRÉE DE COURONNEMENT',
+                    ],
+                ],
+            ],
+        ]);
+
+        $mock = Mockery::mock(FedaPayService::class);
+        $mock->shouldReceive('searchTransactions')
+            ->once()
+            ->andReturn([$this->remoteBilletterieTransaction($payment->reference, $payment->transaction_id, $payment->amount)]);
+        $mock->shouldReceive('environment')->andReturn('live');
+        $mock->shouldReceive('apiBaseUrl')->andReturn('https://api.fedapay.com/v1');
+        $this->app->instance(FedaPayService::class, $mock);
+
+        $this->artisan('payments:reconcile-missing-fedapay-votes', [
+            '--pages' => 1,
+            '--per-page' => 10,
+            '--apply' => true,
+        ])
+            ->expectsOutputToContain('Aucun ecart detecte.')
+            ->assertExitCode(0);
+
+        $payment->refresh();
+
+        $this->assertNull($payment->vote);
+        $this->assertSame(Payment::STATUS_SUCCEEDED, $payment->status);
+    }
+
+    private function remoteBilletterieTransaction(string $reference, string $transactionId, float $amount): array
+    {
+        return [
+            'id' => $transactionId,
+            'status' => 'transferred',
+            'amount' => $amount,
+            'currency' => [
+                'iso' => 'XOF',
+            ],
+            'merchant_reference' => $reference,
+            'description' => 'Paiement sécurisé Miss & Mister',
+            'approved_at' => now()->toIso8601String(),
+            'custom_metadata' => [
+                'payment_reference' => $reference,
+                'type' => 'billetterie',
+                'event_id' => 2,
+                'event_name' => 'SOIRÉE DE COURONNEMENT',
+                'holder_name' => 'ADE',
+                'holder_email' => 'djossegaston7@gmail.com',
+                'provider' => 'fedapay',
+                'quantity' => 1,
+            ],
+        ];
+    }
+
     private function seedPendingPaymentAndVote(): array
     {
         $category = Category::query()->create([

@@ -119,14 +119,23 @@ Les variables sensibles a renseigner manuellement :
 - `FEDAPAY_PUBLIC_KEY`
 - `FEDAPAY_SECRET_KEY`
 - `FEDAPAY_WEBHOOK_SECRET`
-- `FEDAPAY_WEBHOOK_ASYNC` (recommande: `true`)
+- `FEDAPAY_WEBHOOK_ASYNC` (recommande: `false`)
 - `FEDAPAY_WEBHOOK_QUEUE` (recommande: `default`)
+- `FEDAPAY_READ_MODEL_WARM_ENABLED` (recommande: `true`)
 - `PROD_ADMIN_PASSWORD`
 - `STAFF_ADMIN_PASSWORD`
 
-### Cron recommande
+### Cron obligatoire pour la validation automatique des votes
 
-Si tu veux garder les taches Laravel disponibles sur LWS :
+Le webhook FedaPay (`/api/payment/webhook`) confirme les votes de facon
+**synchrone** dans la requete : le vote passe automatiquement a `confirmed`
+des que FedaPay notifie le paiement (aucun worker requis).
+
+En complement, la commande `payments:reconcile-fedapay` est le filet de securite :
+elle recontrole les paiements FedaPay en attente et repare les votes non
+synchronises. Elle DOIT etre planifiee via le scheduler Laravel. Sans ce cron,
+les votes dont le webhook n'est pas arrive (delai, panne temporaire, etc.)
+restent bloques a `pending` et doivent etre valides manuellement.
 
 ```bash
 php /chemin/vers/backend/laravel/artisan schedule:run >> /dev/null 2>&1
@@ -135,6 +144,12 @@ php /chemin/vers/backend/laravel/artisan schedule:run >> /dev/null 2>&1
 Frequence recommandee :
 
 - toutes les 1 minute
+
+Le scheduler execute notamment (voir `app/Console/Kernel.php`) :
+
+- `payments:reconcile-fedapay` toutes les minutes (reconciliation FedaPay)
+- `CalculateResultsJob` toutes les heures (calcul des resultats)
+- `DetectFraudJob` toutes les 15 minutes (detection de fraude)
 
 ### Queue worker recommande
 
@@ -190,6 +205,18 @@ Webhook backend attendu :
 ```text
 https://api.votre-domaine.com/api/payment/webhook
 ```
+
+Le webhook est traite de facon **synchrone** : la validation du vote (statut
+`confirmed`) est faite avant la reponse 200 a FedaPay. Si le traitement echoue,
+le serveur repond 500 et FedaPay reessaie automatiquement plus tard.
+
+Dans le dashboard FedaPay, verifie que :
+
+- l'URL du webhook est exactement celle ci-dessus (avec le secret webhook
+  correspondant a `FEDAPAY_WEBHOOK_SECRET`)
+- le secret webhook du dashboard est identique a celui du serveur, sinon tous
+  les webhooks sont rejetes avec un 401 et aucun vote n'est confirme
+  automatiquement
 
 ## 5. Architecture recommandee
 

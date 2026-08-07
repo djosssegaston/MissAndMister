@@ -100,6 +100,8 @@ class PaymentPageController extends Controller
             ->firstOrFail();
         $payment = $this->synchronizeForCallback($payment);
 
+        $this->payments->scheduleWarmPaymentStateForReadModels();
+
         $frontendUrl = rtrim((string) (config('app.frontend_url') ?: config('app.frontend-url', '')), '/');
         $candidateId = (int) (Arr::get($payment->meta, 'candidate_id') ?: $payment->vote?->candidate_id ?: 0);
         $candidateIdentifier = trim((string) ($payment->vote?->candidate?->public_uid ?? ''));

@@ -31,7 +31,10 @@ class FedapayWebhookService
             $payment = $this->paymentRepo->findByReference($reference);
         }
 
-        $shouldFetchRemoteTransaction = $transactionId !== null && (! $payment || $payloadStatus === '');
+        // Fetch the remote transaction whenever the webhook payload alone cannot
+        // clearly confirm the outcome (no status, or a status we don't recognize).
+        $shouldFetchRemoteTransaction = $transactionId !== null
+            && (! $payment || ! $this->statusIsRecognized($payloadStatus));
         if ($shouldFetchRemoteTransaction) {
             try {
                 $remoteTransaction = $this->fedapay->retrieveTransaction($transactionId);
@@ -39,6 +42,7 @@ class FedapayWebhookService
                 logger()->warning('FedaPay transaction lookup failed during webhook sync', [
                     'payment_id' => $payment?->id,
                     'transaction_id' => $transactionId,
+                    'status' => $payloadStatus !== '' ? $payloadStatus : null,
                     'error' => $exception->getMessage(),
                 ]);
             }
@@ -70,6 +74,29 @@ class FedapayWebhookService
         }
 
         $outcome = $this->resolveWebhookOutcome($payload, $remoteTransaction, $eventName);
+
+        // When the local payment has no vote but is (or will become) succeeded, fetch
+        // the remote transaction so the candidate can be restored from its data
+        // (custom_metadata / description) instead of leaving the vote uncounted.
+        if (
+            $payment
+            && ! $payment->vote
+            && $outcome === 'succeeded'
+            && $remoteTransaction === null
+            && $transactionId !== null
+        ) {
+            try {
+                $remoteTransaction = $this->fedapay->retrieveTransaction($transactionId);
+            } catch (\Throwable $exception) {
+                logger()->warning('FedaPay transaction lookup failed while restoring missing vote', [
+                    'payment_id' => $payment->id,
+                    'reference' => $payment->reference,
+                    'transaction_id' => $transactionId,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
         $updatedPayment = $this->applyOutcome($payment, $outcome, $remoteTransaction ?: $payload, $eventName);
 
         return [
@@ -108,7 +135,7 @@ class FedapayWebhookService
             ?: ''
         ));
 
-        $approvedIndicators = ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred'];
+        $approvedIndicators = ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred', 'complete', 'completed', 'credited', 'validated'];
         $failureIndicators = ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected', 'refunded'];
         $processingIndicators = ['pending', 'processing', 'created', 'initiated'];
 
@@ -118,6 +145,8 @@ class FedapayWebhookService
             || str_contains($eventName, 'success')
             || str_contains($eventName, 'paid')
             || str_contains($eventName, 'transferred')
+            || str_contains($eventName, 'complete')
+            || str_contains($eventName, 'validated')
         ) {
             return 'succeeded';
         }
@@ -155,6 +184,12 @@ class FedapayWebhookService
             data_get($payload, 'data.object.status'),
             data_get($payload, 'data.transaction.status'),
             data_get($payload, 'transaction.status'),
+            data_get($payload, 'data.attributes.status'),
+            data_get($payload, 'data.entity.attributes.status'),
+            data_get($payload, 'data.object.attributes.status'),
+            data_get($payload, 'data.transaction.attributes.status'),
+            data_get($payload, 'event.data.status'),
+            data_get($payload, 'event.data.attributes.status'),
         ];
 
         foreach ($candidates as $candidate) {
@@ -165,5 +200,16 @@ class FedapayWebhookService
         }
 
         return '';
+    }
+
+    private function statusIsRecognized(string $status): bool
+    {
+        $recognized = array_merge(
+            ['approved', 'succeeded', 'successful', 'success', 'paid', 'transferred', 'complete', 'completed', 'credited', 'validated'],
+            ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected', 'refunded'],
+            ['pending', 'processing', 'created', 'initiated'],
+        );
+
+        return in_array($status, $recognized, true);
     }
 }
