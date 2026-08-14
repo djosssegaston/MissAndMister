@@ -16,6 +16,7 @@ DRY_RUN=0
 RUN_BOOTSTRAP=0
 SKIP_HEALTH_CHECK=0
 SKIP_MIGRATIONS=0
+SKIP_CRON=0
 
 usage() {
     cat <<'EOF'
@@ -26,6 +27,7 @@ Options:
   --bootstrap-production   Run php artisan app:bootstrap-production on LWS after sync
   --skip-migrations        Skip php artisan migrate --force on LWS
   --skip-health-check      Skip HTTP checks after deployment
+  --skip-cron              Skip installation of the schedule:run cron on LWS
   --help                   Show this help
 
 Environment overrides:
@@ -51,6 +53,9 @@ while (($# > 0)); do
             ;;
         --skip-health-check)
             SKIP_HEALTH_CHECK=1
+            ;;
+        --skip-cron)
+            SKIP_CRON=1
             ;;
         --help|-h)
             usage
@@ -161,6 +166,27 @@ fi
 
 if [[ "$RUN_BOOTSTRAP" -eq 1 ]]; then
     REMOTE_COMMANDS+=("$LWS_PHP_BIN artisan app:bootstrap-production")
+fi
+
+if [[ "$SKIP_CRON" -eq 0 ]]; then
+    # Filet de securite permanent : sans ce cron, les votes dont le webhook
+    # FedaPay n'arrive pas restent bloques a 'pending' (voir docs/DEPLOY_VERCEL_LWS.md).
+    # Idempotent : capture le crontab existant, ne re-ajoute pas de doublon,
+    # et preserve les autres lignes deja presentes.
+    LWS_CRON_LINE="* * * * * cd ${LWS_REMOTE_DIR} && ${LWS_PHP_BIN} artisan schedule:run >> /dev/null 2>&1"
+    LWS_CRON_GUARD="${LWS_REMOTE_DIR} && ${LWS_PHP_BIN} artisan schedule:run"
+    REMOTE_COMMANDS+=(
+        "install_lws_cron() {
+            cron=\"\$(crontab -l 2>/dev/null || true)\"
+            if printf '%s\\n' \"\$cron\" | grep -Fq '${LWS_CRON_GUARD}'; then
+                echo 'Cron schedule:run deja present.'
+            else
+                { printf '%s\\n' \"\$cron\"; printf '%s\\n' '${LWS_CRON_LINE}'; } | crontab -
+                echo 'Cron schedule:run installe.'
+            fi
+        }
+        install_lws_cron"
+    )
 fi
 
 echo "Running post-deploy Laravel commands on LWS"

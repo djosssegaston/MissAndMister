@@ -13,14 +13,14 @@ class ReconcileFedapayPayments extends Command
      *
      * @var string
      */
-    protected $signature = 'payments:reconcile-fedapay {--limit=200 : Nombre maximum de paiements a verifier par passe} {--recent-hours=2160 : Anciennete maximale des paiements echoues a recontroler} {--passes=1 : Nombre maximum de passes consecutives a executer}';
+    protected $signature = 'payments:reconcile-fedapay {--limit=500 : Nombre maximum de paiements a verifier par passe} {--recent-hours=87600 : Anciennete maximale des paiements echoues a recontroler (87600h = 10 ans, tous)} {--passes=1 : Nombre maximum de passes consecutives a executer}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Recontrole les paiements FedaPay recents et repare les votes non synchronises';
+    protected $description = 'Recontrole les paiements FedaPay (recente et anciens bloques) et repare les votes non synchronises';
 
     /**
      * Execute the console command.
@@ -43,7 +43,7 @@ class ReconcileFedapayPayments extends Command
 
         for ($pass = 1; $pass <= $passes; $pass++) {
             $stats = $payments->reconcileUnsettledFedapayPayments($limit, $recentHours);
-            $payments->reconcileSuccessfulAssociations(max($limit * 2, 250));
+            $payments->reconcileSuccessfulAssociations(max($limit, 100));
 
             foreach (array_keys($totals) as $key) {
                 $totals[$key] += (int) ($stats[$key] ?? 0);

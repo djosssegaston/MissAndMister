@@ -2,10 +2,9 @@
 
 namespace App\Jobs;
 
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
-class SendVoteConfirmationJob implements ShouldQueue
+class SendVoteConfirmationJob
 {
     use Queueable;
 

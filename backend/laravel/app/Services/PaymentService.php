@@ -27,6 +27,8 @@ class PaymentService
 
     private const DEFAULT_RECONCILE_RECENT_HOURS = 2160;
 
+    private const MAX_MISSING_VOTE_RESTORE_ATTEMPTS = 3;
+
     private const RECONCILE_STATUSES = ['initiated', 'processing', 'pending'];
 
     private const FAILURE_STATUSES = ['canceled', 'cancelled', 'declined', 'failed', 'expired', 'rejected', 'refunded'];
@@ -195,6 +197,7 @@ class PaymentService
         Payment::query()
             ->with(['vote', 'user'])
             ->where('status', Payment::STATUS_SUCCEEDED)
+            ->whereNull('meta->reconcile_vote_stuck')
             ->where(function ($query) {
                 $query
                     ->whereNull('user_id')
@@ -209,7 +212,11 @@ class PaymentService
             ->orderBy('id')
             ->limit($limit)
             ->get()
-            ->each(function (Payment $payment): void {
+            ->each(function (Payment $payment): bool {
+                if ($this->reconciliationMemoryPressureExceeded()) {
+                    return false;
+                }
+
                 try {
                     $this->reconcileSuccessfulPayment($payment);
                 } catch (\Throwable $exception) {
@@ -219,6 +226,8 @@ class PaymentService
                         'error' => $exception->getMessage(),
                     ]);
                 }
+
+                return true;
             });
     }
 
@@ -228,7 +237,7 @@ class PaymentService
         int $recentHours = self::DEFAULT_RECONCILE_RECENT_HOURS,
     ): void {
         $this->reconcileUnsettledFedapayPaymentsIfDue($limit, $cooldownSeconds, $recentHours);
-        $this->reconcileSuccessfulAssociations(max($limit * 4, 250));
+        $this->reconcileSuccessfulAssociations(max($limit * 2, 100));
     }
 
     public function scheduleWarmPaymentStateForReadModels(
@@ -251,7 +260,7 @@ class PaymentService
         app()->terminating(function () use ($limit, $cooldownSeconds, $recentHours): void {
             try {
                 $this->reconcileUnsettledFedapayPaymentsIfDue($limit, $cooldownSeconds, $recentHours);
-                $this->reconcileSuccessfulAssociations(max($limit * 2, 50));
+                $this->reconcileSuccessfulAssociations(max($limit, 25));
             } catch (\Throwable $exception) {
                 logger()->warning('Deferred payment read-model warm failed', [
                     'error' => $exception->getMessage(),
@@ -304,6 +313,7 @@ class PaymentService
             ->with(['vote', 'user'])
             ->where('provider', 'fedapay')
             ->whereNotNull('transaction_id')
+            ->whereNull('meta->reconcile_vote_stuck')
             ->where(function ($query) use ($recentHours) {
                 $query
                     ->whereIn('status', self::RECONCILE_STATUSES)
@@ -399,19 +409,74 @@ class PaymentService
     private function shouldRetryMissingVoteRestore(Payment $payment): bool
     {
         $lastAttempt = (int) data_get($payment->meta, 'reconcile_vote_attempt_at', 0);
+        $attemptCount = (int) data_get($payment->meta, 'reconcile_vote_attempt_count', 0);
+
+        if ($attemptCount >= self::MAX_MISSING_VOTE_RESTORE_ATTEMPTS) {
+            return false;
+        }
 
         return $lastAttempt <= 0 || (now()->timestamp - $lastAttempt) >= 900;
     }
 
     private function markVoteRestoreAttempted(Payment $payment): void
     {
+        $attemptCount = (int) data_get($payment->meta, 'reconcile_vote_attempt_count', 0);
+
         $payment->update([
             'meta' => array_merge((array) ($payment->meta ?? []), [
                 'reconcile_vote_attempt_at' => now()->timestamp,
+                'reconcile_vote_attempt_count' => $attemptCount + 1,
             ]),
         ]);
 
         $payment->refresh();
+    }
+
+    private function markUnresolvableVoteForManualReview(Payment $payment): void
+    {
+        $attemptCount = (int) data_get($payment->meta, 'reconcile_vote_attempt_count', 0);
+
+        if ($attemptCount < self::MAX_MISSING_VOTE_RESTORE_ATTEMPTS) {
+            return;
+        }
+
+        $meta = array_merge((array) ($payment->meta ?? []), [
+            'reconcile_vote_stuck' => true,
+            'reconcile_vote_stuck_at' => now()->timestamp,
+        ]);
+
+        if (($payment->meta ?? []) !== $meta) {
+            $payment->update(['meta' => $meta]);
+            $payment->refresh();
+        }
+    }
+
+    private function reconciliationMemoryPressureExceeded(): bool
+    {
+        $memoryLimit = $this->memoryLimitInBytes();
+        if ($memoryLimit <= 0) {
+            return false;
+        }
+
+        return memory_get_usage(true) > (int) ($memoryLimit * 0.7);
+    }
+
+    private function memoryLimitInBytes(): int
+    {
+        $limit = trim((string) ini_get('memory_limit'));
+        if ($limit === '' || $limit === '-1') {
+            return 0;
+        }
+
+        $value = (int) $limit;
+        $multiplier = match (strtolower(substr($limit, -1))) {
+            'g' => 1024 * 1024 * 1024,
+            'm' => 1024 * 1024,
+            'k' => 1024,
+            default => 1,
+        };
+
+        return $value * $multiplier;
     }
 
     public function syncPaymentWithProvider(Payment $payment, ?array $remoteTransaction = null, ?string $source = null): Payment
@@ -745,9 +810,12 @@ class PaymentService
         $candidateId = $this->resolveRestorableCandidateId($candidateId, $payment, $forcedCandidateId !== null, $remotePayload);
 
         if ($candidateId <= 0) {
+            $this->markUnresolvableVoteForManualReview($payment);
+
             logger()->warning('Succeeded payment cannot restore vote without candidate', [
                 'payment_id' => $payment->id,
                 'reference' => $payment->reference,
+                'stuck' => data_get($payment->meta, 'reconcile_vote_stuck', false),
             ]);
 
             return $payment->fresh(['vote', 'user']);

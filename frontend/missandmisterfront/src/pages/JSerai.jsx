@@ -24,107 +24,7 @@ const clearSession = () => {
   try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
 };
 
-const StepIndicator = ({ current }) => (
-  <div className="jserai-steps">
-    {[
-      { num: 1, label: 'Identité' },
-      { num: 2, label: 'Contact' },
-      { num: 3, label: 'Photo' },
-    ].map((s) => (
-      <div key={s.num} className={`jserai-step ${current === s.num ? 'active' : current > s.num ? 'done' : ''}`}>
-        <div className="jserai-step-num">{current > s.num ? '✓' : s.num}</div>
-        <span className="jserai-step-label">{s.label}</span>
-      </div>
-    ))}
-  </div>
-);
-
-/* ──────────────────────────── STEP 1: Name ──────────────────────────── */
-const Step1Name = ({ data, onNext }) => {
-  const [firstName, setFirstName] = useState(data.firstName || '');
-  const [lastName, setLastName] = useState(data.lastName || '');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    if (!firstName.trim()) { setError('Le prénom est obligatoire.'); return; }
-    if (!lastName.trim()) { setError('Le nom est obligatoire.'); return; }
-    setLoading(true);
-    try {
-      const result = await jseraiAPI.create({ first_name: firstName.trim(), last_name: lastName.trim() });
-      saveSession({ uuid: result.uuid, editToken: result.edit_token, firstName: firstName.trim(), lastName: lastName.trim() });
-      onNext({ ...data, uuid: result.uuid, editToken: result.edit_token, firstName: firstName.trim(), lastName: lastName.trim() });
-    } catch (err) {
-      setError(err.message || 'Une erreur est survenue.');
-    } finally { setLoading(false); }
-  };
-
-  return (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-      <form onSubmit={handleSubmit} className="jserai-form">
-        <h2>Qui êtes-vous ?</h2>
-        <p className="jserai-subtitle">Renseignez votre identité pour commencer</p>
-        <div className="jserai-field">
-          <label>Prénom</label>
-          <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Votre prénom" disabled={loading} autoFocus />
-        </div>
-        <div className="jserai-field">
-          <label>Nom</label>
-          <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Votre nom" disabled={loading} />
-        </div>
-        {error && <p className="jserai-error">{error}</p>}
-        <button type="submit" className="jserai-btn jserai-btn-primary" disabled={loading}>
-          {loading ? 'Chargement...' : 'Continuer'}
-        </button>
-      </form>
-    </motion.div>
-  );
-};
-
-/* ──────────────────────────── STEP 2: Contact ──────────────────────────── */
-const Step2Contact = ({ data, onNext, onBack }) => {
-  const [phone, setPhone] = useState(data.phone || '');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    if (!phone.trim()) { setError('Le numéro de téléphone est obligatoire.'); return; }
-    setLoading(true);
-    try {
-      await jseraiAPI.update(data.uuid, { phone: phone.trim() }, data.editToken);
-      saveSession({ ...loadSession(), phone: phone.trim() });
-      onNext({ ...data, phone: phone.trim() });
-    } catch (err) {
-      setError(err.message || 'Une erreur est survenue.');
-    } finally { setLoading(false); }
-  };
-
-  return (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-      <form onSubmit={handleSubmit} className="jserai-form">
-        <h2>Vos coordonnées</h2>
-        <p className="jserai-subtitle">Ces informations seront affichées sur votre affiche</p>
-        <div className="jserai-field">
-          <label>Téléphone <span className="jserai-required">*</span></label>
-          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+229 XX XX XX XX" disabled={loading} autoFocus />
-        </div>
-        {error && <p className="jserai-error">{error}</p>}
-        <div className="jserai-actions">
-          <button type="button" className="jserai-btn jserai-btn-ghost" onClick={onBack} disabled={loading}>Retour</button>
-          <button type="submit" className="jserai-btn jserai-btn-primary" disabled={loading}>
-            {loading ? 'Chargement...' : 'Continuer'}
-          </button>
-        </div>
-      </form>
-    </motion.div>
-  );
-};
-
-/* ──────────────────────────── STEP 3: Photo + Poster ──────────────────────────── */
+/* ──────────────────────────── STEP 1: Photo + Poster ──────────────────────────── */
 const loadHTMLImage = (url) => new Promise((resolve, reject) => {
   const img = new Image();
   img.crossOrigin = 'anonymous';
@@ -133,7 +33,7 @@ const loadHTMLImage = (url) => new Promise((resolve, reject) => {
   img.src = url;
 });
 
-const Step3Photo = ({ data, onNext, onBack }) => {
+const Step3Photo = ({ data, onNext }) => {
   const fileInputRef = useRef(null);
   const cropperImageRef = useRef(null);
   const previewCanvasRef = useRef(null);
@@ -418,7 +318,9 @@ const Step3Photo = ({ data, onNext, onBack }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `j-y-serai-${data.firstName}-${data.lastName}.${format === 'jpg' ? 'jpg' : 'png'}`;
+      const nameParts = [data.firstName, data.lastName].filter(Boolean);
+      const baseName = nameParts.length > 0 ? `j-y-serai-${nameParts.join('-')}` : 'j-y-serai-affiche';
+      a.download = `${baseName}.${format === 'jpg' ? 'jpg' : 'png'}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -515,7 +417,6 @@ const Step3Photo = ({ data, onNext, onBack }) => {
         </div>
 
         <div className="jserai-actions">
-          <button type="button" className="jserai-btn jserai-btn-ghost" onClick={onBack} disabled={generating}>Retour</button>
           {posterReady && userPhotoUrl && (
             <button type="button" className="jserai-btn jserai-btn-primary" onClick={handleFinish} disabled={generating}>
               {generating ? 'Génération...' : 'Terminer'}
@@ -554,7 +455,7 @@ const PosterFinal = ({ data, onReset }) => {
 
 /* ──────────────────────────── MAIN ──────────────────────────── */
 const JSerai = () => {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(3);
   const [data, setData] = useState({
     firstName: '',
     lastName: '',
@@ -573,7 +474,7 @@ const JSerai = () => {
         setStep(4);
       } else if (session.uuid) {
         setData((prev) => ({ ...prev, ...session }));
-        setStep(session.phone ? 3 : 2);
+        setStep(3);
       }
     }
   }, []);
@@ -583,14 +484,10 @@ const JSerai = () => {
     setStep((s) => Math.min(s + 1, 4));
   }, []);
 
-  const handleBack = useCallback(() => {
-    setStep((s) => Math.max(s - 1, 1));
-  }, []);
-
   const handleReset = useCallback(() => {
     clearSession();
     setData({ firstName: '', lastName: '', phone: '', uuid: null, editToken: null, photoUrl: null, posterUrl: null });
-    setStep(1);
+    setStep(3);
   }, []);
 
   return (
@@ -600,12 +497,9 @@ const JSerai = () => {
           <h1>J'y serai</h1>
           <p>Créez votre affiche personnalisée et confirmez votre présence</p>
         </div>
-        {step < 4 && <StepIndicator current={step} />}
         <div className="jserai-content">
           <AnimatePresence mode="wait">
-            {step === 1 && <Step1Name key="step1" data={data} onNext={handleNext} />}
-            {step === 2 && <Step2Contact key="step2" data={data} onNext={handleNext} onBack={handleBack} />}
-            {step === 3 && <Step3Photo key="step3" data={data} onNext={handleNext} onBack={handleBack} />}
+            {step === 3 && <Step3Photo key="step3" data={data} onNext={handleNext} />}
             {step === 4 && <PosterFinal key="final" data={data} onReset={handleReset} />}
           </AnimatePresence>
         </div>

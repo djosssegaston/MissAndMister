@@ -8,7 +8,9 @@ use App\Models\Payment;
 use App\Models\Vote;
 use App\Services\FedaPayService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Mockery;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\TestCase;
 
 class AuditFedapayCandidateConflictsCommandTest extends TestCase
@@ -41,15 +43,19 @@ class AuditFedapayCandidateConflictsCommandTest extends TestCase
         $mock->shouldReceive('apiBaseUrl')->andReturn('https://api.fedapay.com/v1');
         $this->app->instance(FedaPayService::class, $mock);
 
-        $this->artisan('payments:audit-fedapay-candidate-conflicts', [
+        $output = new BufferedOutput;
+        $exitCode = Artisan::call('payments:audit-fedapay-candidate-conflicts', [
             '--pages' => 1,
             '--per-page' => 10,
             '--reference' => [$payment->reference],
-        ])
-            ->expectsOutputToContain($payment->reference)
-            ->expectsOutputToContain($localCandidate->first_name.' '.$localCandidate->last_name)
-            ->expectsOutputToContain($remoteCandidate->first_name.' '.$remoteCandidate->last_name)
-            ->assertExitCode(0);
+        ], $output);
+
+        $rendered = $output->fetch();
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString($payment->reference, $rendered);
+        $this->assertStringContainsString($localCandidate->first_name.' '.$localCandidate->last_name, $rendered);
+        $this->assertStringContainsString($remoteCandidate->first_name.' '.$remoteCandidate->last_name, $rendered);
 
         $payment->refresh();
         $vote->refresh();

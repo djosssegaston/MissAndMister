@@ -138,18 +138,41 @@ les votes dont le webhook n'est pas arrive (delai, panne temporaire, etc.)
 restent bloques a `pending` et doivent etre valides manuellement.
 
 ```bash
-php /chemin/vers/backend/laravel/artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /chemin/vers/backend/laravel && php artisan schedule:run >> /dev/null 2>&1
 ```
+
+**Installation automatique** : `scripts/deploy-lws.sh` installe ce cron sur LWS
+a chaque deploiement (idempotent, ne cree pas de doublon, conserve les autres
+lignes du crontab). Desactivation : `--skip-cron`. Pour l'installer seul sans
+redeployer, lancer `scripts/install-cron-lws.sh`.
 
 Frequence recommandee :
 
 - toutes les 1 minute
 
-Le scheduler execute notamment (voir `app/Console/Kernel.php`) :
+Le scheduler execute notamment (voir `bootstrap/app.php`) :
 
 - `payments:reconcile-fedapay` toutes les minutes (reconciliation FedaPay)
+- `payments:reconcile-missing-fedapay-votes --apply` toutes les 5 minutes (filet
+  ultime : interroge FedaPay et compte automatiquement tous les votes payes et
+  confirmes chez FedaPay, meme sans webhook ni paiement local)
 - `CalculateResultsJob` toutes les heures (calcul des resultats)
 - `DetectFraudJob` toutes les 15 minutes (detection de fraude)
+
+### Fiabilite du webhook FedaPay (externalise)
+
+Pour que le webhook arrive a coup sur, verifier hors code :
+
+1. **Dashboard FedaPay > Webhooks** : URL =
+   `https://api.missmisteruniversitybenin.com/api/payment/webhook`,
+   methode `POST`, et secret de signature = `FEDAPAY_WEBHOOK_SECRET` du `.env`.
+   Consulter le journal de livraison : un HTTP non-2xx, un timeout ou une reponse
+   HTML signifie que le webhook est perdu.
+2. **Protection DDoS de l'hebergeur LWS** : elle peut intercepter les POST de
+   FedaPay et repondre une page HTML (« Checking your browser »). Ajouter les IP
+   de FedaPay a la liste blanche (ou desactiver le challenge) pour
+   `/api/payment/webhook`. Sans cela, seule la reconciliation (cron) rattrape
+   les votes, avec un delai.
 
 ### Queue worker recommande
 

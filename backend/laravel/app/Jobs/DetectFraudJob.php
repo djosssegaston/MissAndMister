@@ -2,10 +2,9 @@
 
 namespace App\Jobs;
 
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
-class DetectFraudJob implements ShouldQueue
+class DetectFraudJob
 {
     use Queueable;
 

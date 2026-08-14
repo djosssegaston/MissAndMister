@@ -238,6 +238,42 @@ class MissingVoteRestoreTest extends TestCase
         $this->assertNull($payment->vote);
     }
 
+    public function test_unresolvable_missing_vote_is_marked_stuck_after_attempts_are_exhausted(): void
+    {
+        $payment = $this->seedSucceededPaymentWithoutVote('tx_stuck_1');
+
+        Http::fake([
+            'https://sandbox-api.fedapay.com/v1/transactions/tx_stuck_1' => Http::response([
+                'id' => 'tx_stuck_1',
+                'status' => 'transferred',
+                'merchant_reference' => $payment->reference,
+                'description' => 'Paiement securise Miss & Mister',
+                'custom_metadata' => [],
+            ], 200),
+        ]);
+
+        config()->set('services.fedapay.secret_key', 'sk_test');
+        config()->set('services.fedapay.environment', 'sandbox');
+
+        for ($run = 1; $run <= 3; $run++) {
+            $this->artisan('payments:reconcile-fedapay', ['--limit' => 10])->assertExitCode(0);
+            $this->travel(900)->seconds();
+        }
+
+        $payment->refresh();
+        $this->assertSame(3, (int) data_get($payment->meta, 'reconcile_vote_attempt_count'));
+
+        $this->artisan('payments:reconcile-fedapay', ['--limit' => 10])->assertExitCode(0);
+
+        $payment->refresh();
+        $this->assertTrue((bool) data_get($payment->meta, 'reconcile_vote_stuck'));
+        $this->assertNull($payment->vote);
+
+        $this->artisan('payments:reconcile-fedapay', ['--limit' => 10])->assertExitCode(0);
+
+        Http::assertSentCount(3);
+    }
+
     private function seedSucceededPaymentWithoutVote(string $transactionId): Payment
     {
         $candidate = $this->candidate();

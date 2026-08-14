@@ -2,6 +2,7 @@
 
 use App\Console\Commands\BackupDatabase;
 use App\Console\Commands\ReconcileFedapayPayments;
+use App\Console\Commands\ReconcileMissingFedapayVotes;
 use App\Jobs\CalculateResultsJob;
 use App\Jobs\DetectFraudJob;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -25,9 +26,25 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->job(new CalculateResultsJob)->hourly();
         $schedule->job(new DetectFraudJob)->everyFifteenMinutes();
-        $schedule->command(ReconcileFedapayPayments::class, ['--limit' => 50, '--recent-hours' => 2160])
+        // Reconcile rapide : recent-hours=87600 (10 ans) inclut aussi les vieux
+        // paiements 'failed' qui, sans cela, resteraient bloques hors de la fenetre
+        // de 90 jours et ne seraient jamais recontroles par cette commande.
+        $schedule->command(ReconcileFedapayPayments::class, ['--limit' => 100, '--recent-hours' => 87600])
             ->everyMinute()
             ->withoutOverlapping();
+        // Filet de securite ultime : reinterroge FedaPay et compte automatiquement
+        // tous les votes payes et confirmes chez FedaPay, y compris ceux dont le
+        // webhook n'est jamais arrive et ceux dont le paiement local n'existe pas.
+        // Sans effet si FedaPay n'est pas configure (environnement de test local).
+        $schedule->command(ReconcileMissingFedapayVotes::class, [
+            '--apply' => true,
+            '--limit' => 100,
+            '--pages' => 10,
+            '--per-page' => 100,
+        ])
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->when(fn () => filled(config('services.fedapay.secret_key')));
         $schedule->command(BackupDatabase::class)->dailyAt('02:00');
         $schedule->command('queue:prune-batches')->daily();
         $schedule->command('model:prune', ['--model' => 'App\\Models\\ActivityLog'])->daily();

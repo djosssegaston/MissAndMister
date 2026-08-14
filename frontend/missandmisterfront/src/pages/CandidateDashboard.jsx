@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { authAPI, candidateAPI } from '../services/api';
 import { formatCandidatePublicNumber } from '../utils/candidatePublic';
-import { NO_AUTO_REFRESH_INTERVAL_MS, useAutoRefresh } from '../utils/liveUpdates';
+import { useAutoRefresh } from '../utils/liveUpdates';
+
+const CANDIDATE_DASHBOARD_REFRESH_MS = 20000;
 import './CandidateDashboard.css';
 
 const MiniChart = ({ data }) => {
@@ -105,10 +107,12 @@ const CandidateDashboard = () => {
 
   useAutoRefresh(loadDashboard, {
     enabled: canLoad,
-    intervalMs: NO_AUTO_REFRESH_INTERVAL_MS,
-    refreshOnFocus: false,
-    refreshOnLiveUpdate: false,
-    refreshOnStorage: false,
+    intervalMs: CANDIDATE_DASHBOARD_REFRESH_MS,
+    minGapMs: 10000,
+    refreshOnFocus: true,
+    refreshOnLiveUpdate: true,
+    refreshOnStorage: true,
+    allowedScopes: ['votes', 'global'],
   });
 
   const retryLoadDashboard = async () => {
